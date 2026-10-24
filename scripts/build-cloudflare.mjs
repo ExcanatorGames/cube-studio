@@ -1,0 +1,15 @@
+import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {generateIcons} from './icons.mjs';
+import {readPrivateSeed} from './private-seed.mjs';
+const out='dist/cloudflare',shell=['index.html','style.css','dark.css','app.js','core.js','cube.js','split-charts.js','solve-feedback.js','pwa.js','connect.js','manifest.webmanifest'];
+await mkdir(`${out}/public`,{recursive:true});
+for(const file of shell)await cp(`web/${file}`,`${out}/public/${file}`);
+await generateIcons(`${out}/public/icons`);
+const hash=createHash('sha256');for(const file of [...shell,'sw.js'])hash.update(await readFile(`web/${file}`));hash.update(await readFile('scripts/icons.mjs'));
+const version=hash.digest('hex').slice(0,16);
+await writeFile(`${out}/public/sw.js`,(await readFile('web/sw.js','utf8')).replace('__VERSION__',version));
+await writeFile(`${out}/public/_headers`,'/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: same-origin\n/sw.js\n  Cache-Control: no-cache\n/manifest.webmanifest\n  Cache-Control: no-cache\n');
+const worker=await readFile('worker/index.js','utf8'),seed=await readPrivateSeed();
+await writeFile(`${out}/api.js`,worker.replace('/* SEED */ []',JSON.stringify(seed)));
+console.log(`Cloudflare build ${version}: static PWA + private D1 API`);

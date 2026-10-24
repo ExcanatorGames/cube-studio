@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="color-scheme" content="dark"><style>html{color-scheme:dark;background:#10141c;color:#d6deeb}</style>
+ <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#10141c">
+ <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Cube Studio">
+ <meta name="description" content="Cube timer, step splits and solve history."><title>Cube Studio</title>
+ <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-180.png">
+ <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/dark.css">
+</head>
+<body>
+<aside class="sidebar">
+ <a class="brand" href="/" aria-label="Cube Studio home"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>cube<span class="light">studio</span></span></a>
+ <nav aria-label="Main navigation">
+  <button data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true">◷</span>Timer</button>
+  <button data-page="history" class="nav" aria-label="History"><span aria-hidden="true">☷</span>History</button>
+  <button data-page="insights" class="nav" aria-label="Insights"><span aria-hidden="true">↗</span>Insights</button>
+ </nav>
+ <div class="side-bottom">
+  <button id="open-import" class="nav" aria-label="Import CSV"><span aria-hidden="true">↥</span>Import</button>
+  <button id="open-settings" class="nav" aria-label="Settings"><span aria-hidden="true">⚙</span>Settings</button>
+ </div>
+</aside>
+<main>
+ <header class="app-bar">
+  <h1 id="page-title" class="sr-only">Timer</h1>
+  <span class="puzzle-label" aria-label="3 by 3 by 3 cube">3 × 3</span>
+  <span id="mobile-sync" role="status">Connecting…</span>
+  <button id="connect-sync" class="text-button" data-connect hidden>Connect ↗</button>
+  <button id="sync-mobile" class="icon-button" aria-label="Sync solves" title="Sync">↻</button>
+  <button id="export" class="icon-button" title="Export CSV" aria-label="Export CSV">↧</button>
+  <button id="install-app" class="text-button">Install <span id="app-status" class="sr-only"></span></button>
+ </header>
+ <section id="timer-page" class="page">
+  <div class="timer-layout">
+   <div class="timer-column">
+    <div class="scramble-card">
+     <div class="card-top"><span id="scramble-type" class="muted">Preparing…</span><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
+     <div id="scramble" class="scramble" aria-live="polite">…</div>
+    </div>
+    <div class="timer-card" id="timer-card">
+     <div class="timer-toolbar"><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button></div>
+     <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
+      <div class="timer-center">
+       <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble"></div>
+       <div id="cube-preview" class="cube-preview"></div>
+       <div class="timer-readout">
+      <div id="timer-hint" class="timer-hint" aria-live="polite" hidden></div>
+      <div id="clock" class="clock" aria-live="off">0.00</div>
+      <div id="timer-instruction" class="timer-instruction"><kbd>space</kbd><span>Hold · release</span></div>
+      <div id="touch-instruction" class="touch-instruction">Two fingers · hold · release</div>
+      <div id="solve-feedback" class="solve-feedback" aria-live="polite" hidden><div id="feedback-pb" class="feedback-pb" hidden></div><div id="feedback-comparison"></div></div>
+       </div>
+      </div>
+      <div id="fullscreen-splits" class="fullscreen-splits" role="list" aria-label="Solve splits" hidden></div>
+     </div>
+     <div id="solve-ranking" class="solve-ranking" hidden>
+      <div class="ranking-meta"><span id="ranking-count"></span><span>All-time <strong id="ranking-all-time"></strong></span></div>
+      <div id="ranking-track" class="ranking-track" role="img"><div id="ranking-squares" class="ranking-squares"></div><i id="ranking-marker" class="ranking-marker" aria-hidden="true"></i></div>
+      <div id="ranking-ends" class="ranking-ends"><span>Fastest</span><span>Slowest</span></div>
+     </div>
+     <div class="timer-footer"><button id="manual-entry" class="text-button">Add time ↗</button></div>
+    </div>
+    <div class="steps-card">
+     <div class="card-top"><h2>Splits</h2><label class="switch"><input id="track-steps" type="checkbox" aria-label="Track splits"><span></span></label></div>
+     <div id="steps" class="steps" hidden></div>
+     <div id="step-controls" class="step-controls" hidden><button id="mark-step" class="small-button" disabled>Split <kbd>↵</kbd></button></div>
+    </div>
+   </div>
+   <aside class="session-card">
+    <div class="card-top"><h2>Recent solves</h2><span id="recent-count" class="count"></span></div>
+    <div class="session-metrics"><div><span>BEST</span><strong id="session-best">—</strong></div><div><span>AO5</span><strong id="session-ao5">—</strong></div></div>
+    <div id="recent-list" class="recent-list"></div><button data-page="history" class="view-history">History <span>→</span></button>
+   </aside>
+  </div>
+  <section class="progress-card" aria-label="Solve progress">
+   <div class="progress-content"><div class="progress-stat"><span>BEST</span><strong id="progress-best">—</strong><button data-page="insights" class="text-button">Insights ↗</button></div><div id="mini-chart" class="mini-chart"></div></div>
+  </section>
+ </section>
+ <section id="history-page" class="page" hidden>
+  <div class="filter-bar"><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
+  <div class="table-card"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
+ </section>
+ <section id="insights-page" class="page" hidden>
+  <div class="filter-bar"><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
+  <div id="insight-stats" class="stat-grid"></div>
+  <div class="chart-card"><div class="card-top"><h2>Times (s)</h2><div class="legend"><span><i></i>Solve</span><span><i></i>ao12</span></div></div><div id="main-chart"></div></div>
+  <div class="insight-grid"><div class="chart-card"><h2>Distribution</h2><div id="distribution"></div></div><div class="chart-card"><div class="card-top"><h2>Splits</h2><select id="split-preset" aria-label="Split method"><option value="beginner">Beginner</option><option value="cfop">CFOP</option><option value="custom">Custom</option></select></div><div id="split-chart"></div></div></div>
+  <section class="split-progress" aria-label="Split progress">
+   <div class="card-top"><h2>Split progress <span id="split-progress-count" class="count"></span></h2><div id="split-progress-legend" class="legend"><span title="Recorded step time; solve penalties are not assigned to individual steps"><i></i>Split</span><span id="split-mean-legend" title="Arithmetic mean of the latest five completed solves with matching recorded splits"><i></i>Mean 5</span></div></div>
+   <div id="split-trend-charts" class="split-trend-grid"></div>
+  </section>
+ </section>
+</main>
+<dialog id="settings-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2>Settings</h2><button class="close" aria-label="Close settings">×</button></div>
+ <label class="field">Split method<select id="preset"><option value="beginner">Beginner · 7 splits</option><option value="cfop">CFOP · 4 splits</option><option value="custom">Custom</option></select></label>
+ <label class="field" id="custom-field" hidden>Splits, separated by commas<textarea id="custom-steps" rows="3" placeholder="Cross, F2L, Last layer"></textarea></label>
+ <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>
+ <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
+ <button id="save-settings" type="button" class="primary-button">Save</button>
+</form></dialog>
+<dialog id="import-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2>Import</h2><button class="close" aria-label="Close import">×</button></div>
+ <label class="upload-zone"><span aria-hidden="true">↥</span><strong>Choose CSV</strong><input id="csv-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values"></label>
+ <div id="import-preview" role="status"></div><button id="confirm-import" type="button" class="primary-button" disabled>Import</button>
+</form></dialog>
+<dialog id="solve-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2 id="solve-title">Solve</h2><button class="close" aria-label="Close solve">×</button></div><div id="solve-details"></div>
+ <div class="penalty-controls"><button type="button" data-penalty="none">OK</button><button type="button" data-penalty="+2">+2</button><button type="button" data-penalty="dnf">DNF</button></div>
+ <label class="field">Note<textarea id="solve-note" rows="2" maxlength="1800"></textarea></label>
+ <button id="save-solve" type="button" class="primary-button">Save</button><button id="delete-solve" type="button" class="danger-button">Delete</button>
+</form></dialog>
+<dialog id="manual-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2>Add time</h2><button class="close" aria-label="Close manual entry">×</button></div>
+ <label class="field">Time<input id="manual-time" placeholder="59.18 or 1:04.52" autocomplete="off" required></label>
+ <p id="manual-error" role="alert"></p><button id="save-manual" type="button" class="primary-button">Save</button>
+</form></dialog>
+<dialog id="install-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2>App</h2><button class="close" aria-label="Close installation">×</button></div>
+ <p id="install-help" class="install-copy"></p><button id="install-now" class="primary-button" type="button" hidden>Install</button>
+ <p id="offline-ready" class="muted small" role="status">Preparing offline access…</p>
+ <button id="apply-update" class="primary-button" type="button" hidden>Update and reopen</button>
+ <button id="keep-storage" class="small-button" type="button">Keep offline data</button><button type="button" class="small-button connect-link" data-connect>Sync settings ↗</button>
+</form></dialog>
+<dialog id="connect-dialog"><form method="dialog">
+ <div class="dialog-heading"><h2>Sync</h2><button class="close" aria-label="Close connection">×</button></div>
+ <label class="field">Sync code<input id="sync-code" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="connect-error"></label>
+ <p id="connect-error" class="small" role="status"></p><button id="save-connection" class="primary-button" type="button">Connect</button><button id="disconnect-device" class="danger-button" type="button">Disconnect</button>
+ <p class="muted small">Keep your code private.</p>
+</form></dialog>
+<div id="toast" role="status" hidden></div><script type="module" src="/app.js"></script>
+</body></html>
