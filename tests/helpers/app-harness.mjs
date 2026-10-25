@@ -45,7 +45,7 @@ export function harness({online=false,fetch:fetchRequest=async()=>({ok:true,json
     performance:{now:()=>now},crypto,console,AbortSignal,Worker,
     initPWA(){},initConnection(){},syncHeaders:()=>({}),initSplitCharts:()=>()=>{},initSolveFeedback:()=>({render(){},fit(){}}),formatDifference:String,
     createMotion:()=>createMotion(sandbox.window),initMobileNavigation:options=>{sandbox.mobileNavigation=options;},
-    createLessonDemo:()=>({reset(){demoResets++;},destroy(){demoDestroys++;}}),
+    createLessonDemo:()=>({reset(){demoResets++;},setOrientation(){demoResets++;},destroy(){demoDestroys++;}}),
   };
   const context=vm.createContext(sandbox);
   vm.runInContext(source,context);

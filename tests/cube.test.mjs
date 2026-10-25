@@ -1,8 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cubeFaces,cubeSVG,scrambleLines} from '../web/cube.js';
+import {cubeFaces,cubeSVG,scrambleLines,cubeStickers,cubeFrame,orientAlgorithm} from '../web/cube.js';
 
 const solved=cubeFaces('');
+test('scramble notation follows the selected U/F/R centers without changing the physical cube',()=>{
+  const algorithms=[...'URFDLB'].flatMap(face=>[face,face+"'",face+'2']).concat(["R U F' D2 L' B",Array(3).fill("R U R' U' F2 D B'").join(' ')]);
+  const rotate=([x,y,z])=>[-x,-y,z];
+  const state=(algorithm,orientation,turned=false)=>cubeStickers(algorithm).map(sticker=>JSON.stringify({color:cubeFrame(orientation).colors[sticker.face],position:turned?rotate(sticker.position):sticker.position,normal:turned?rotate(sticker.normal):sticker.normal})).sort();
+  for(const algorithm of algorithms){
+    const bottom=orientAlgorithm(algorithm,'white-top','white-bottom');
+    assert.deepEqual(state(bottom,'white-bottom'),state(algorithm,'white-top',true));
+    assert.equal(orientAlgorithm(bottom,'white-bottom','white-top'),algorithm);
+    assert.equal(orientAlgorithm(algorithm,'white-top','white-top'),algorithm);
+  }
+  assert.equal(orientAlgorithm("R U F' D2 L' B",'white-top','white-bottom'),"L D F' U2 R' B");
+});
 test('cube preview follows clockwise face turns from white top and green front',()=>{
   assert.deepEqual(cubeFaces('R').U,['U','U','F','U','U','F','U','U','F']);
   assert.deepEqual(cubeFaces('R').F,['F','F','D','F','F','D','F','F','D']);

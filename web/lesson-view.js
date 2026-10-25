@@ -1,7 +1,9 @@
 import {lessonCubeSVG} from './lesson-cube.js';
+import {cubeFrame} from './cube.js';
+import {orientLessonCase} from './lessons.js';
 
 export function createLessonDemo(root,lesson,runtime=globalThis){
-  const {setup,scramble,solution,orientation,target}=lesson.case;
+  let {setup,scramble,solution,orientation,target}=orientLessonCase(lesson.case,lesson.case.orientation);
   let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
   root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide">
     <div class="lesson-moves" aria-label="Moves"></div>
@@ -10,7 +12,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
   const find=selector=>root.querySelector(selector);
   const moves=()=>solution.trim().split(/\s+/).filter(Boolean);
   const algorithm=()=>[setup,...moves().slice(0,step)].join(' ');
-  const paint=()=>{find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});};
+  const paint=()=>{find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});find('.lesson-demo-setup').title=`Scramble with ${cubeFrame(orientation).label}. Moves follow the cube's U, F and R faces.`;};
   function renderControls(){
     const sequence=moves();
     const current=turn?turn.index:step-1;
@@ -87,6 +89,13 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
   root.addEventListener('input',onSpeed);
   paint();renderControls();
   return {
+    setOrientation(next){
+      if(destroyed||next===orientation)return;
+      cancel();step=0;
+      ({setup,scramble,solution,orientation,target}=orientLessonCase(lesson.case,next));
+      find('.lesson-demo-setup code').textContent=scramble;
+      paint();renderControls();
+    },
     reset(){if(destroyed)return;cancel();step=0;paint();renderControls();},
     destroy(){if(destroyed)return;cancel();destroyed=true;root.removeEventListener('click',onClick);root.removeEventListener('input',onSpeed);root.replaceChildren();},
   };

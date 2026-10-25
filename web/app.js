@@ -1,10 +1,10 @@
 import {PRESETS,formatTime,result,summary,average,parseCSV,parseTime,exportCSV,practiceScramble,decodeCSV,splitProgress,solveFeedback,normalizeSolve} from './core.js';
 import {initPWA} from './pwa.js';
-import {cubeSVG,scrambleLines} from './cube.js';
+import {cubeSVG,scrambleLines,cubeFrame,orientAlgorithm} from './cube.js';
 import {initSplitCharts} from './split-charts.js';
 import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
-import {LESSONS} from './lessons.js';
+import {LESSONS,orientLessonCase} from './lessons.js';
 import {createLessonDemo} from './lesson-view.js';
 import {initMobileNavigation} from './mobile-navigation.js';
 import {createMotion} from './motion.js';
@@ -15,14 +15,20 @@ const STORE='cube-studio-v1';
 let saved={},storageReadFailed=false;try{saved=JSON.parse(localStorage.getItem(STORE)||'{}');}catch{storageReadFailed=true;}
 let records=new Map((saved.solves||[]).map(s=>[s.id,normalizeSolve(s)])), pending=new Map((saved.pending||[]).map(s=>[s.id,normalizeSolve(s)]));
 let lessonAttempts=new Map((saved.lessonAttempts||[]).map(s=>[s.id,{...normalizeSolve(s),lessonId:s.lessonId,caseId:s.caseId}]));
-let settings={preset:'beginner',custom:['Cross','First pair','Remaining F2L','Last layer'],hold:550,track:false,...saved.settings};
+let settings={preset:'beginner',custom:['Cross','First pair','Remaining F2L','Last layer'],hold:550,track:false,orientation:'white-top',lessonOrientation:'white-bottom',...saved.settings};
+settings.orientation=settings.orientation==='white-bottom'?'white-bottom':'white-top';
+settings.lessonOrientation=settings.lessonOrientation==='white-top'?'white-top':'white-bottom';
 let page='timer', historyPage=0, selected=null, imported=[], toastTimeout;
 let syncBusy=false,syncRequested=false,syncState='healthy',lastSync=0;
 let state='idle',started=0,elapsed=0,splitMarks=[],activeNames=[],scramble='',scrambleKind='',lastFinished=0,armTimeout,keyboardHeld=false,frame,wakeLock;
 let lastSolveId=null,stepsHTML='';
 let touches=new Set(),gesture=false,scrambleRequest=0;
+// normalScramble retains the generator's white-top frame; scramble is the
+// notation displayed and applied in the currently selected cube frame.
 let timerContext={kind:'normal'},normalScramble=null,activeAttempt=null,lessonDemo=null;
 const tracking=()=>timerContext.kind!=='lesson'&&settings.track;
+const cubeOrientation=()=>timerContext.kind==='lesson'?settings.lessonOrientation:settings.orientation;
+const lessonExercise=()=>timerContext.exercise?orientLessonCase(timerContext.exercise,settings.lessonOrientation):null;
 const timerVisible=()=>page==='timer'||page==='lessons'&&timerContext.kind==='lesson'&&timerContext.tab==='practice';
 const all=()=>[...records.values()].filter(s=>!s.deleted).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
 const names=()=>timerContext.kind==='lesson'?[]:settings.preset==='custom'?settings.custom:PRESETS[settings.preset];
@@ -45,12 +51,6 @@ function saveAttempt(s,attempt){
   lessonAttempts.set(s.id,practice);persist();render();return practice;
 }
 function practiceTimes(){return [...lessonAttempts.values()].filter(s=>!s.deleted&&s.lessonId===timerContext.lessonId).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));}
-function renderPracticeTimes(){
-  if(timerContext.kind!=='lesson')return;
-  const attempts=practiceTimes();
-  $('#lesson-practice-times').innerHTML=attempts.slice(-5).reverse().map(s=>`<li><time datetime="${esc(s.date)}" title="${esc(new Date(s.date).toLocaleString())}">${formatTime(result(s))}</time></li>`).join('');
-  $('#lesson-practice-times').hidden=!attempts.length;
-}
 async function sync(){
   if(syncBusy){syncRequested=true;renderSyncStatus();return;}
   syncBusy=true;renderSyncStatus();
@@ -149,7 +149,6 @@ function resetTimerContext(){
 function openLesson(id){
   if(busy())return;
   const lesson=LESSONS.find(item=>item.id===id);if(!lesson)return;
-  if(timerContext.kind==='normal'&&scramble)normalScramble={scramble,kind:scrambleKind};
   ++scrambleRequest;
   resetTimerContext();
   timerContext={kind:'lesson',lessonId:id,tab:'lesson',exercise:null,assistance:false};
@@ -160,19 +159,21 @@ function openLesson(id){
   lessonDemo?.destroy();lessonDemo=null;
   $('#lesson-demo').innerHTML='<p role="status">Preparing scramble…</p>';
   newScramble();timerVisual();updateTimerHeight();window.scrollTo({top:0,behavior:'instant'});
-  renderPracticeTimes();
 }
 function leaveLesson(){
   ++scrambleRequest;resetTimerContext();timerContext={kind:'normal'};
   $('#timer-page').append($('#timer-card'));
   $('#lesson-detail').hidden=true;$('#lesson-list').hidden=false;
   renderHeader();
-  if(normalScramble){scramble=normalScramble.scramble;scrambleKind=normalScramble.kind;showScramble();}
+  if(normalScramble){scramble=orientAlgorithm(normalScramble.scramble,'white-top',settings.orientation);scrambleKind=normalScramble.kind;showScramble();}
   else newScramble();
   timerVisual();
 }
 function renderLessonAssistance(){
   const lesson=timerContext.kind==='lesson',enabled=lesson&&timerContext.assistance;
+  $('#fullscreen-lesson-title').hidden=!lesson;
+  $('#fullscreen-lesson-title').setAttribute('aria-hidden',String(!document.body.classList.contains('focus-mode')));
+  $('#fullscreen-lesson-title').textContent=lesson?LESSONS.find(item=>item.id===timerContext.lessonId).title:'';
   $('#lesson-help').hidden=!lesson;
   $('#manual-entry').hidden=lesson;
   $('#timer-pad').setAttribute('aria-label',lesson?'Hold Space or two fingers, then release to start. Tap to stop.':'Hold Space or two fingers, then release to start. Tap to stop or mark a split.');
@@ -182,8 +183,9 @@ function renderLessonAssistance(){
   $('#lesson-solution').hidden=!enabled||busy();
   $('#timer-card').classList.toggle('lesson-assisted',enabled&&!busy());
   if(lesson){
-    $('#lesson-solution strong').textContent=timerContext.exercise?.solution||'';
-    $('#lesson-solution span').textContent=timerContext.exercise?.slot?`Insert the marked pair · ${timerContext.exercise.slot}`:'Insert the marked pair';
+    const exercise=lessonExercise();
+    $('#lesson-solution strong').textContent=exercise?.solution||'';
+    $('#lesson-solution span').textContent=exercise?.slot?`Insert the marked pair · ${exercise.slot}`:'Insert the marked pair';
   }
 }
 $('#lesson-help').onclick=()=>{
@@ -192,7 +194,7 @@ $('#lesson-help').onclick=()=>{
   if(!timerContext.assistance)lessonDemo?.reset();
   renderLessonAssistance();showScramble({animate:false});$('#lesson-help').blur();
 };
-function render(){renderHeader();renderSteps();renderRecent();renderPracticeTimes();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
+function render(){renderHeader();renderSteps();renderRecent();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
 function renderRecent(){
   const solves=all(),recent=solves.slice(-12).reverse();
   $('#recent-solves').innerHTML=recent.length?recent.map((s,i)=>`<li><button class="recent-solve" data-id="${esc(s.id)}" title="${esc(new Date(s.date).toLocaleString())}" aria-label="Open solve ${solves.length-i}, ${esc(formatTime(result(s)))}"><span class="recent-solve-index">${solves.length-i}</span><span class="recent-solve-time">${formatTime(result(s))}${s.penalty==='+2'?'<small>+2</small>':''}</span><span class="recent-solve-date">${esc(new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric'}))} · ${esc(new Date(s.date).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</span></button></li>`).join(''):'<li class="empty">No solves yet.</li>';
@@ -219,6 +221,11 @@ function renderSteps(){
   $('#fullscreen-track').hidden=lesson;
   $('#fullscreen-track').innerHTML=`<span aria-hidden="true">${tracking()?'✓':'✕'}</span> Splits`;
   $('#fullscreen-track').disabled=['running','arming','armed'].includes(state);
+  const bottom=cubeOrientation()==='white-bottom';
+  $('#cube-orientation').textContent=bottom?'White ↓':'White ↑';
+  $('#cube-orientation').title=`Scramble with ${cubeFrame(cubeOrientation()).label}. Switch to white on ${bottom?'top':'bottom'}.`;
+  $('#cube-orientation').setAttribute('aria-label',`White on ${bottom?'bottom':'top'}. Switch to white on ${bottom?'top':'bottom'}.`);
+  $('#cube-orientation').disabled=['running','arming','armed'].includes(state)||!scramble;
 }
 function renderHistory(){
   const previousRows=$('#history-body').innerHTML;
@@ -319,21 +326,45 @@ window.addEventListener('blur',()=>{keyboardHeld=false;touches.clear();gesture=f
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state==='running')keepAwake();if(Date.now()-lastSync>20000)sync();}else disarm();});
 function setTracking(enabled){if(busy()||timerContext.kind==='lesson')return;motion.layout([$('.timer-center')],()=>{settings.track=enabled;persist();splitMarks=[];timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
 $('#fullscreen-track').onclick=()=>{setTracking(!tracking());$('#fullscreen-track').blur();};
+function refreshOrientation(){
+  if(timerContext.kind==='lesson'){
+    const exercise=lessonExercise();
+    if(exercise){scramble=exercise.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';}
+    lessonDemo?.setOrientation(settings.lessonOrientation);
+    renderLessonAssistance();
+  }else if(normalScramble){
+    scramble=orientAlgorithm(normalScramble.scramble,'white-top',settings.orientation);
+  }
+  if(scramble)showScramble({animate:false});
+  renderSteps();
+}
+$('#cube-orientation').onclick=()=>{
+  if(busy()||!scramble)return;
+  const key=timerContext.kind==='lesson'?'lessonOrientation':'orientation';
+  settings[key]=cubeOrientation()==='white-top'?'white-bottom':'white-top';
+  persist();refreshOrientation();$('#cube-orientation').blur();
+};
 let automaticFocus=false,focusRequested=document.body.classList.contains('focus-mode');
 function focusView(enabled,{immediate=false}={}){
   if(enabled===focusRequested&&enabled===document.body.classList.contains('focus-mode'))return;
   focusRequested=enabled;
+  const title=$('#fullscreen-lesson-title'),before=timerContext.kind==='lesson'?title.getBoundingClientRect():null;
   // Fill the app viewport without invoking the browser's fullscreen notice.
-  motion.swap('focus',()=>{
+  const animated=motion.swap('focus',()=>{
     // Capture the current painted positions before settling entrance animations.
     motion.settle();
     document.body.classList.toggle('focus-mode',enabled);
+    title.setAttribute('aria-hidden',String(!enabled));
     if(enabled)lessonDemo?.reset();
     $('#focus').setAttribute('aria-pressed',String(enabled));
     $('#focus').title=enabled?'Exit fullscreen':'Fullscreen';
     updateTimerHeight();layoutScramble();
     requestAnimationFrame(()=>feedbackView.fit());
   },{immediate:immediate||['running','arming','armed'].includes(state)});
+  if(!animated&&before){
+    const after=title.getBoundingClientRect();
+    motion.play(title,[{translate:`${before.left-after.left}px ${before.top-after.top}px`},{translate:'0 0'}],{duration:320});
+  }
 }
 $('#focus').onclick=()=>{automaticFocus=false;focusView(!focusRequested);$('#focus').blur();};
 function updateTimerHeight(){
@@ -377,12 +408,13 @@ function requestLessonScramble(request,previousScramble){
       if(data.error){failed();return;}
       const exercise=data.exercise;
       timerContext.exercise=Object.freeze({...exercise,target:Object.freeze([...exercise.target])});
-      scramble=exercise.scramble;scrambleKind='Ready right · Scramble white up';scrambleLayoutKey='';
+      const oriented=lessonExercise();
+      scramble=oriented.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';
       if(!lessonDemo){
         const lesson=LESSONS.find(item=>item.id===timerContext.lessonId);
-        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:{...lesson.case,...data.demoExercise}});
+        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:orientLessonCase({...lesson.case,...data.demoExercise},settings.lessonOrientation)});
       }
-      showScramble();renderLessonAssistance();$('#new-scramble').disabled=false;$('#manual-entry').disabled=busy();
+      showScramble();renderLessonAssistance();renderSteps();$('#new-scramble').disabled=false;$('#manual-entry').disabled=busy();
     };
     lessonScrambler.onerror=()=>{lessonScrambler?.terminate();lessonScrambler=null;failed();};
     lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble,withDemo:!lessonDemo});
@@ -390,6 +422,7 @@ function requestLessonScramble(request,previousScramble){
 }
 async function newScramble(){
   if(busy())return;
+  $('#cube-orientation').disabled=true;
   const req=++scrambleRequest;
   if(timerContext.kind==='lesson'){
     const previousScramble=timerContext.exercise?.scramble;
@@ -414,7 +447,7 @@ async function newScramble(){
     scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;
   }finally{
     clearTimeout(timeout);
-    if(req===scrambleRequest){normalScramble={scramble,kind:scrambleKind};showScramble();if(!busy())$('#new-scramble').disabled=false;}
+    if(req===scrambleRequest){normalScramble={scramble,kind:scrambleKind};scramble=orientAlgorithm(normalScramble.scramble,'white-top',settings.orientation);showScramble();if(!busy())$('#new-scramble').disabled=false;}
   }
 }
 const scrambleMeasure=document.createElement('canvas').getContext('2d');let scrambleLayoutKey='';
@@ -452,16 +485,20 @@ scrambleObserver.observe($('#fullscreen-scramble'));
 document.fonts?.ready.then(layoutScramble);
 function showScramble({animate=true}={}){
   layoutScramble();
+  const instruction=`Scramble with ${cubeFrame(cubeOrientation()).label}. Moves follow the cube's U, F and R faces.`;
+  $('#fullscreen-scramble').title=instruction;
+  $('#fullscreen-scramble').setAttribute('aria-label',instruction);
+  $('#cube-orientation').disabled=busy()||!scramble;
   $('#scramble-type').textContent=scrambleKind;
   $('#scramble-type').classList.toggle('sr-only',scrambleKind==='Random state');
-  try{const exercise=timerContext.kind==='lesson'?timerContext.exercise:null;$('#cube-preview').innerHTML=cubeSVG(exercise?exercise.setup:scramble,exercise?{orientation:exercise.orientation,target:timerContext.assistance?exercise.target:[]}:{});}catch{$('#cube-preview').replaceChildren();}
+  try{const exercise=timerContext.kind==='lesson'?lessonExercise():null;$('#cube-preview').innerHTML=cubeSVG(exercise?exercise.setup:scramble,{orientation:cubeOrientation(),target:exercise&&timerContext.assistance?exercise.target:[]});}catch{$('#cube-preview').replaceChildren();}
   if(animate&&state!=='running'){motion.reveal($('#fullscreen-scramble'),{distance:4});motion.reveal($('#cube-preview'),{delay:35,distance:5,duration:260});}
 }
 $('#new-scramble').onclick=()=>newScramble();
 function openDialog(id){if(state==='running'||state==='arming'||state==='armed')return;$(id).showModal();}
-$('#open-settings').onclick=()=>{if(state==='running')return;$('#preset').value=settings.preset;$('#custom-steps').value=settings.custom.join(', ');$('#custom-field').hidden=settings.preset!=='custom';$('#hold-duration').value=settings.hold;openDialog('#settings-dialog');};
+$('#open-settings').onclick=()=>{if(state==='running')return;$('#preset').value=settings.preset;$('#custom-steps').value=settings.custom.join(', ');$('#custom-field').hidden=settings.preset!=='custom';$('#hold-duration').value=settings.hold;$('#lesson-orientation').value=settings.lessonOrientation;openDialog('#settings-dialog');};
 $('#preset').onchange=()=>$('#custom-field').hidden=$('#preset').value!=='custom';
-$('#save-settings').onclick=()=>{const custom=$('#custom-steps').value.split(',').map(s=>s.trim()).filter(Boolean);if($('#preset').value==='custom'&&(custom.length<2||custom.length>12||custom.some(x=>x.length>50))){toast('Use 2–12 steps, with names under 50 characters.');return;}settings={...settings,preset:$('#preset').value,custom,hold:Number($('#hold-duration').value)};splitMarks=[];persist();$('#settings-dialog').close();renderSteps();};
+$('#save-settings').onclick=()=>{if(busy())return;const custom=$('#custom-steps').value.split(',').map(s=>s.trim()).filter(Boolean);if($('#preset').value==='custom'&&(custom.length<2||custom.length>12||custom.some(x=>x.length>50))){toast('Use 2–12 steps, with names under 50 characters.');return;}settings={...settings,preset:$('#preset').value,custom,hold:Number($('#hold-duration').value),lessonOrientation:$('#lesson-orientation').value==='white-top'?'white-top':'white-bottom'};splitMarks=[];persist();$('#settings-dialog').close();refreshOrientation();};
 function openImport(){$('#settings-dialog').close();imported=[];$('#import-preview').textContent='';$('#confirm-import').disabled=true;$('#csv-file').value='';openDialog('#import-dialog');}
 $('#open-import').onclick=openImport;
 $('#history-import').onclick=openImport;

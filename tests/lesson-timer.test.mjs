@@ -7,6 +7,7 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   assert.match(h.element('#timer-instruction').innerHTML,/Hold · release/);
   h.run("setTracking(true);setPage('lessons');openLesson('13')");
   assert.equal(h.element('#timer-card').parentElement.id,'lesson-practice-mount');
+  assert.equal(h.element('#fullscreen-lesson-title').textContent,'Use one F2L pair');
   assert.equal(h.element('#lesson-panel-lesson').hidden,false);
   assert.equal(h.element('#lesson-panel-practice').hidden,true);
   h.element('#lesson-tab-practice').onclick();
@@ -26,6 +27,7 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   assert.ok(h.demoResets>0);
   h.run("setPage('timer')");
   assert.equal(h.element('#timer-card').parentElement.id,'timer-page');
+  assert.equal(h.element('#fullscreen-lesson-title').hidden,true);
   assert.equal(h.run('scramble'),normal);
   assert.equal(h.run('tracking()'),true);
   assert.equal(h.run('settings.preset'),'beginner');
@@ -90,7 +92,7 @@ test('a delayed normal scramble cannot replace an exercise after opening a lesso
   const exercise=h.run('scramble');
   complete('R2 U2 F2');await pending;
   assert.equal(h.run('scramble'),exercise);
-  assert.equal(h.run('scrambleKind'),'Ready right · Scramble white up');
+  assert.equal(h.run('scrambleKind'),'Ready right · White on bottom');
 });
 
 test('leaving a lesson regenerates an interrupted replacement scramble without reusing the finished solve',async()=>{
@@ -208,11 +210,11 @@ test('practice times survive reload and stay out of history, exports, sync and n
   assert.equal(h.run('lessonAttempts.size'),1);
   assert.equal(h.run('all().length'),0);
   assert.equal(h.run('pending.size'),0);
-  assert.match(h.element('#lesson-practice-times').innerHTML,/4.32/);
+  assert.equal(h.run('practiceTimes()[0].ms'),4321);
   const stored=JSON.parse(h.storage.get('cube-studio-v1'));
   const reloaded=harness({saved:stored});
   reloaded.run("setPage('lessons');openLesson('13')");
-  assert.match(reloaded.element('#lesson-practice-times').innerHTML,/4.32/);
+  assert.equal(reloaded.run('practiceTimes()[0].ms'),4321);
   reloaded.run("setPage('timer');arm()");reloaded.arm();reloaded.run('start()');reloaded.advance(9000);reloaded.run('stop()');
   assert.equal(reloaded.run('records.size'),1);
   assert.equal(reloaded.run('lessonAttempts.size'),1);
