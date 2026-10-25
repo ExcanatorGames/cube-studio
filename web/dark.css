@@ -528,10 +528,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 .app-bar #lesson-back{min-height:44px;font-size:13px}
 @media(max-width:740px){
  .app-bar{min-height:52px;gap:4px 8px;padding:4px 0}
- .app-actions{display:contents}
- .app-bar #update-app,.app-bar #open-settings{margin-left:auto}
- .app-bar #update-app:not([hidden])+#open-settings{margin-left:0}
- .app-bar .sync-attention{order:3;flex:1 0 100%;justify-content:flex-end}
+ .app-actions{flex-wrap:nowrap}
  .app-bar .filter-bar{order:2;flex:1 0 100%;display:flex;flex-wrap:nowrap;gap:6px;padding-bottom:4px}
  .app-bar .filter-bar input{flex:1 1 0;max-width:none;width:0;font-size:16px}
  .app-bar .filter-bar>select{flex:0 1 auto;font-size:16px;padding:8px}

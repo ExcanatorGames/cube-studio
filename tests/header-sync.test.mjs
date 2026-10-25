@@ -26,7 +26,7 @@ test('page controls live once in the shared header and lessons retain only their
   }
   for(const id of ['open-import','export','install-app'])assert.equal(html.split(`id="${id}"`).length-1,1,id);
   assert.doesNotMatch(html.match(/<aside class="sidebar">([\s\S]*?)<\/aside>/)[1],/id="open-settings"/);
-  assert.doesNotMatch(html,/puzzle-label|lesson-intro|<h2[^>]*>Lessons<\/h2>/);
+  assert.doesNotMatch(html,/puzzle-label|class="lesson-intro"|<h2[^>]*>Lessons<\/h2>/);
   assert.match(html,/<header class="lesson-heading"><h2 id="lesson-title"/);
 });
 
@@ -40,6 +40,8 @@ test('navigation, opening and leaving lessons show only the matching header grou
   h.element('#insight-period').value='7';h.element('#insight-period').onchange();
   h.element('nav-lessons').onclick();assertContext(h,null);
   assert.match(h.element('#lesson-cards').innerHTML,/<strong>Use one F2L pair<\/strong>/);
+  assert.match(h.element('#lesson-cards').innerHTML,/<strong>Build an F2L pair<\/strong>/);
+  assert.doesNotMatch(h.element('#lesson-cards').innerHTML,/<strong>\d/);
   h.element('#lesson-cards').onclick({target:{closest:()=>({dataset:{lesson:'13'}})}});
   assertContext(h,'lesson');assert.equal(h.element('#lesson-title').textContent,'Use one F2L pair');
   h.element('#lesson-tab-practice').onclick();assertContext(h,'lesson');

@@ -20,6 +20,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     find('.lesson-moves .current')?.scrollIntoView?.({block:'nearest'});
     find('[data-action="play"]').textContent=playing?'Pause':'Play';
     find('[data-action="play"]').setAttribute('aria-pressed',String(playing));
+    find('[data-action="play"]').disabled=!sequence.length;
     find('[data-action="previous"]').disabled=!!turn||step===0;
     find('[data-action="next"]').disabled=!!turn||step===sequence.length;
   }
@@ -63,6 +64,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     const button=event.target.closest('button');
     if(destroyed||!button||!root.contains(button))return;
     if(button.dataset.action==='play'){
+      if(!moves().length)return;
       if(playing)pause();
       else{
         playing=true;

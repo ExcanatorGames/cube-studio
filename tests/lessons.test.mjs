@@ -4,11 +4,148 @@ import {LESSONS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
+import {Cube} from '../web/cube-solver.js';
 
-test('lesson case depicts the taught algorithm in either orientation',()=>{
+function assertFormedPair(stickers,target,top=1){
+  const corner=stickers.filter(s=>s.cubie===target[0]),edge=stickers.filter(s=>s.cubie===target[1]);
+  assert.equal(corner[0].position[1],top,'corner remains in the unsolved layer');
+  assert.equal(edge[0].position[1],top,'edge remains in the unsolved layer');
+  assert.equal(corner[0].position.reduce((sum,v,i)=>sum+Math.abs(v-edge[0].position[i]),0),1,'pieces touch');
+  for(const sticker of edge)assert.equal(JSON.stringify(corner.find(s=>s.face===sticker.face).normal),JSON.stringify(sticker.normal),'matching colors face the same direction');
+}
+function rotateReference(algorithm,turns){
+  const faces={F:'R',R:'B',B:'L',L:'F',U:'U',D:'D'};
+  for(let i=0;i<turns;i++)algorithm=algorithm.replace(/[URFDLB]/g,face=>faces[face]);
+  return algorithm;
+}
+
+function assertInserted(stickers,target){
+  const solved=cubeStickers();
+  for(let i=0;i<stickers.length;i++)if(target.includes(stickers[i].cubie))assert.equal(JSON.stringify(stickers[i]),JSON.stringify(solved[i]),'target pair is inserted');
+}
+test('simple joining cases use their direct three-move insertions',()=>{
+  assert.deepEqual(LESSONS[0].cases.map(c=>c.solution),["U R U' R'","U' F' U F"]);
+  assert.equal(LESSONS[1].cases[0].solution,"R U R'");
+  assert.equal(LESSONS[1].cases[1].solution,"F' U' F");
+});
+
+function targetStateKey(cube){
+  const state=cube.toJSON(),corner=state.cp.indexOf(4),edge=state.ep.indexOf(8);
+  return [corner,state.co[corner],edge,state.eo[edge]].join(',');
+}
+function shortestTriggerCosts(){
+  const key=targetStateKey;
+  const start={cube:new Cube(),cost:0},best=new Map([[key(start.cube),start]]),queue=[start];
+  const triggers=['U','U2',"U'","R U R'","R U2 R'","R U' R'","F' U F","F' U2 F","F' U' F"];
+  while(queue.length){
+    queue.sort((a,b)=>a.cost-b.cost);const current=queue.shift();
+    if(best.get(key(current.cube))!==current)continue;
+    for(const trigger of triggers){
+      const cube=current.cube.clone().move(Cube.inverse(trigger)),id=key(cube),cost=current.cost+trigger.split(' ').length;
+      if(best.has(id)&&best.get(id).cost<=cost)continue;
+      const next={cube,cost};best.set(id,next);queue.push(next);
+    }
+  }
+  return best;
+}
+const triggerCosts=shortestTriggerCosts();
+
+test('every pairing solution is as short as an independently searched route using basic slot triggers',()=>{
+  assert.equal(triggerCosts.size,150,'covers every target-pair configuration reachable with these triggers');
+  for(const item of LESSONS[1].cases){
+    const cost=triggerCosts.get(targetStateKey(new Cube().move(item.setup))).cost;
+    assert.ok(item.solution.split(' ').length<=cost,`${item.id} has a simpler ${cost}-move trigger solution`);
+  }
+});
+
+test('the two lessons cover all 24 top-layer configurations exactly once',()=>{
+  assert.equal(LESSONS[0].cases.length,2);
+  assert.equal(LESSONS[1].cases.length,22);
+  const signatures=new Set();
+  for(const lesson of LESSONS)for(const item of lesson.cases){
+    const state=new Cube().move(item.setup).toJSON(),corner=state.cp.indexOf(4),edge=state.ep.indexOf(8);
+    assert.equal(corner,0,'canonical corner is above front-right');
+    assert.ok(edge<4,'matching edge is also in the top layer');
+    const key=[state.co[corner],edge,state.eo[edge]].join(',');
+    assert.ok(!signatures.has(key),'no duplicate case '+key);signatures.add(key);
+    const prepared=cubeStickers(item.setup);
+    // D face carries white in the solving frame. Pair formation also
+    // restores the other three F2L slots when they were already solved.
+    const solved=cubeStickers();
+    const formed=cubeStickers(item.setup+' '+item.solution);
+    const fixed=solved.filter(s=>!item.target.includes(s.cubie)&&s.position[1]<1);
+    for(const original of fixed){
+      const sticker=prepared.find(s=>s.cubie===original.cubie&&s.face===original.face);
+      assert.equal(JSON.stringify(sticker),JSON.stringify(original),item.id+' preserves existing F2L work');
+      assert.equal(JSON.stringify(formed.find(s=>s.cubie===original.cubie&&s.face===original.face)),JSON.stringify(original),item.id+' restores existing F2L work after pairing');
+    }
+    for(const orientation of ['white-top','white-bottom']){
+      const oriented=orientLessonCase(item,orientation);
+      const after=cubeStickers(oriented.setup+' '+oriented.solution);
+      assertInserted(after,oriented.target);
+    }
+    const moves=item.solution.split(' ');
+    assert.ok(moves.every((move,i)=>!i||move[0]!==moves[i-1][0]),'no redundant adjacent turns');
+  }
+  for(let twist=0;twist<3;twist++)for(let edge=0;edge<4;edge++)for(let flip=0;flip<2;flip++)assert.ok(signatures.has([twist,edge,flip].join(',')));
+});
+
+test('every case supports all slots and alignments with random backgrounds and independently verified hints',()=>{
+  let seed=235178;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+  const solvedStickers=cubeStickers(),crossCubies=['0,-1,1','1,-1,0','0,-1,-1','-1,-1,0'];
+  for(const lesson of LESSONS)for(const item of lesson.cases){
+    const backgrounds=new Set();
+    for(let slot=0;slot<4;slot++)for(let auf=0;auf<4;auf++){
+      const choices=[slot/4,auf/4];
+      const exercise=createExercise(lesson.id,{caseIds:[item.id],random:()=>choices.length?choices.shift():next()});
+      assert.equal(exercise.lessonId,lesson.id);assert.equal(exercise.caseId,item.id);
+      assert.equal(exercise.auf,auf);assert.equal(changeLessonFrame(exercise.scramble),exercise.setup);
+      const before=cubeStickers(exercise.setup),after=cubeStickers(exercise.setup+' '+exercise.solution);
+      const expected=cubeStickers(rotateReference(item.setup,slot)+' '+['','U','U2',"U'"][auf]);
+      assert.equal(exercise.completion,'insertion');
+      assertInserted(after,exercise.target);
+      const moves=exercise.solution.split(' ');
+      assert.ok(moves.every((move,i)=>!i||move[0]!==moves[i-1][0]),'alignment turns are combined');
+      const cost=triggerCosts.get(targetStateKey(new Cube().move(item.setup+' '+['','U','U2',"U'"][auf]))).cost;
+      assert.ok(moves.length<=cost,`${item.id}, alignment ${auf} has a simpler ${cost}-move trigger solution`);
+      const state=new Cube().move(exercise.setup+' '+exercise.solution).toJSON();
+      const corner=[4,7,6,5][slot],edge=[8,11,10,9][slot];
+      assert.equal(state.cp[corner],corner);assert.equal(state.co[corner],0);
+      assert.equal(state.ep[edge],edge);assert.equal(state.eo[edge],0);
+      for(let i=0;i<before.length;i++){
+        if(exercise.target.includes(before[i].cubie)){
+          assert.equal(JSON.stringify(before[i]),JSON.stringify(expected[i]),`${item.id}: exact case in slot ${slot}, alignment ${auf}`);
+          assert.equal(before[i].position[1],1,'both target pieces start in the top layer');
+        }
+        if(crossCubies.includes(before[i].cubie)){
+          assert.equal(JSON.stringify(before[i]),JSON.stringify(solvedStickers[i]),'cross starts solved');
+          assert.equal(JSON.stringify(after[i]),JSON.stringify(solvedStickers[i]),'cross stays solved after the solution');
+        }
+      }
+      const physical=simulate(exercise.scramble),inserted=simulate(exercise.scramble+' '+changeLessonFrame(exercise.solution));
+      for(const sticker of cross){assert.equal(physical[sticker],sticker);assert.equal(inserted[sticker],sticker);}
+      backgrounds.add(before.filter(s=>!exercise.target.includes(s.cubie)&&!crossCubies.includes(s.cubie)).map(s=>s.position+':'+s.normal).join('|'));
+    }
+    assert.equal(backgrounds.size,16,'backgrounds vary for '+item.id);
+  }
+});
+
+test('practice only samples selected cases and rejects empty or foreign selections',()=>{
+  const selected=LESSONS[1].cases.slice(0,2).map(item=>item.id);
+  for(const [index,id] of selected.entries()){
+    let calls=0,seed=91234;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+    const exercise=createExercise('14',{caseIds:selected,random:()=>++calls===3?index/2:next()});
+    assert.equal(exercise.caseId,id);
+  }
+  for(const caseIds of [[],['ready-right'],['missing']])assert.throws(()=>createExercise('14',{caseIds}),/Select valid/);
+});
+
+test('ready-pair cases demonstrate insertion in either orientation',()=>{
   for(const orientation of ['white-top','white-bottom']){
     const preview=orientLessonCase(LESSONS[0].case,orientation);
-    assert.deepEqual(cubeFaces(preview.setup+' '+preview.solution),cubeFaces(''));
+    assert.ok(preview.solution);
+    assertInserted(cubeStickers(preview.setup+' '+preview.solution),preview.target);
+    assertFormedPair(cubeStickers(preview.setup),preview.target,orientation==='white-bottom'?1:-1);
     const svg=lessonCubeSVG(preview.setup,preview);
     assert.match(svg,/data-target=/);
     assert.notEqual(svg,lessonCubeSVG('',preview),'Preview shows the case before insertion');
@@ -62,8 +199,7 @@ test('lesson orientation rotates the physical state, target pieces and solution 
     const rotated=cubeStickers(exercise.setup).map(s=>({face:faces[s.face],normal:rotate(s.normal),position:rotate(s.position),cubie:rotate(s.cubie.split(',').map(Number)).join(',')}));
     const byPiece=stickers=>JSON.parse(JSON.stringify(stickers.sort((a,b)=>(a.cubie+a.face).localeCompare(b.cubie+b.face))));
     assert.deepEqual(byPiece(cubeStickers(top.setup)),byPiece(rotated));
-    const inserted=cubeStickers(top.setup+' '+top.solution),solved=cubeStickers();
-    for(let j=0;j<inserted.length;j++)if(top.target.includes(inserted[j].cubie))assert.equal(JSON.stringify(inserted[j]),JSON.stringify(solved[j]));
+    assertInserted(cubeStickers(top.setup+' '+top.solution),top.target);
     const bottom=orientLessonCase(top,'white-bottom');
     assert.equal(bottom.setup,exercise.setup);
     assert.equal(bottom.solution,exercise.solution);
@@ -104,7 +240,7 @@ test('refresh produces a different exercise even with a repeated random sample',
   assert.throws(()=>createExercise('missing'),/Unknown lesson/);
 });
 
-test('practice covers four white color pairs and all top-layer positions with matching insertion hints',()=>{
+test('ready-pair practice varies four color pairs and all top-layer positions with correct insertion hints',()=>{
   const slots=['Front right','Back right','Back left','Front left'];
   const targets=[['1,-1,1','1,0,1'],['1,-1,-1','1,0,-1'],['-1,-1,-1','-1,0,-1'],['-1,-1,1','-1,0,1']];
   const sides=['R','B','L','F'],lead=['U','',"U'",'U2'];
@@ -112,18 +248,19 @@ test('practice covers four white color pairs and all top-layer positions with ma
   const solvedStickers=cubeStickers(),topPositions=new Set(),colorPairs=new Set();
   let seed=654321;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
   for(let slot=0;slot<4;slot++)for(let auf=0;auf<4;auf++){
-    const choices=[slot/4,auf/4],exercise=createExercise('13',{random:()=>choices.length?choices.shift():next()});
-    const expected=[lead[auf],sides[slot],"U'",sides[slot]+"'"].filter(Boolean).join(' ');
+    const choices=[slot/4,auf/4],exercise=createExercise('13',{caseIds:['ready-right'],random:()=>choices.length?choices.shift():next()});
+    const expected=(auf===2?[sides[slot],'U2',sides[slot]+"'"]:[lead[auf],sides[slot],"U'",sides[slot]+"'"]).filter(Boolean).join(' ');
     assert.equal(exercise.slot,slots[slot]);assert.equal(exercise.auf,auf);
     assert.equal(exercise.solution,expected);assert.deepEqual(exercise.target,targets[slot]);
     const scrambled=simulate(exercise.scramble);
     for(const sticker of cross)assert.equal(scrambled[sticker],sticker,'white-up scramble preserves the white cross');
     const initial=cubeStickers(exercise.setup),canonical=cubeStickers(inverted(expected));
     const inserted=cubeStickers(exercise.setup+' '+exercise.solution);
+    assertInserted(inserted,exercise.target);
     for(let i=0;i<initial.length;i++){
       if(exercise.target.includes(initial[i].cubie)){
         assert.equal(JSON.stringify(initial[i]),JSON.stringify(canonical[i]),'the pair remains the taught insertion case');
-        assert.equal(JSON.stringify(inserted[i]),JSON.stringify(solvedStickers[i]),'the hint solves both target pieces');
+        assert.equal(JSON.stringify(inserted[i]),JSON.stringify(solvedStickers[i]),'the insertion solves the pair');
       }
       if(['0,-1,1','1,-1,0','0,-1,-1','-1,-1,0'].includes(initial[i].cubie))assert.equal(JSON.stringify(inserted[i]),JSON.stringify(solvedStickers[i]));
     }
@@ -134,7 +271,7 @@ test('practice covers four white color pairs and all top-layer positions with ma
 });
 
 test('cubie markers follow both physical pieces through every demonstration turn',()=>{
-  const lesson=LESSONS[0],target=lesson.case.target,exercise=createExercise('13',{varied:false});
+  const lesson=LESSONS[1],target=lesson.case.target,exercise=createExercise('14',{varied:false});
   const moves=`${exercise.setup} ${lesson.case.solution}`.split(' ');
   for(let i=0;i<=moves.length;i++){
     const alg=moves.slice(0,i).join(' '),state=cubeStickers(alg);

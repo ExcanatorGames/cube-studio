@@ -46,7 +46,7 @@
      <span id="scramble-type" class="scramble-kind muted sr-only">Preparing…</span>
      <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble" aria-live="polite">…</div>
      <div id="cube-preview" class="cube-preview"></div>
-     <div id="lesson-solution" class="lesson-solution" hidden><span>Insert the marked pair</span><strong>U R U' R'</strong></div>
+     <div id="lesson-solution" class="lesson-solution" hidden><strong></strong></div>
      <div class="timer-readout">
       <div id="timer-hint" class="timer-hint" aria-live="polite" hidden></div>
       <div id="clock" class="clock" aria-live="off">0.00</div>
@@ -75,10 +75,29 @@
    <div class="lesson-activity">
    <div class="lesson-tabs" role="tablist" aria-label="Lesson activity"><button id="lesson-tab-lesson" type="button" role="tab" aria-selected="true" aria-controls="lesson-panel-lesson" tabindex="0">Lesson</button><button id="lesson-tab-practice" type="button" role="tab" aria-selected="false" aria-controls="lesson-panel-practice" tabindex="-1">Practice</button></div>
    <div id="lesson-panel-lesson" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-lesson">
-     <section id="lesson-demonstration" class="lesson-section" aria-label="Pair demonstration"><div id="lesson-demo"></div></section>
+     <div class="lesson-workspace lesson-demo-workspace">
+      <div class="lesson-content">
+      <section id="lesson-demonstration" class="lesson-section" aria-label="Pair demonstration">
+       <div class="lesson-case-heading">
+        <details id="lesson-case-dropdown" class="lesson-case-dropdown">
+         <summary id="lesson-case-title">Choose a case</summary>
+         <aside class="lesson-case-dropdown-panel" aria-label="Lesson cases">
+          <fieldset id="lesson-case-picker"><legend class="sr-only">Choose a case</legend><div id="lesson-case-list"></div></fieldset>
+         </aside>
+        </details>
+       </div>
+       <div id="lesson-demo"></div>
+      </section>
+      </div>
+     </div>
    </div>
-   <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
-    <div id="lesson-practice-mount"></div>
+    <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
+     <div class="lesson-workspace">
+      <aside class="lesson-case-sidebar lesson-practice-sidebar" aria-label="Practice cases">
+       <fieldset id="lesson-practice-cases"><legend>Cases to practice</legend><div id="lesson-practice-case-list"></div></fieldset>
+      </aside>
+      <div id="lesson-practice-mount"></div>
+     </div>
    </div>
    </div>
   </div>

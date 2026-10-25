@@ -52,16 +52,19 @@ function randomBackground(random){
 /** Sample legal random backgrounds, then expose the lesson's pair.
  * Run in the worker: solver initialization and search must not block the UI.
  */
-export function createExercise(lessonId='13',{previousScramble='',random=Math.random,varied=true}={}){
+export function createExercise(lessonId='13',{previousScramble='',random=Math.random,varied=true,caseIds}={}){
   const lesson=LESSONS.find(item=>item.id===lessonId);
   if(!lesson)throw Error('Unknown lesson');
+  const cases=caseIds===undefined?lesson.cases:caseIds.map(id=>lesson.cases.find(item=>item.id===id));
+  if(!cases.length||cases.some(item=>!item))throw Error('Select valid lesson cases');
   if(!initialized){Cube.initSolver();initialized=true;}
-  const {orientation,id:caseId}=lesson.case;
   const slot=varied?Math.floor(random()*4):0,auf=varied?Math.floor(random()*4):0;
-  const solution=simplify([undoTop[auf],rotateSlot(lesson.case.solution,slot)].filter(Boolean).join(' '));
-  const target=rotateTarget(lesson.case.target,slot);
+  const selected=cases[varied?Math.floor(random()*cases.length):0];
+  const {orientation,id:caseId}=selected;
+  const solution=rotateSlot(selected.alignmentSolutions[auf]||simplify([undoTop[auf],selected.solution].filter(Boolean).join(' ')),slot);
+  const target=rotateTarget(selected.target,slot);
   const background=randomBackground(random);
-  const solve=state=>rotateSlot(Cube.inverse(state.move(Cube.inverse(lesson.case.solution)).move(topTurns[auf]).solve()),slot);
+  const solve=state=>rotateSlot(Cube.inverse(state.move(selected.setup).move(topTurns[auf]).solve()),slot);
   let setup=solve(background.clone());
   let scramble=changeLessonFrame(setup);
   // Also ensure refresh changes the state with deterministic random sources.
@@ -69,5 +72,5 @@ export function createExercise(lessonId='13',{previousScramble='',random=Math.ra
     setup=solve(background.move('U'));
     scramble=changeLessonFrame(setup);
   }
-  return Object.freeze({lessonId,caseId,scramble,setup,solution,orientation,target,slot:slots[slot],auf});
+  return Object.freeze({lessonId,caseId,scramble,setup,solution,orientation,target,slot:slots[slot],auf,completion:selected.completion});
 }

@@ -5,9 +5,10 @@ import {lessonCubeSVG} from '../web/lesson-cube.js';
 import {LESSONS,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 
-const options={...LESSONS[0].case,...createExercise('13',{varied:false})};
+const playbackCase=LESSONS[1].cases.find(item=>item.id==='pair-0-3-0');
+const options={...playbackCase,...createExercise('14',{varied:false,caseIds:[playbackCase.id]})};
 
-function demo({reduced=false}={}){
+function demo({reduced=false,lesson=LESSONS[1],exercise=options}={}){
   const elements=new Map(),timers=new Map(),frames=new Map(),listeners=new Map();let now=0,id=0;
   const runtime={
     performance:{now:()=>now},matchMedia:()=>({matches:reduced}),
@@ -19,7 +20,7 @@ function demo({reduced=false}={}){
     return elements.get(selector);
   };
   const root={innerHTML:'',querySelector:get,querySelectorAll:()=>[],contains:()=>true,addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);},replaceChildren(){this.innerHTML='';}};
-  const view=createLessonDemo(root,{...LESSONS[0],case:options},runtime);
+  const view=createLessonDemo(root,{...lesson,case:exercise},runtime);
   return {view,get,root,frames,timers,
     click(dataset){listeners.get('click')?.({target:{closest:()=>({dataset})}});},
     speed(value){const input=get('#lesson-animation-speed');input.value=String(value);listeners.get('input')?.({target:input});},
@@ -37,6 +38,48 @@ function demo({reduced=false}={}){
   };
 }
 const expected=alg=>lessonCubeSVG(alg,options);
+
+test('the two direct joining cases play exactly three moves and stop with the pair inserted',()=>{
+  for(const exercise of LESSONS[1].cases.slice(0,2)){
+    const d=demo({reduced:true,exercise});
+    assert.equal(d.get('.lesson-moves').innerHTML.match(/<span/g).length,3);
+    d.click({action:'play'});d.tick(600+470*2);
+    assert.equal(d.get('[data-action="play"]').textContent,'Play');
+    assert.equal(d.get('[data-action="next"]').disabled,true);
+    assert.equal(d.frames.size+d.timers.size,0);
+    assert.equal(d.svg(),lessonCubeSVG(exercise.setup+' '+exercise.solution,exercise));
+  }
+});
+
+test('both ready-pair directions play their insertion algorithms through to the solved slot',()=>{
+  for(const exercise of LESSONS[0].cases){
+    const d=demo({reduced:true,lesson:LESSONS[0],exercise});
+    assert.equal(exercise.solution.split(' ').length,4);
+    assert.doesNotMatch(d.get('.lesson-moves').innerHTML,/Pair already formed/);
+    assert.equal(d.get('[data-action="play"]').disabled,false);
+    assert.equal(d.get('[data-action="next"]').disabled,false);
+    d.click({action:'play'});d.tick(600+470*3);
+    assert.equal(d.frames.size+d.timers.size,0);
+    assert.equal(d.get('[data-action="next"]').disabled,true);
+    assert.equal(d.svg(),lessonCubeSVG(exercise.setup+' '+exercise.solution,exercise));
+    d.click({action:'reset'});
+    assert.equal(d.svg(),lessonCubeSVG(exercise.setup,exercise));
+  }
+});
+
+test('pairing playback keeps the cube and move controls without explanatory prose',()=>{
+  const lesson=LESSONS[1],exercise=lesson.cases.find(item=>item.id==='pair-0-0-0');
+  const d=demo({reduced:true,lesson,exercise});
+  assert.doesNotMatch(d.root.innerHTML,/lesson-move-phase/);
+  d.click({action:'next'});
+  assert.equal(d.svg(),lessonCubeSVG(exercise.setup+' R',exercise));
+  d.view.setOrientation('white-top');
+  const top=orientLessonCase(exercise,'white-top');
+  assert.equal(d.svg(),lessonCubeSVG(top.setup,top));
+  d.view.setOrientation('white-bottom');
+  for(const move of exercise.solution.split(' '))d.click({action:'next'});
+  assert.equal(d.svg(),lessonCubeSVG(exercise.setup+' '+exercise.solution,exercise));
+});
 
 test('Next and Previous tween the affected layer and settle on authoritative lesson states',()=>{
   const d=demo(),initial=d.svg();
@@ -60,11 +103,12 @@ test('Play leaves a reading pause between turns and stops at the last completed 
   const d=demo();d.click({action:'play'});
   d.tick(599);assert.equal(d.svg(),expected(options.setup));
   d.tick(1);
-  for(let i=0;i<4;i++){
+  const count=options.solution.split(' ').length;
+  for(let i=0;i<count;i++){
     d.tick(240);
     d.tick(240);
     assert.equal(d.svg(),expected([options.setup,...options.solution.split(' ').slice(0,i+1)].join(' ')));
-    if(i<3){const rest=d.svg();d.tick(469);assert.equal(d.svg(),rest);d.tick(1);}
+    if(i<count-1){const rest=d.svg();d.tick(469);assert.equal(d.svg(),rest);d.tick(1);}
   }
   assert.equal(d.get('[data-action="play"]').textContent,'Play');
   assert.equal(d.frames.size+d.timers.size,0);
@@ -108,12 +152,12 @@ for(const action of ['reset','external reset','destroy'])test(action+' cancels f
   }
 });
 
-test('demo exposes insertion playback with a scramble matching its cube orientation',()=>{
+test('demo exposes pairing playback with a scramble matching its cube orientation',()=>{
   const d=demo();
   assert.doesNotMatch(d.root.innerHTML,/Watch setup|data-mode|Demonstration sequence|lesson-move-status|lesson-marker-key/);
   assert.ok(d.root.innerHTML.includes(`<code>${options.setup}</code>`));
   assert.equal(d.svg(),expected(options.setup));
-  assert.equal(d.get('.lesson-moves').innerHTML.match(/<span/g).length,4);
+  assert.equal(d.get('.lesson-moves').innerHTML.match(/<span/g).length,8);
 });
 
 test('changing orientation during playback cancels old turns and transforms the same exercise',()=>{

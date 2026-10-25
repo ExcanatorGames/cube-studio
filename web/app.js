@@ -15,7 +15,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const STORE='cube-studio-v1';
 let saved={},storageReadFailed=false;try{saved=JSON.parse(localStorage.getItem(STORE)||'{}');}catch{storageReadFailed=true;}
 let records=new Map((saved.solves||[]).map(s=>[s.id,normalizeSolve(s)])), pending=new Map((saved.pending||[]).map(s=>[s.id,normalizeSolve(s)]));
-let lessonAttempts=new Map((saved.lessonAttempts||[]).map(s=>[s.id,{...normalizeSolve(s),lessonId:s.lessonId,caseId:s.caseId}]));
+let lessonAttempts=new Map((saved.lessonAttempts||[]).map(s=>[s.id,{...normalizeSolve(s),lessonId:s.lessonId,caseId:s.caseId,completion:s.completion||'full-cube'}]));
 let settings={preset:'beginner',custom:['Cross','First pair','Remaining F2L','Last layer'],hold:550,track:false,orientation:'white-top',lessonOrientation:'white-bottom',...saved.settings};
 settings.orientation=settings.orientation==='white-bottom'?'white-bottom':'white-top';
 settings.lessonOrientation=settings.lessonOrientation==='white-top'?'white-top':'white-bottom';
@@ -48,10 +48,10 @@ function updateSolve(s){s=normalizeSolve({...s,updatedAt:Math.max(Date.now(),(re
 function saveAttempt(s,attempt){
   if(attempt.context!=='lesson')return updateSolve(s);
   const exercise=attempt.exercise;
-  const practice={...s,lessonId:exercise.lessonId,caseId:exercise.caseId};
+  const practice={...s,lessonId:exercise.lessonId,caseId:exercise.caseId,completion:exercise.completion};
   lessonAttempts.set(s.id,practice);persist();render();return practice;
 }
-function practiceTimes(){return [...lessonAttempts.values()].filter(s=>!s.deleted&&s.lessonId===timerContext.lessonId).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));}
+function practiceTimes(){return [...lessonAttempts.values()].filter(s=>!s.deleted&&s.completion===currentLesson()?.case.completion&&s.lessonId===timerContext.lessonId&&timerContext.caseIds.includes(s.caseId)).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));}
 async function sync(){
   if(syncBusy){syncRequested=true;renderSyncStatus();return;}
   syncBusy=true;renderSyncStatus();
@@ -116,7 +116,7 @@ $('.brand').onclick=e=>{e.preventDefault();setPage('timer');};
 function renderLessonCards(){
   $('#lesson-cards').innerHTML=LESSONS.map(lesson=>{
     const preview=lesson.case;
-    return `<button type="button" class="lesson-card" data-lesson="${lesson.id}"><span class="lesson-card-cube" aria-hidden="true">${lessonCubeSVG(preview.setup,preview)}</span><span class="lesson-card-copy"><strong>${esc(lesson.title)}</strong><small>Ready right · One pair, then a full solve</small></span><span class="lesson-card-arrow" aria-hidden="true">→</span></button>`;
+    return `<button type="button" class="lesson-card" data-lesson="${lesson.id}"><span class="lesson-card-cube" aria-hidden="true">${lessonCubeSVG(preview.setup,preview)}</span><span class="lesson-card-copy"><strong>${esc(lesson.title)}</strong><small>${esc(lesson.summary)}</small></span><span class="lesson-card-arrow" aria-hidden="true">→</span></button>`;
   }).join('');
 }
 renderLessonCards();
@@ -153,14 +153,74 @@ function resetTimerContext(){
   state='idle';elapsed=0;splitMarks=[];activeNames=[];activeAttempt=null;lastSolveId=null;
   $('#clock').textContent='0.00';
 }
+function currentLesson(){return LESSONS.find(item=>item.id===timerContext.lessonId);}
+function exerciseCase(){return currentLesson()?.cases.find(item=>item.id===timerContext.exercise?.caseId);}
+const lessonCasePreviews=new Map();
+function renderLessonCases(){
+  const lesson=currentLesson();
+  const list=$('#lesson-case-list');
+  if(list.dataset.lessonId!==lesson.id){
+    list.innerHTML=lesson.cases.map((item,index)=>{
+      if(!lessonCasePreviews.has(item.id))lessonCasePreviews.set(item.id,lessonCubeSVG(item.setup,item));
+      const label=lesson.id==='13'?item.title:`Case ${index+1}`;
+      return `<button type="button" id="lesson-case-${item.id}" class="lesson-case-tile" data-lesson-case="${item.id}" aria-label="${esc(item.title)}" aria-pressed="false" title="${esc(item.group+' · '+item.title)}"><span class="lesson-case-thumbnail" aria-hidden="true">${lessonCasePreviews.get(item.id)}</span><span>${esc(label)}</span></button>`;
+    }).join('');
+    list.dataset.lessonId=lesson.id;
+  }
+  for(const item of lesson.cases)$('#lesson-case-'+item.id).setAttribute('aria-pressed',String(item.id===timerContext.demoCaseId));
+  const selected=lesson.cases.find(item=>item.id===timerContext.demoCaseId);
+  $('#lesson-case-title').textContent=selected.title;
+  const practiceList=$('#lesson-practice-case-list');
+  if(practiceList.dataset.lessonId!==lesson.id){
+    practiceList.innerHTML=lesson.cases.map(item=>`<button type="button" id="practice-case-${item.id}" class="lesson-case-tile lesson-practice-tile" data-practice-case="${item.id}" aria-label="${esc(item.title)}" aria-pressed="false" title="${esc(item.group+' · '+item.title)}"><span class="lesson-case-thumbnail" aria-hidden="true">${lessonCasePreviews.get(item.id)}</span><span class="lesson-practice-case-title">${esc(item.title)}</span><span class="lesson-case-selected" aria-hidden="true">✓</span></button>`).join('');
+    practiceList.dataset.lessonId=lesson.id;
+  }
+  for(const item of lesson.cases)$('#practice-case-'+item.id).setAttribute('aria-pressed',String(timerContext.caseIds.includes(item.id)));
+}
+function setPracticeCases(caseIds){
+  if(busy()||timerContext.kind!=='lesson')return;
+  const valid=currentLesson().cases.filter(item=>caseIds.includes(item.id)).map(item=>item.id);
+  if(!valid.length){renderLessonCases();toast('Keep at least one practice case selected.');return;}
+  timerContext.caseIds=valid;
+  settings.lessonCaseSelections={...settings.lessonCaseSelections,[timerContext.lessonId]:valid};
+  persist();resetTimerContext();renderLessonCases();newScramble();timerVisual();renderSteps();
+}
+$('#lesson-practice-case-list').onclick=e=>{
+  if(busy()||timerContext.kind!=='lesson')return;
+  const id=e.target.closest('[data-practice-case]')?.dataset.practiceCase;
+  if(!currentLesson().cases.some(item=>item.id===id))return;
+  setPracticeCases(timerContext.caseIds.includes(id)?timerContext.caseIds.filter(item=>item!==id):[...timerContext.caseIds,id]);
+};
+$('#lesson-case-list').onclick=e=>{
+  if(busy()||timerContext.kind!=='lesson')return;
+  const id=e.target.closest('[data-lesson-case]')?.dataset.lessonCase;
+  if(!currentLesson().cases.some(item=>item.id===id))return;
+  $('#lesson-case-dropdown').open=false;$('#lesson-case-dropdown summary').focus();
+  if(id===timerContext.demoCaseId)return;
+  timerContext.demoCaseId=id;lessonDemo?.destroy();lessonDemo=null;
+  $('#lesson-demo').innerHTML='<p role="status">Preparing scramble…</p>';
+  renderLessonCases();newScramble();
+};
+function fitLessonCaseDropdown(){
+  const menu=$('#lesson-case-dropdown');
+  if(menu.open)menu.style.setProperty('--case-menu-height',Math.max(80,$('#lesson-panel-lesson').getBoundingClientRect().bottom-menu.getBoundingClientRect().bottom-12)+'px');
+}
+$('#lesson-case-dropdown').ontoggle=fitLessonCaseDropdown;
+$('#lesson-case-dropdown').onkeydown=e=>{
+  if(e.key==='Escape'){$('#lesson-case-dropdown').open=false;$('#lesson-case-dropdown summary').focus();}
+};
+addEventListener('resize',fitLessonCaseDropdown);
 function openLesson(id){
   if(busy())return;
   const lesson=LESSONS.find(item=>item.id===id);if(!lesson)return;
   ++scrambleRequest;
   resetTimerContext();
-  timerContext={kind:'lesson',lessonId:id,tab:'lesson',exercise:null,assistance:false};
+  const selected=lesson.cases.filter(item=>settings.lessonCaseSelections?.[id]?.includes(item.id)).map(item=>item.id);
+  timerContext={kind:'lesson',lessonId:id,tab:'lesson',exercise:null,assistance:false,demoCaseId:lesson.case.id,caseIds:selected.length?selected:lesson.cases.map(item=>item.id)};
   $('#lesson-list').hidden=true;$('#lesson-detail').hidden=false;
   $('#lesson-title').textContent=lesson.title;
+  $('#lesson-case-dropdown').open=false;
+  renderLessonCases();
   renderHeader();
   $('#lesson-practice-mount').append($('#timer-card'));
   lessonDemo?.destroy();lessonDemo=null;
@@ -192,7 +252,6 @@ function renderLessonAssistance(){
   if(lesson){
     const exercise=lessonExercise();
     $('#lesson-solution strong').textContent=exercise?.solution||'';
-    $('#lesson-solution span').textContent=exercise?.slot?`Insert the marked pair · ${exercise.slot}`:'Insert the marked pair';
   }
 }
 $('#lesson-help').onclick=()=>{
@@ -319,6 +378,7 @@ function timerVisual(){
   $('#new-scramble').disabled=busy()||preparing;$('#manual-entry').disabled=busy()||preparing;
   $$('[data-page],#lesson-back,.brand').forEach(el=>{if(el.tagName==='BUTTON')el.disabled=busy();else el.setAttribute('aria-disabled',String(busy()));});
   document.body.classList.toggle('lesson-busy',timerContext.kind==='lesson'&&busy());
+  $('#lesson-case-picker').disabled=busy();$('#lesson-practice-cases').disabled=busy();
   renderLessonTabs();renderLessonAssistance();renderSteps();
 }
 function arm(){if(!timerVisible()||busy()||!scramble||Date.now()-lastFinished<700)return;motion.clear();clearTimeout(armTimeout);elapsed=0;splitMarks=[];lastSolveId=null;lessonDemo?.reset();state='arming';$('#clock').textContent='0.00';timerVisual();armTimeout=setTimeout(()=>{if(state==='arming'){state='armed';timerVisual();navigator.vibrate?.(20);}},settings.hold);}
@@ -327,7 +387,7 @@ async function keepAwake(){try{wakeLock=await navigator.wakeLock?.request('scree
 function snapshotAttempt(){
   const lesson=timerContext.kind==='lesson'?LESSONS.find(item=>item.id===timerContext.lessonId):null;
   return Object.freeze({scramble,context:timerContext.kind,exercise:lesson?timerContext.exercise:null,
-    note:lesson?`${lesson.id} · ${lesson.title} · ${lesson.case.title} · Full cube`:'',
+    note:lesson?`${lesson.title} · ${exerciseCase()?.title||''} · Pair inserted`:'',
     track:tracking(),splitNames:Object.freeze([...names()])});
 }
 function start(){
@@ -343,7 +403,13 @@ function makeSolve(ms,splits=[],manual=false){
   return normalizeSolve({id:crypto.randomUUID(),date:new Date().toISOString(),ms:Math.max(1,Math.round(ms)),penalty:'none',scramble:attempt.scramble,splits,source:manual?'manual':'timer',note:attempt.note,updatedAt:Date.now()});
 }
 function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(performance.now()-started));cancelAnimationFrame(frame);if(activeAttempt.track)splitMarks.push({name:activeNames[splitMarks.length],ms:elapsed});state='stopped';lastFinished=Date.now();$('#clock').textContent=formatTime(elapsed);const solve=makeSolve(elapsed,[...splitMarks]);lastSolveId=solve.id;saveAttempt(solve,activeAttempt);wakeLock?.release();automaticFocus=false;timerVisual();animateResult();newScramble();}
-function mark(){if(state!=='running')return;if(!activeAttempt.track||splitMarks.length>=activeNames.length-1){stop();return;}splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();motion.reveal($('#fullscreen-splits .current'),{distance:3,duration:150});}
+function mark(){
+  if(state!=='running')return;
+  // Ignore a bounce or accidental second press just after the starting release.
+  if(!activeAttempt.track&&performance.now()-started<350)return;
+  if(!activeAttempt.track||splitMarks.length>=activeNames.length-1){stop();return;}
+  splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();motion.reveal($('#fullscreen-splits .current'),{distance:3,duration:150});
+}
 function animateResult(){
   motion.reveal($('.timer-readout'),{distance:4});
   $$('#fullscreen-splits .split-row').forEach((row,i)=>motion.reveal(row,{delay:i*18,distance:4}));
@@ -370,7 +436,7 @@ $('#fullscreen-track').onclick=()=>{setTracking(!tracking());$('#fullscreen-trac
 function refreshOrientation(){
   if(timerContext.kind==='lesson'){
     const exercise=lessonExercise();
-    if(exercise){scramble=exercise.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';}
+    if(exercise){scramble=exercise.scramble;scrambleKind=`${exerciseCase()?.title} · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';}
     lessonDemo?.setOrientation(settings.lessonOrientation);
     renderLessonAssistance();
   }else if(normalScramble){
@@ -450,15 +516,16 @@ function requestLessonScramble(request,previousScramble){
       const exercise=data.exercise;
       timerContext.exercise=Object.freeze({...exercise,target:Object.freeze([...exercise.target])});
       const oriented=lessonExercise();
-      scramble=oriented.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';
+      scramble=oriented.scramble;scrambleKind=`${exerciseCase()?.title} · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';
       if(!lessonDemo){
         const lesson=LESSONS.find(item=>item.id===timerContext.lessonId);
-        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:orientLessonCase({...lesson.case,...data.demoExercise},settings.lessonOrientation)});
+        const selected=lesson.cases.find(item=>item.id===timerContext.demoCaseId);
+        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:orientLessonCase({...selected,...data.demoExercise},settings.lessonOrientation)});
       }
       showScramble();renderLessonAssistance();renderSteps();$('#new-scramble').disabled=false;$('#manual-entry').disabled=busy();
     };
     lessonScrambler.onerror=()=>{lessonScrambler?.terminate();lessonScrambler=null;failed();};
-    lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble,withDemo:!lessonDemo});
+    lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble,withDemo:!lessonDemo,caseIds:[...timerContext.caseIds],demoCaseId:timerContext.demoCaseId});
   }catch{failed();}
 }
 async function newScramble(){
