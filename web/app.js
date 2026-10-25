@@ -5,7 +5,9 @@ import {initSplitCharts} from './split-charts.js';
 import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
 import {initMobileNavigation} from './mobile-navigation.js';
+import {createMotion} from './motion.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const motion=createMotion();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const STORE='cube-studio-v1';
 let saved={},storageReadFailed=false;try{saved=JSON.parse(localStorage.getItem(STORE)||'{}');}catch{storageReadFailed=true;}
@@ -13,7 +15,7 @@ let records=new Map((saved.solves||[]).map(s=>[s.id,normalizeSolve(s)])), pendin
 let settings={preset:'beginner',custom:['Cross','First pair','Remaining F2L','Last layer'],hold:550,track:false,...saved.settings};
 let page='timer', historyPage=0, selected=null, imported=[], toastTimeout, syncBusy=false, lastSync=0;
 let state='idle',started=0,elapsed=0,splitMarks=[],activeNames=[],scramble='',scrambleKind='',activeScramble='',lastFinished=0,armTimeout,keyboardHeld=false,frame,wakeLock;
-let lastSolveId=null;
+let lastSolveId=null,stepsHTML='';
 let touches=new Set(),gesture=false,scrambleRequest=0;
 const all=()=>[...records.values()].filter(s=>!s.deleted).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
 const names=()=>settings.preset==='custom'?settings.custom:PRESETS[settings.preset];
@@ -27,7 +29,7 @@ async function sync(){if(syncBusy)return;if(!navigator.onLine){status(pending.si
   const r=await fetch('/api/solves',{headers:syncHeaders(),redirect:'manual',signal:AbortSignal.timeout(15000)});if(!r.ok){if(r.status===401||r.status===403||r.type==='opaqueredirect')throw Error('sign-in');if(r.status===503){const data=await r.json().catch(()=>({}));if(data.setupRequired)throw Error('setup');}throw Error('Unable to load shared storage');}const data=await r.json();for(const s of data.solves){const local=records.get(s.id);if(!local||s.updatedAt>local.updatedAt)records.set(s.id,normalizeSolve(s));}persist();lastSync=Date.now();$('#connect-sync').hidden=true;status(pending.size?`${pending.size} waiting to sync`:'Synced');render();
 }catch(e){const auth=e.message==='sign-in';$('#connect-sync').hidden=!auth;status(auth?(pending.size?`${pending.size} saved · connect to sync`:'Not connected'):e.message==='setup'?'Cloud sync setup needed':pending.size?`${pending.size} saved on device`:'Offline');}finally{syncBusy=false;}}
 function filtered(scope,period='all'){let a=all();if(scope==='today')a=a.filter(s=>new Date(s.date).toDateString()===new Date().toDateString());if(period!=='all')a=a.filter(s=>Date.parse(s.date)>=Date.now()-Number(period)*86400000);return a;}
-function setPage(p){if(state==='running'||state==='arming'||state==='armed')return;page=p;focusView(false);$('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights'}[p];$$('.page').forEach(el=>el.hidden=el.id!==p+'-page');$$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});render();window.scrollTo({top:0,behavior:'instant'});}
+function setPage(p){if(state==='running'||state==='arming'||state==='armed')return;const previous=page;page=p;focusView(false);$('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights'}[p];$$('.page').forEach(el=>el.hidden=el.id!==p+'-page');$$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});render();window.scrollTo({top:0,behavior:'instant'});if(previous!==p){const order=$$('.sidebar nav [data-page]').map(b=>b.dataset.page),direction=order.indexOf(p)>order.indexOf(previous)?1:-1;motion.play($('#'+p+'-page'),[{opacity:0,translate:`${direction*10}px 0`},{opacity:1,translate:'0 0'}],{duration:180});}}
 $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
 function render(){renderSteps();renderRecent();if(page==='history')renderHistory();if(page==='insights')renderInsights();updatePageHeight();}
 function renderRecent(){
@@ -41,12 +43,13 @@ function renderSteps(){
   if(currentSolve&&!currentSolve.deleted)$('#clock').textContent=formatTime(result(currentSolve));
   const labels=state==='running'||state==='stopped'&&splitMarks.length?activeNames:names();
   const current=state==='running'&&settings.track?splitMarks.length:-1;
-  $('#fullscreen-splits').innerHTML=labels.map((name,i)=>{
+  const html=labels.map((name,i)=>{
     const detail=i<splitMarks.length&&feedback?.splits[i]?.name===name?feedback.splits[i]:null;
     const delta=detail?.delta??null,tone=detail?.tone?' solve-'+detail.tone:'';
     const comparison=delta===null?'':`${formatDifference(delta)} versus the median of ${detail.count} previous matching split solves`;
     return `<div role="listitem" class="split-row ${i<splitMarks.length?'done':''} ${i===current?'current':''}" ${i===current?'aria-current="step"':''} ${detail?`aria-label="${esc(name)}, ${formatTime(detail.ms)}${comparison?', '+esc(comparison):''}${detail.isPB?', personal best':''}"`:''}><span class="split-number${detail?.isPB?' solve-gold':''}" aria-hidden="true">${detail?.isPB?'★':i<splitMarks.length?'✓':i+1}</span><span class="split-name">${esc(name)}</span><span class="split-value${tone}${delta!==null?' has-difference':''}">${splitMarks[i]?formatTime(splitMarks[i].ms-(splitMarks[i-1]?.ms||0)):i===current?formatTime(Math.max(0,elapsed-(splitMarks[i-1]?.ms||0))):'—'}${delta!==null?`<span class="split-difference${detail?.isPB?' solve-gold':delta<0?' solve-good':''}" title="${esc(comparison)}">${formatDifference(delta)}</span>`:''}</span></div>`;
   }).join('');
+  if(html!==stepsHTML){$('#fullscreen-splits').innerHTML=html;stepsHTML=html;}
   $('#fullscreen-splits').hidden=!settings.track;
   $('#timer-card').classList.toggle('with-splits',settings.track);
   $('#fullscreen-splits .current')?.scrollIntoView({block:'nearest'});
@@ -54,6 +57,7 @@ function renderSteps(){
   $('#fullscreen-track').disabled=['running','arming','armed'].includes(state);
 }
 function renderHistory(){
+  const previousRows=$('#history-body').innerHTML;
   const a=filtered($('#history-scope').value).reverse().filter(s=>[s.date,new Date(s.date).toLocaleString(),s.scramble,s.note].join(' ').toLowerCase().includes($('#search').value.toLowerCase())),n=25;
   historyPage=Math.max(0,Math.min(historyPage,Math.ceil(a.length/n)-1));
   const rows=a.slice(historyPage*n,(historyPage+1)*n);
@@ -61,6 +65,7 @@ function renderHistory(){
   $('#history-summary').textContent=a.length?`${historyPage*n+1}–${Math.min(a.length,(historyPage+1)*n)} of ${a.length} solves`:'0 solves';
   $('#prev').disabled=historyPage===0;$('#next').disabled=(historyPage+1)*n>=a.length;
   $('.history-scroll').scrollTop=0;
+  if(previousRows!==$('#history-body').innerHTML)motion.play($('#history-body'),[{opacity:.55},{opacity:1}],{duration:140});
 }
 function chart(a,width){
   if(a.length<2)return '<div class="empty">Not enough solves.</div>';
@@ -83,7 +88,7 @@ function chart(a,width){
   return svg;
 }
 let mainChartWidth=0;
-function renderMainChart(a){mainChartWidth=Math.floor($('#main-chart').clientWidth);$('#main-chart').innerHTML=chart(a,mainChartWidth);}
+function renderMainChart(a){mainChartWidth=Math.floor($('#main-chart').clientWidth);$('#main-chart').innerHTML=chart(a,mainChartWidth);motion.play($('#main-chart'),[{opacity:.5},{opacity:1}],{duration:200});}
 new ResizeObserver(()=>requestAnimationFrame(()=>{if(page==='insights'&&Math.floor($('#main-chart').clientWidth)!==mainChartWidth)renderMainChart(filtered($('#insight-scope').value,$('#insight-period').value));})).observe($('#main-chart'));
 function renderInsights(){const a=filtered($('#insight-scope').value,$('#insight-period').value),s=summary(a);const cards=[['BEST',formatTime(s.best),'Fastest result in this view'],['AO5',formatTime(s.ao5),'Latest 5 · best and worst removed'],['AO12',formatTime(s.ao12),'Latest 12 · best and worst removed'],['SUB-MINUTE',s.completed?`${Math.round(100*s.sub60/s.completed)}%`:'—',`${s.sub60} of ${s.completed} completed solves`],['MEAN',formatTime(s.mean),'Completed solves, including +2'],['MEDIAN',formatTime(s.median),'Middle completed result'],['AO100',formatTime(s.ao100),'Latest 100 · trim 5 on each side'],['SOLVES',String(s.count),'All attempts in this view']];$('#insight-stats').innerHTML=cards.map(c=>`<div class="stat" title="${esc(c[2])}"><span>${c[0]}</span><strong>${c[1]}</strong></div>`).join('');renderMainChart(a);const bins=[['Under 45s',0,45000],['45–60s',45000,60000],['1:00–1:30',60000,90000],['1:30–2:00',90000,120000],['Over 2:00',120000,Infinity]],counts=bins.map(b=>a.filter(x=>Number.isFinite(result(x))&&result(x)>=b[1]&&result(x)<b[2]).length),max=Math.max(...counts,1);$('#distribution').innerHTML=s.completed?bins.map((b,i)=>`<div class="bar-row"><span>${b[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${counts[i]/max*100}%"></div></div><strong>${counts[i]}</strong></div>`).join(''):'<div class="empty">No completed solves.</div>';const preset=$('#split-preset').value,labels=preset==='custom'?settings.custom:PRESETS[preset],progress=splitProgress(a,labels);
 renderSplitProgress(progress);
@@ -92,14 +97,26 @@ const mx=Math.max(...progress.means,1);
 $('#split-chart').innerHTML=`<p class="muted">${progress.count} solves</p>`+labels.map((name,i)=>`<div class="bar-row"><span>${esc(name)}</span><div class="bar-track"><div class="bar-fill" style="width:${progress.means[i]/mx*100}%"></div></div><strong>${formatTime(progress.means[i])}</strong></div>`).join('');}
 
 function timerVisual(){const c=$('#timer-card');c.classList.remove('arming','armed','running');if(['arming','armed','running'].includes(state))c.classList.add(state);const hint=state==='running'&&settings.track?activeNames[splitMarks.length]:'';$('#timer-hint').textContent=hint;$('#timer-hint').hidden=!hint;$('#timer-instruction').innerHTML=state==='armed'?'<span>Release</span>':state==='arming'?'<span>Hold…</span>':state==='running'?`<kbd>space</kbd><span>${settings.track?'Split':'Stop'}</span>`:'<kbd>space</kbd><span>Hold · release</span>';$('#touch-instruction').textContent=state==='armed'?'Release':state==='arming'?'Hold…':state==='running'?(settings.track?'Tap to split':'Tap to stop'):'Two fingers · hold · release';$('#new-scramble').disabled=['running','arming','armed'].includes(state);$('#manual-entry').disabled=state==='running';renderSteps();}
-function arm(){if(state==='running'||!scramble||Date.now()-lastFinished<700)return;clearTimeout(armTimeout);elapsed=0;splitMarks=[];lastSolveId=null;state='arming';$('#clock').textContent='0.00';timerVisual();armTimeout=setTimeout(()=>{if(state==='arming'){state='armed';timerVisual();navigator.vibrate?.(20);}},settings.hold);}
+function arm(){if(state==='running'||!scramble||Date.now()-lastFinished<700)return;motion.clear();clearTimeout(armTimeout);elapsed=0;splitMarks=[];lastSolveId=null;state='arming';$('#clock').textContent='0.00';timerVisual();armTimeout=setTimeout(()=>{if(state==='arming'){state='armed';timerVisual();navigator.vibrate?.(20);}},settings.hold);}
 function disarm(){clearTimeout(armTimeout);if(state==='arming'||state==='armed'){state='idle';timerVisual();}}
 async function keepAwake(){try{wakeLock=await navigator.wakeLock?.request('screen');}catch{}}
 function start(){if(state!=='armed')return;clearTimeout(armTimeout);state='running';started=performance.now();elapsed=0;splitMarks=[];activeNames=[...names()];activeScramble=scramble;automaticFocus=!document.body.classList.contains('focus-mode');focusView(true);timerVisual();keepAwake();frame=requestAnimationFrame(tick);}
 function tick(){if(state!=='running')return;elapsed=performance.now()-started;$('#clock').textContent=formatTime(elapsed);const activeSplit=$('#fullscreen-splits .current .split-value');if(activeSplit)activeSplit.textContent=formatTime(Math.max(0,elapsed-(splitMarks.at(-1)?.ms||0)));frame=requestAnimationFrame(tick);}
 function makeSolve(ms,splits=[],manual=false){return normalizeSolve({id:crypto.randomUUID(),date:new Date().toISOString(),ms:Math.max(1,Math.round(ms)),penalty:'none',scramble:manual?scramble:activeScramble,splits,source:manual?'manual':'timer',note:'',updatedAt:Date.now()});}
-function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(performance.now()-started));cancelAnimationFrame(frame);if(settings.track)splitMarks.push({name:activeNames[splitMarks.length],ms:elapsed});state='stopped';lastFinished=Date.now();$('#clock').textContent=formatTime(elapsed);const solve=makeSolve(elapsed,[...splitMarks]);lastSolveId=solve.id;updateSolve(solve);wakeLock?.release();automaticFocus=false;timerVisual();newScramble();}
-function mark(){if(state!=='running')return;if(!settings.track||splitMarks.length>=activeNames.length-1){stop();return;}splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();}
+function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(performance.now()-started));cancelAnimationFrame(frame);if(settings.track)splitMarks.push({name:activeNames[splitMarks.length],ms:elapsed});state='stopped';lastFinished=Date.now();$('#clock').textContent=formatTime(elapsed);const solve=makeSolve(elapsed,[...splitMarks]);lastSolveId=solve.id;updateSolve(solve);wakeLock?.release();automaticFocus=false;timerVisual();animateResult();newScramble();}
+function animateResult(){
+  motion.reveal($('.timer-readout'),{distance:4});
+  $$('#fullscreen-splits .split-row').forEach((row,i)=>motion.reveal(row,{delay:i*18,distance:4}));
+  motion.reveal($('.timer-recent .recent-solve'),{distance:4});
+  requestAnimationFrame(()=>{
+    if(state!=='stopped')return;
+    feedbackView.fit();
+    motion.reveal($('#solve-feedback'),{delay:50,distance:4});
+    motion.reveal($('#solve-ranking'),{delay:80,distance:4,duration:260});
+    $$('#ranking-squares span').forEach((square,i)=>motion.play(square,[{opacity:.2,scale:'1 .5'},{opacity:1,scale:'1 1'}],{delay:80+i*3,duration:200}));
+  });
+}
+function mark(){if(state!=='running')return;if(!settings.track||splitMarks.length>=activeNames.length-1){stop();return;}splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();motion.reveal($('#fullscreen-splits .current'),{distance:3,duration:150});}
 function cancel(){if(automaticFocus){focusView(false);automaticFocus=false;}if(state==='running'){cancelAnimationFrame(frame);wakeLock?.release();state='idle';splitMarks=[];elapsed=0;$('#clock').textContent='0.00';toast('Cancelled.');lastFinished=Date.now();timerVisual();}else disarm();}
 const pad=$('#timer-pad');
 pad.addEventListener('pointerdown',e=>{if(e.target.closest('#fullscreen-splits')&&state!=='running')return;if(e.pointerType==='touch'){e.preventDefault();touches.add(e.pointerId);pad.setPointerCapture(e.pointerId);if(state==='running'){if(!gesture){gesture=true;mark();}return;}if(touches.size===2){gesture=true;arm();}}else if(e.button===0){if(state==='running'){mark();return;}keyboardHeld=true;pad.setPointerCapture(e.pointerId);arm();}});
@@ -109,16 +126,20 @@ window.addEventListener('keydown',e=>{if(e.repeat||$$('dialog').some(d=>d.open)|
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();keyboardHeld=false;if(state==='armed')start();else disarm();}});
 window.addEventListener('blur',()=>{keyboardHeld=false;touches.clear();gesture=false;disarm();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state==='running')keepAwake();if(Date.now()-lastSync>20000)sync();}else disarm();});
-function setTracking(enabled){if(['running','arming','armed'].includes(state))return;settings.track=enabled;splitMarks=[];persist();timerVisual();}
+function setTracking(enabled){if(['running','arming','armed'].includes(state))return;motion.layout([$('.timer-center')],()=>{settings.track=enabled;splitMarks=[];persist();timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
 $('#fullscreen-track').onclick=()=>{setTracking(!settings.track);$('#fullscreen-track').blur();};
 let automaticFocus=false;
 function focusView(enabled){
+  if(enabled===document.body.classList.contains('focus-mode'))return;
+  motion.clear();
   // Fill the app viewport without invoking the browser's fullscreen notice.
+  motion.layout([$('#timer-card')],()=>{
   document.body.classList.toggle('focus-mode',enabled);
   $('#focus').setAttribute('aria-pressed',String(enabled));
   $('#focus').title=enabled?'Exit fullscreen':'Fullscreen';
   updatePageHeight();
   layoutScramble();
+  },{surface:true});
   requestAnimationFrame(()=>feedbackView.fit());
 }
 $('#focus').onclick=()=>{automaticFocus=false;focusView(!document.body.classList.contains('focus-mode'));$('#focus').blur();};
@@ -132,7 +153,7 @@ const chromeObserver=new ResizeObserver(()=>requestAnimationFrame(updatePageHeig
 [$('.app-bar'),$('.sidebar')].forEach(el=>chromeObserver.observe(el));
 addEventListener('resize',updatePageHeight);
 let officialScrambler;
-async function newScramble(){const req=++scrambleRequest;$('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';$('#fullscreen-scramble').textContent='…';$('#cube-preview').replaceChildren();$('#scramble-type').textContent='Preparing…';let timeout;try{if(!navigator.onLine)throw Error('Offline practice');officialScrambler ||= import('https://cdn.cubing.net/v0/js/cubing/scramble');const generated=officialScrambler.then(lib=>lib.randomScrambleForEvent('333'));const alg=await Promise.race([generated,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Scrambler timed out')),6000);})]);if(req!==scrambleRequest)return;scramble=alg.toString();scrambleKind='Random state';}catch{if(req!==scrambleRequest)return;scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;}finally{clearTimeout(timeout);if(req===scrambleRequest){showScramble();if(!['running','arming','armed'].includes(state))$('#new-scramble').disabled=false;}}}
+async function newScramble(){const req=++scrambleRequest;$('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';let timeout;try{if(!navigator.onLine)throw Error('Offline practice');officialScrambler ||= import('https://cdn.cubing.net/v0/js/cubing/scramble');const generated=officialScrambler.then(lib=>lib.randomScrambleForEvent('333'));const alg=await Promise.race([generated,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Scrambler timed out')),6000);})]);if(req!==scrambleRequest)return;scramble=alg.toString();scrambleKind='Random state';}catch{if(req!==scrambleRequest)return;scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;}finally{clearTimeout(timeout);if(req===scrambleRequest){showScramble();if(!['running','arming','armed'].includes(state))$('#new-scramble').disabled=false;}}}
 const scrambleMeasure=document.createElement('canvas').getContext('2d');let scrambleLayoutKey='';
 function layoutScramble(){
   if(!scramble)return;
@@ -161,6 +182,7 @@ function showScramble(){
   $('#scramble-type').textContent=scrambleKind;
   $('#scramble-type').classList.toggle('sr-only',scrambleKind==='Random state');
   try{$('#cube-preview').innerHTML=cubeSVG(scramble);}catch{$('#cube-preview').replaceChildren();}
+  if(state!=='running'){motion.reveal($('#fullscreen-scramble'),{distance:4});motion.reveal($('#cube-preview'),{delay:35,distance:5,duration:260});}
 }
 $('#new-scramble').onclick=()=>newScramble();
 function openDialog(id){if(state==='running'||state==='arming'||state==='armed')return;$(id).showModal();}

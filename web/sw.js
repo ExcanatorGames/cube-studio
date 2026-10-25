@@ -1,5 +1,5 @@
 const CACHE = 'cube-studio-__VERSION__';
-const SHELL = ['/', '/style.css', '/dark.css', '/app.js', '/mobile-navigation.js', '/core.js', '/cube.js', '/split-charts.js', '/solve-feedback.js', '/pwa.js', '/connect.js', '/manifest.webmanifest', '/icons/icon-180.png', '/icons/icon-192.png', '/icons/icon-512.png'];
+const SHELL = ['/', '/style.css', '/dark.css', '/app.js', '/motion.js', '/mobile-navigation.js', '/core.js', '/cube.js', '/split-charts.js', '/solve-feedback.js', '/pwa.js', '/connect.js', '/manifest.webmanifest', '/icons/icon-180.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
