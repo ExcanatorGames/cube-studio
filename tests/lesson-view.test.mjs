@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createLessonDemo} from '../web/lesson-view.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
-import {LESSONS} from '../web/lessons.js';
+import {LESSONS,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 
 const options={...LESSONS[0].case,...createExercise('13',{varied:false})};
@@ -108,12 +108,29 @@ for(const action of ['reset','external reset','destroy'])test(action+' cancels f
   }
 });
 
-test('demo exposes only insertion playback and displays the white-top scramble',()=>{
+test('demo exposes insertion playback with a scramble matching its cube orientation',()=>{
   const d=demo();
   assert.doesNotMatch(d.root.innerHTML,/Watch setup|data-mode|Demonstration sequence|lesson-move-status|lesson-marker-key/);
-  assert.ok(d.root.innerHTML.includes(`<code>${options.scramble}</code>`));
+  assert.ok(d.root.innerHTML.includes(`<code>${options.setup}</code>`));
   assert.equal(d.svg(),expected(options.setup));
   assert.equal(d.get('.lesson-moves').innerHTML.match(/<span/g).length,4);
+});
+
+test('changing orientation during playback cancels old turns and transforms the same exercise',()=>{
+  const d=demo(),top=orientLessonCase(options,'white-top');
+  d.click({action:'play'});d.tick(600);d.tick(240);
+  const stale=[...d.frames.values()][0];
+  d.view.setOrientation('white-top');
+  assert.equal(d.frames.size+d.timers.size,0);
+  assert.equal(d.svg(),lessonCubeSVG(top.setup,top));
+  assert.equal(d.get('.lesson-demo-setup code').textContent,top.setup);
+  assert.match(d.get('.lesson-moves').innerHTML,/>D<\/span>/);
+  stale(10000);d.tick(10000);
+  assert.equal(d.svg(),lessonCubeSVG(top.setup,top));
+  d.click({action:'next'});d.tick(480);
+  assert.equal(d.svg(),lessonCubeSVG(top.setup+' D',top));
+  d.view.setOrientation('white-bottom');
+  assert.equal(d.svg(),expected(options.setup));
 });
 
 test('reduced motion advances canonical steps without tween frames and retains playback pauses',()=>{

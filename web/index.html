@@ -38,8 +38,9 @@
   <div class="timer-card" id="timer-card">
    <div class="timer-toolbar">
     <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
-    <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
+    <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="cube-orientation" type="button" class="small-button" title="White on top. Switch to white on bottom." aria-label="White on top. Switch to white on bottom.">White ↑</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
    </div>
+   <h2 id="fullscreen-lesson-title" class="fullscreen-lesson-title" hidden></h2>
    <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
     <div class="timer-center">
      <span id="scramble-type" class="scramble-kind muted sr-only">Preparing…</span>
@@ -78,7 +79,6 @@
    </div>
    <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
     <div id="lesson-practice-mount"></div>
-    <ol id="lesson-practice-times" aria-label="Recent practice times" hidden></ol>
    </div>
    </div>
   </div>
@@ -101,6 +101,7 @@
  <label class="field">Split method<select id="preset"><option value="beginner">Beginner · 7 splits</option><option value="cfop">CFOP · 4 splits</option><option value="custom">Custom</option></select></label>
  <label class="field" id="custom-field" hidden>Splits, separated by commas<textarea id="custom-steps" rows="3" placeholder="Cross, F2L, Last layer"></textarea></label>
  <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>
+ <label class="field">Lesson orientation<select id="lesson-orientation"><option value="white-bottom">White on bottom</option><option value="white-top">White on top</option></select></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
  <div class="settings-actions"><button id="open-import" type="button" class="small-button">Import CSV</button><button id="export" type="button" class="small-button">Export CSV</button><button id="install-app" type="button" class="small-button">Install app <span id="app-status" class="sr-only"></span></button></div>

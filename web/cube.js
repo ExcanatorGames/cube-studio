@@ -9,13 +9,20 @@ const FACES = {
 };
 const colors=Object.fromEntries(Object.entries(FACES).map(([face,{color}])=>[face,color]));
 const frames={
-  'white-top':{colors,label:'white on top and green in front'},
+  'white-top':{colors,label:'white on top and green in front, with red on the right'},
   'white-bottom':{
     colors:{U:colors.D,D:colors.U,F:colors.F,B:colors.B,R:colors.L,L:colors.R},
     label:'yellow on top, white on bottom, green in front and orange on the right',
   },
 };
 export function cubeFrame(orientation='white-top'){return frames[orientation]??frames['white-top'];}
+// A half-turn around the front/back axis keeps green in front. Rewrite the
+// moves in that frame without changing the physical scrambled state.
+export function orientAlgorithm(algorithm,from,to){
+  if(from===to)return algorithm;
+  const faces={U:'D',D:'U',R:'L',L:'R',F:'F',B:'B'};
+  return algorithm.trim().split(/\s+/).filter(Boolean).map(move=>faces[move[0]]+move.slice(1)).join(' ');
+}
 const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);
 function rotate(v,axis,direction){
   const a=[0,0,0];a[axis]=1;

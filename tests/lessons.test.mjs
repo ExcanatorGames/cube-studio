@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LESSONS,changeLessonFrame} from '../web/lessons.js';
+import {LESSONS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
@@ -40,6 +40,27 @@ function simulate(alg){
 const cross=['U1','B1','U3','L1','U5','R1','U7','F1'];
 const pair=['U6','F0','L2','F3','L5'];
 const solved=simulate('');
+
+test('lesson orientation rotates the physical state, target pieces and solution together',()=>{
+  const faces={U:'D',D:'U',R:'L',L:'R',F:'F',B:'B'};
+  const rotate=([x,y,z])=>[-x,-y,z].map(n=>n||0);
+  let seed=87654;const random=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+  for(let i=0;i<16;i++){
+    const exercise=createExercise('13',{random}),top=orientLessonCase(exercise,'white-top');
+    assert.equal(top.setup,exercise.scramble);
+    assert.equal(top.scramble,top.setup);
+    const rotated=cubeStickers(exercise.setup).map(s=>({face:faces[s.face],normal:rotate(s.normal),position:rotate(s.position),cubie:rotate(s.cubie.split(',').map(Number)).join(',')}));
+    const byPiece=stickers=>JSON.parse(JSON.stringify(stickers.sort((a,b)=>(a.cubie+a.face).localeCompare(b.cubie+b.face))));
+    assert.deepEqual(byPiece(cubeStickers(top.setup)),byPiece(rotated));
+    const inserted=cubeStickers(top.setup+' '+top.solution),solved=cubeStickers();
+    for(let j=0;j<inserted.length;j++)if(top.target.includes(inserted[j].cubie))assert.equal(JSON.stringify(inserted[j]),JSON.stringify(solved[j]));
+    const bottom=orientLessonCase(top,'white-bottom');
+    assert.equal(bottom.setup,exercise.setup);
+    assert.equal(bottom.solution,exercise.solution);
+    assert.deepEqual(bottom.target,exercise.target);
+    assert.equal(bottom.slot,exercise.slot);
+  }
+});
 
 test('every exercise starts with the solved cross and the exact ready-right pair, leaving other F2L work',()=>{
   const canonical=simulate("L D L' D'"),seen=new Set();

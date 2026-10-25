@@ -318,6 +318,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 #timer-card .timer-actions{display:flex;align-items:center;gap:2px;margin-right:auto}
 #timer-card .timer-toolbar .icon-button{margin:0;min-width:40px;min-height:40px;font-size:22px}
 #fullscreen-track{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 11px;font-size:13px}
+#cube-orientation{min-width:78px;min-height:36px;padding:7px 11px;font-size:13px;white-space:nowrap}
 #fullscreen-track[aria-pressed="true"]{background:#293d63;border-color:#839fe9;color:#d3dfff}
 #timer-card #timer-pad{position:relative;display:grid;grid-template-rows:minmax(0,1fr);justify-items:center;gap:24px;width:100%;height:100%;padding:64px 24px 28px;text-align:center;touch-action:pan-y;cursor:pointer}
 #timer-card .timer-center{grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:center;gap:20px;width:100%;max-width:calc(100% - 2 * clamp(210px,20vw,300px) - 64px);min-height:0;min-width:0;touch-action:none}
@@ -551,6 +552,8 @@ html[data-motion="focus"] #touch-instruction{view-transition-name:focus-touch}
 html[data-motion="focus"] #new-scramble{view-transition-name:focus-refresh}
 html[data-motion="focus"] #manual-entry{view-transition-name:focus-manual}
 html[data-motion="focus"] #fullscreen-track{view-transition-name:focus-track}
+html[data-motion="focus"] #cube-orientation{view-transition-name:focus-orientation}
+html[data-motion="focus"] #fullscreen-lesson-title{view-transition-name:focus-lesson-title;transition:none}
 html[data-motion="focus"] #focus{view-transition-name:focus-toggle}
 html[data-motion="focus"] .split-row{view-transition-name:var(--focus-part)}
 html[data-motion="focus"] .split-row .split-number{view-transition-name:var(--focus-number)}
@@ -570,6 +573,10 @@ html[data-motion="focus"] .ranking-ends>span:last-child{view-transition-name:foc
 html[data-motion="focus"]::view-transition-group(*){animation-duration:320ms;animation-timing-function:var(--motion-ease)}
 html[data-motion="focus"]::view-transition-old(*){animation:none;opacity:0}
 html[data-motion="focus"]::view-transition-new(*){animation:none;opacity:1;mix-blend-mode:normal}
+html[data-motion="focus"]::view-transition-old(focus-lesson-title){animation:lesson-title-fade-out 220ms ease both;opacity:1}
+html[data-motion="focus"]::view-transition-new(focus-lesson-title){animation:lesson-title-fade-in 220ms ease both}
+@keyframes lesson-title-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes lesson-title-fade-out{from{opacity:1}to{opacity:0}}
 ::view-transition-group(page-content){animation:none;overflow:clip}
 ::view-transition-image-pair(page-content){isolation:isolate;overflow:clip}
 ::view-transition-old(page-content),::view-transition-new(page-content){mix-blend-mode:normal;animation:260ms var(--motion-ease) both;height:auto}
