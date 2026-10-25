@@ -24,11 +24,11 @@ async function sync(){if(syncBusy)return;if(!navigator.onLine){status(pending.si
   const batch=[...pending.values()];
   for(let i=0;i<batch.length;i+=350){const part=batch.slice(i,i+350),r=await fetch('/api/solves',{method:'POST',headers:{'content-type':'application/json',...syncHeaders()},body:JSON.stringify({solves:part}),redirect:'manual',signal:AbortSignal.timeout(15000)});if(!r.ok){if(r.status===401||r.status===403||r.type==='opaqueredirect')throw Error('sign-in');throw Error('Sync failed');}for(const s of part)if(pending.get(s.id)?.updatedAt===s.updatedAt)pending.delete(s.id);persist();}
   const r=await fetch('/api/solves',{headers:syncHeaders(),redirect:'manual',signal:AbortSignal.timeout(15000)});if(!r.ok){if(r.status===401||r.status===403||r.type==='opaqueredirect')throw Error('sign-in');if(r.status===503){const data=await r.json().catch(()=>({}));if(data.setupRequired)throw Error('setup');}throw Error('Unable to load shared storage');}const data=await r.json();for(const s of data.solves){const local=records.get(s.id);if(!local||s.updatedAt>local.updatedAt)records.set(s.id,normalizeSolve(s));}persist();lastSync=Date.now();$('#connect-sync').hidden=true;status(pending.size?`${pending.size} waiting to sync`:'Synced');render();
-}catch(e){const auth=e.message==='sign-in';$('#connect-sync').hidden=!auth;status(auth?(pending.size?`${pending.size} saved · connect to sync`:'Not connected'):e.message==='setup'?'Cloud sync setup needed':pending.size?`${pending.size} saved on device`:'Offline');if(!records.size){$('#recent-list').innerHTML=auth?'<div class="empty">Connect to load history.</div>':'<div class="empty">History unavailable.</div>';}}finally{syncBusy=false;}}
+}catch(e){const auth=e.message==='sign-in';$('#connect-sync').hidden=!auth;status(auth?(pending.size?`${pending.size} saved · connect to sync`:'Not connected'):e.message==='setup'?'Cloud sync setup needed':pending.size?`${pending.size} saved on device`:'Offline');}finally{syncBusy=false;}}
 function filtered(scope,period='all'){let a=all();if(scope==='today')a=a.filter(s=>new Date(s.date).toDateString()===new Date().toDateString());if(period!=='all')a=a.filter(s=>Date.parse(s.date)>=Date.now()-Number(period)*86400000);return a;}
 function setPage(p){if(state==='running'||state==='arming'||state==='armed')return;page=p;focusView(false);$('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights'}[p];$$('.page').forEach(el=>el.hidden=el.id!==p+'-page');$$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});render();window.scrollTo({top:0,behavior:'instant'});}
 $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
-function render(){const a=all(),latest=a.slice(-8).reverse(),stats=summary(a);$('#recent-count').textContent=a.length;$('#recent-count').title=`${a.length} total solves`;$('#session-best').textContent=formatTime(stats.best);$('#session-ao5').textContent=formatTime(stats.ao5);$('#recent-list').innerHTML=latest.length?latest.map((s,i)=>`<button class="recent-row ${result(s)===stats.best?'best':''}" data-id="${esc(s.id)}"><span class="recent-index">${String(a.length-i).padStart(2,'0')}</span><span class="recent-time">${formatTime(result(s))}${s.penalty==='+2'?'<small>+2</small>':''}</span><small>${new Date(s.date).toLocaleDateString(undefined,{day:'numeric',month:'short'})}</small></button>`).join(''):'<div class="empty">No solves yet.</div>';$('#progress-best').textContent=formatTime(stats.best);$('.progress-card').hidden=a.length<2;$('#mini-chart').innerHTML=chart(a.slice(-100),true);renderSteps();if(page==='history')renderHistory();if(page==='insights')renderInsights();}
+function render(){renderSteps();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
 function renderSteps(){
   const currentSolve=state==='stopped'&&lastSolveId?records.get(lastSolveId):null;
   const feedback=currentSolve?solveFeedback(all(),currentSolve):null;
@@ -36,7 +36,6 @@ function renderSteps(){
   if(currentSolve&&!currentSolve.deleted)$('#clock').textContent=formatTime(result(currentSolve));
   const labels=state==='running'||state==='stopped'&&splitMarks.length?activeNames:names();
   const current=state==='running'&&settings.track?splitMarks.length:-1;
-  $('#steps').innerHTML=labels.map((name,i)=>`<div class="step ${i<splitMarks.length?'done':''} ${i===current?'current':''}"><span class="step-number">${i<splitMarks.length?'✓':i+1}</span><span class="step-name">${esc(name)}</span><span class="step-time">${splitMarks[i]?formatTime(splitMarks[i].ms-(splitMarks[i-1]?.ms||0)):'—'}</span></div>`).join('');
   $('#fullscreen-splits').innerHTML=labels.map((name,i)=>{
     const detail=i<splitMarks.length&&feedback?.splits[i]?.name===name?feedback.splits[i]:null;
     const delta=detail?.delta??null,tone=detail?.tone?' solve-'+detail.tone:'';
@@ -45,13 +44,9 @@ function renderSteps(){
   }).join('');
   $('#fullscreen-splits').hidden=!settings.track;
   $('#timer-card').classList.toggle('with-splits',settings.track);
-  if(document.body.classList.contains('focus-mode'))$('#fullscreen-splits .current')?.scrollIntoView({block:'nearest'});
-  $('#track-steps').checked=settings.track;$('#steps').hidden=!settings.track;$('#step-controls').hidden=!settings.track;
+  $('#fullscreen-splits .current')?.scrollIntoView({block:'nearest'});
   $('#fullscreen-track').setAttribute('aria-pressed',String(settings.track));
   $('#fullscreen-track').disabled=['running','arming','armed'].includes(state);
-  $('#mark-step').disabled=state!=='running'||!settings.track;
-  $('#mark-step').innerHTML=state==='running'&&splitMarks.length===activeNames.length-1?'Finish <kbd>↵</kbd>':'Split <kbd>↵</kbd>';
-  $('#track-steps').disabled=state==='running'||state==='arming'||state==='armed';
 }
 function renderHistory(){
   const a=filtered($('#history-scope').value).reverse().filter(s=>[s.date,new Date(s.date).toLocaleString(),s.scramble,s.note].join(' ').toLowerCase().includes($('#search').value.toLowerCase())),n=25;
@@ -81,16 +76,14 @@ function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(perfor
 function mark(){if(state!=='running')return;if(!settings.track||splitMarks.length>=activeNames.length-1){stop();return;}splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();}
 function cancel(){if(automaticFocus){focusView(false);automaticFocus=false;}if(state==='running'){cancelAnimationFrame(frame);wakeLock?.release();state='idle';splitMarks=[];elapsed=0;$('#clock').textContent='0.00';toast('Cancelled.');lastFinished=Date.now();timerVisual();}else disarm();}
 const pad=$('#timer-pad');
-pad.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();touches.add(e.pointerId);pad.setPointerCapture(e.pointerId);if(state==='running'){if(!gesture){gesture=true;mark();}return;}if(touches.size===2){gesture=true;arm();}}else if(e.button===0){if(state==='running'){mark();return;}keyboardHeld=true;pad.setPointerCapture(e.pointerId);arm();}});
+pad.addEventListener('pointerdown',e=>{if(e.target.closest('#fullscreen-splits')&&state!=='running')return;if(e.pointerType==='touch'){e.preventDefault();touches.add(e.pointerId);pad.setPointerCapture(e.pointerId);if(state==='running'){if(!gesture){gesture=true;mark();}return;}if(touches.size===2){gesture=true;arm();}}else if(e.button===0){if(state==='running'){mark();return;}keyboardHeld=true;pad.setPointerCapture(e.pointerId);arm();}});
 pad.addEventListener('pointerup',e=>{if(e.pointerType==='touch'){e.preventDefault();touches.delete(e.pointerId);if(touches.size<2&&state==='arming')disarm();if(touches.size===0){if(gesture&&state==='armed')start();gesture=false;}}else if(keyboardHeld){keyboardHeld=false;if(state==='armed')start();else disarm();}});
 pad.addEventListener('pointercancel',()=>{touches.clear();gesture=false;keyboardHeld=false;disarm();});
 window.addEventListener('keydown',e=>{if(e.repeat||$$('dialog').some(d=>d.open)||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.code==='Escape'){cancel();focusView(false);return;}if(page!=='timer')return;if(e.code==='Space'){if(e.target.tagName==='BUTTON')return;e.preventDefault();if(state==='running'){mark();return;}keyboardHeld=true;arm();}if(e.code==='Enter'&&state==='running'){e.preventDefault();mark();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();keyboardHeld=false;if(state==='armed')start();else disarm();}});
 window.addEventListener('blur',()=>{keyboardHeld=false;touches.clear();gesture=false;disarm();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state==='running')keepAwake();if(Date.now()-lastSync>20000)sync();}else disarm();});
-$('#mark-step').onclick=mark;
 function setTracking(enabled){if(['running','arming','armed'].includes(state))return;settings.track=enabled;splitMarks=[];persist();timerVisual();}
-$('#track-steps').onchange=e=>setTracking(e.target.checked);
 $('#fullscreen-track').onclick=()=>{setTracking(!settings.track);$('#fullscreen-track').blur();};
 let automaticFocus=false;
 function focusView(enabled){
@@ -98,16 +91,25 @@ function focusView(enabled){
   document.body.classList.toggle('focus-mode',enabled);
   $('#focus').setAttribute('aria-pressed',String(enabled));
   $('#focus').title=enabled?'Exit fullscreen':'Fullscreen';
+  updateTimerHeight();
   layoutScramble();
   requestAnimationFrame(()=>feedbackView.fit());
 }
 $('#focus').onclick=()=>{automaticFocus=false;focusView(!document.body.classList.contains('focus-mode'));$('#focus').blur();};
+function updateTimerHeight(){
+  if(page!=='timer'||document.body.classList.contains('focus-mode'))return;
+  const card=$('#timer-card'),navigation=matchMedia('(max-width:740px)').matches?$('.sidebar').getBoundingClientRect().height:0;
+  card.style.setProperty('--timer-available-height',Math.max(320,innerHeight-card.getBoundingClientRect().top-scrollY-navigation-12)+'px');
+}
+const chromeObserver=new ResizeObserver(()=>requestAnimationFrame(updateTimerHeight));
+[$('.app-bar'),$('.sidebar')].forEach(el=>chromeObserver.observe(el));
+addEventListener('resize',updateTimerHeight);
 let officialScrambler;
-async function newScramble(){const req=++scrambleRequest;$('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';$('#fullscreen-scramble').textContent='…';$('#cube-preview').replaceChildren();$('#scramble').textContent='…';$('#scramble-type').textContent='Preparing…';let timeout;try{if(!navigator.onLine)throw Error('Offline practice');officialScrambler ||= import('https://cdn.cubing.net/v0/js/cubing/scramble');const generated=officialScrambler.then(lib=>lib.randomScrambleForEvent('333'));const alg=await Promise.race([generated,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Scrambler timed out')),6000);})]);if(req!==scrambleRequest)return;scramble=alg.toString();scrambleKind='Random state';}catch{if(req!==scrambleRequest)return;scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;}finally{clearTimeout(timeout);if(req===scrambleRequest){showScramble();if(!['running','arming','armed'].includes(state))$('#new-scramble').disabled=false;}}}
+async function newScramble(){const req=++scrambleRequest;$('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';$('#fullscreen-scramble').textContent='…';$('#cube-preview').replaceChildren();$('#scramble-type').textContent='Preparing…';let timeout;try{if(!navigator.onLine)throw Error('Offline practice');officialScrambler ||= import('https://cdn.cubing.net/v0/js/cubing/scramble');const generated=officialScrambler.then(lib=>lib.randomScrambleForEvent('333'));const alg=await Promise.race([generated,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Scrambler timed out')),6000);})]);if(req!==scrambleRequest)return;scramble=alg.toString();scrambleKind='Random state';}catch{if(req!==scrambleRequest)return;scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;}finally{clearTimeout(timeout);if(req===scrambleRequest){showScramble();if(!['running','arming','armed'].includes(state))$('#new-scramble').disabled=false;}}}
 const scrambleMeasure=document.createElement('canvas').getContext('2d');let scrambleLayoutKey='';
 function layoutScramble(){
   if(!scramble)return;
-  const targets=[$('#scramble'),$('#fullscreen-scramble')].filter(target=>target.clientWidth);
+  const targets=[$('#fullscreen-scramble')].filter(target=>target.clientWidth);
   const layouts=targets.map(target=>{
     const style=getComputedStyle(target);let capacity=Infinity;
     if(target.id==='fullscreen-scramble'||matchMedia('(max-width:740px)').matches){
@@ -124,12 +126,13 @@ function layoutScramble(){
     lines.forEach((line,i)=>{if(i)target.append(' ');const span=document.createElement('span');span.className='scramble-line';span.textContent=line;target.append(span);});
   }
 }
-const scrambleObserver=new ResizeObserver(layoutScramble);
-[$('#scramble'),$('#fullscreen-scramble')].forEach(target=>scrambleObserver.observe(target));
+const scrambleObserver=new ResizeObserver(()=>requestAnimationFrame(layoutScramble));
+scrambleObserver.observe($('#fullscreen-scramble'));
 document.fonts?.ready.then(layoutScramble);
 function showScramble(){
   layoutScramble();
   $('#scramble-type').textContent=scrambleKind;
+  $('#scramble-type').classList.toggle('sr-only',scrambleKind==='Random state');
   try{$('#cube-preview').innerHTML=cubeSVG(scramble);}catch{$('#cube-preview').replaceChildren();}
 }
 $('#new-scramble').onclick=()=>newScramble();

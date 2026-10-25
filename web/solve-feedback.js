@@ -10,7 +10,7 @@ export function initSolveFeedback(){
   const ranking=document.querySelector('#solve-ranking'),count=document.querySelector('#ranking-count'),allTime=document.querySelector('#ranking-all-time'),track=document.querySelector('#ranking-track'),squares=document.querySelector('#ranking-squares'),marker=document.querySelector('#ranking-marker'),ends=document.querySelector('#ranking-ends');
   let current=null;
   function fit(){
-    if(!current||!document.body.classList.contains('focus-mode'))return;
+    if(!current)return;
     message.hidden=current.delta===null&&!current.isPB;pb.hidden=!current.isPB;
     if(message.hidden)return;
     const splits=document.querySelector('#fullscreen-splits');

@@ -32,50 +32,32 @@
   <button id="install-app" class="text-button">Install <span id="app-status" class="sr-only"></span></button>
  </header>
  <section id="timer-page" class="page">
-  <div class="timer-layout">
-   <div class="timer-column">
-    <div class="scramble-card">
-     <div class="card-top"><span id="scramble-type" class="muted">Preparing…</span><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
-     <div id="scramble" class="scramble" aria-live="polite">…</div>
-    </div>
-    <div class="timer-card" id="timer-card">
-     <div class="timer-toolbar"><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button></div>
-     <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
-      <div class="timer-center">
-       <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble"></div>
-       <div id="cube-preview" class="cube-preview"></div>
-       <div class="timer-readout">
+  <div class="timer-card" id="timer-card">
+   <div class="timer-toolbar">
+    <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button><button id="manual-entry" class="icon-button" title="Add time" aria-label="Add time">＋</button></div>
+    <button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
+   </div>
+   <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
+    <div class="timer-center">
+     <span id="scramble-type" class="scramble-kind muted sr-only">Preparing…</span>
+     <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble" aria-live="polite">…</div>
+     <div id="cube-preview" class="cube-preview"></div>
+     <div class="timer-readout">
       <div id="timer-hint" class="timer-hint" aria-live="polite" hidden></div>
       <div id="clock" class="clock" aria-live="off">0.00</div>
       <div id="timer-instruction" class="timer-instruction"><kbd>space</kbd><span>Hold · release</span></div>
       <div id="touch-instruction" class="touch-instruction">Two fingers · hold · release</div>
       <div id="solve-feedback" class="solve-feedback" aria-live="polite" hidden><div id="feedback-pb" class="feedback-pb" hidden></div><div id="feedback-comparison"></div></div>
-       </div>
-      </div>
-      <div id="fullscreen-splits" class="fullscreen-splits" role="list" aria-label="Solve splits" hidden></div>
      </div>
-     <div id="solve-ranking" class="solve-ranking" hidden>
-      <div class="ranking-meta"><span id="ranking-count"></span><span>All-time <strong id="ranking-all-time"></strong></span></div>
-      <div id="ranking-track" class="ranking-track" role="img"><div id="ranking-squares" class="ranking-squares"></div><i id="ranking-marker" class="ranking-marker" aria-hidden="true"></i></div>
-      <div id="ranking-ends" class="ranking-ends"><span>Fastest</span><span>Slowest</span></div>
-     </div>
-     <div class="timer-footer"><button id="manual-entry" class="text-button">Add time ↗</button></div>
     </div>
-    <div class="steps-card">
-     <div class="card-top"><h2>Splits</h2><label class="switch"><input id="track-steps" type="checkbox" aria-label="Track splits"><span></span></label></div>
-     <div id="steps" class="steps" hidden></div>
-     <div id="step-controls" class="step-controls" hidden><button id="mark-step" class="small-button" disabled>Split <kbd>↵</kbd></button></div>
-    </div>
+    <div id="fullscreen-splits" class="fullscreen-splits" role="list" aria-label="Solve splits" hidden></div>
    </div>
-   <aside class="session-card">
-    <div class="card-top"><h2>Recent solves</h2><span id="recent-count" class="count"></span></div>
-    <div class="session-metrics"><div><span>BEST</span><strong id="session-best">—</strong></div><div><span>AO5</span><strong id="session-ao5">—</strong></div></div>
-    <div id="recent-list" class="recent-list"></div><button data-page="history" class="view-history">History <span>→</span></button>
-   </aside>
+   <div id="solve-ranking" class="solve-ranking" hidden>
+    <div class="ranking-meta"><span id="ranking-count"></span><span>All-time <strong id="ranking-all-time"></strong></span></div>
+    <div id="ranking-track" class="ranking-track" role="img"><div id="ranking-squares" class="ranking-squares"></div><i id="ranking-marker" class="ranking-marker" aria-hidden="true"></i></div>
+    <div id="ranking-ends" class="ranking-ends"><span>Fastest</span><span>Slowest</span></div>
+   </div>
   </div>
-  <section class="progress-card" aria-label="Solve progress">
-   <div class="progress-content"><div class="progress-stat"><span>BEST</span><strong id="progress-best">—</strong><button data-page="insights" class="text-button">Insights ↗</button></div><div id="mini-chart" class="mini-chart"></div></div>
-  </section>
  </section>
  <section id="history-page" class="page" hidden>
   <div class="filter-bar"><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
