@@ -74,7 +74,6 @@ dialog::backdrop{background:#06090ebd}
 .sidebar nav{margin-top:46px}
 .side-bottom{padding-bottom:24px}
 .app-bar{height:76px;padding-top:0;gap:14px;border-bottom:1px solid var(--line);margin-bottom:26px}
-.puzzle-label{font:12px var(--mono);color:#aab9d1}
 .app-bar #install-app{padding:6px 9px;color:#b0c1ff}
 .app-bar #sync-mobile{font-size:20px}
 .app-bar #export{font-size:20px}
@@ -95,6 +94,7 @@ dialog::backdrop{background:#06090ebd}
 .keyboard-help span{display:flex;align-items:center;gap:6px}
 .filter-bar>select{font-size:11px}
 body.focus-mode .app-bar{display:none}
+@media(max-width:740px){.page,.sidebar nav{touch-action:pan-y pinch-zoom}}
 @media(max-width:950px){.sidebar nav{margin-top:42px}}
 @media(max-width:740px){
  .sidebar nav{margin-top:0}
@@ -103,7 +103,6 @@ body.focus-mode .app-bar{display:none}
  .app-bar #mobile-sync{font-size:9px}
  .app-bar #connect-sync{font-size:9px;white-space:nowrap}
  .app-bar #install-app{font-size:10px;padding:5px}
- .puzzle-label{font-size:10px}
  .app-bar .icon-button{padding:5px;min-width:28px}
  #timer-pad{padding:15px 8px 25px}
  .touch-instruction{display:block;margin-top:14px}
@@ -143,7 +142,6 @@ body.focus-mode .timer-footer{display:none}
  .app-bar #mobile-sync{font-size:12px}
  .app-bar #connect-sync,.app-bar #install-app{font-size:14px;padding:9px 7px;min-height:44px}
  .app-bar .icon-button{min-width:40px;min-height:44px;font-size:23px}
- .puzzle-label{font-size:12px}
  .sidebar .nav{font-size:12px}
  h2,.steps-card .card-top h2,.session-card .card-top h2{font-size:16px}
  .muted,.count,.scramble-card .card-top .muted{font-size:12px}
@@ -185,7 +183,7 @@ body.focus-mode .timer-footer{display:none}
  .nav{font-size:14px}
  h2,.steps-card .card-top h2,.session-card .card-top h2,.chart-card .card-top h2{font-size:18px}
  .scramble{font-size:20px;line-height:1.8;letter-spacing:.3px}
- .muted,.count,.puzzle-label,.app-bar #mobile-sync{font-size:13px}
+ .muted,.count,.app-bar #mobile-sync{font-size:13px}
  .app-bar #install-app,.app-bar #connect-sync{font-size:14px}
  .check-label{font-size:14px;line-height:1.5;gap:8px}
  .check-label input{width:17px;height:17px}
@@ -226,10 +224,6 @@ body.focus-mode .timer-footer{display:none}
 @media(min-width:741px) and (max-width:950px){.sidebar .nav{font-size:0}}
 
 @media(max-width:740px){
- #history-page .filter-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
- #history-page .filter-bar>select{width:100%;min-width:0;max-width:100%}
- #history-page .filter-bar input{grid-column:1/-1}
- #history-page .filter-bar>button{margin-left:0}
  #history-page .table-card{width:100%;max-width:100%}
  #history-page table{width:100%;table-layout:fixed}
  #history-page th,#history-page td{padding:12px 8px}
@@ -243,6 +237,39 @@ body.focus-mode .timer-footer{display:none}
  #history-page .pagination{flex-wrap:wrap;padding:14px 12px;gap:12px}
  #history-page .pagination>span,#history-page .pagination>div{width:100%}
  #history-page .pagination>div{justify-content:space-between}
+}
+
+/* The history viewport holds its filters and pagination in place. */
+body:has(#history-page:not([hidden])){overflow:hidden}
+main:has(>#history-page:not([hidden])){padding-bottom:0}
+#history-page:not([hidden]){display:flex;flex-direction:column;height:var(--history-available-height,calc(100dvh - 140px));min-height:0}
+#history-page>.filter-bar{flex-shrink:0}
+#history-page .table-card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;margin-bottom:0}
+.history-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
+.history-scroll thead{position:sticky;top:0;z-index:1}
+#history-page .pagination{flex-shrink:0}
+.settings-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}
+#main-chart{overflow:visible}
+#main-chart svg{display:block;width:100%;height:auto;min-width:0}
+#main-chart svg text{font:12px var(--mono)}
+
+/* Recent history uses spare desktop space without reducing smaller timers. */
+.timer-recent{display:none}
+@media(min-width:1700px){
+ body:not(.focus-mode) main:has(>#timer-page:not([hidden])){max-width:none}
+ body:not(.focus-mode) #timer-page:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
+ body:not(.focus-mode) .timer-recent{display:flex;flex-direction:column;min-height:0;height:var(--timer-available-height,calc(100dvh - 114px));padding:18px 14px;background:#19212e;border:1px solid var(--line);border-radius:12px}
+ .timer-recent>.card-top{flex-shrink:0;gap:8px;margin-bottom:8px;padding:0 4px}
+ .timer-recent h2{margin:0;font-size:16px}
+ .timer-recent .text-button{font-size:13px;padding:6px;white-space:nowrap}
+ #recent-solves{list-style:none;padding:0;margin:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+ #recent-solves>li+li{border-top:1px solid var(--line)}
+ .recent-solve{display:grid;grid-template-columns:30px minmax(0,1fr);gap:5px 10px;width:100%;padding:12px 7px;border:0;border-radius:6px;background:transparent;color:var(--ink);text-align:left}
+ .recent-solve:hover,.recent-solve:focus-visible{background:#26344c}
+ .recent-solve-index{grid-row:span 2;align-self:center;font:12px var(--mono);color:var(--muted)}
+ .recent-solve-time{font:21px var(--mono);font-variant-numeric:tabular-nums}
+ .recent-solve-time small{margin-left:6px;font-size:12px;color:var(--muted)}
+ .recent-solve-date{font-size:12px;line-height:1.4;color:var(--muted)}
 }
 
 
@@ -297,7 +324,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 #timer-card .scramble-kind{font-size:12px;line-height:1.3;margin-bottom:-10px}
 #timer-card .fullscreen-scramble{display:block;width:100%;margin:0;font:700 clamp(24px,2.2vw,32px)/1.5 var(--mono);color:#e0e8f6;text-align:center;flex-shrink:0}
 #timer-card .scramble-line{display:block;white-space:nowrap}
-#timer-card .cube-preview{display:block;position:static;width:160px;flex-shrink:0;transform:none}
+#timer-card .cube-preview{display:block;position:static;width:160px;aspect-ratio:180/188;flex-shrink:0;transform:none}
 #timer-card .timer-readout{width:100%;min-width:0}
 #timer-card .clock{font-size:clamp(80px,10.5vw,200px);letter-spacing:-.06em;max-width:100%;line-height:1.2}
 #timer-card .timer-hint{font-size:24px;margin:0 0 12px}
@@ -320,7 +347,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card .cube-preview{width:96px}
  #timer-card .clock{font-size:clamp(66px,12vw,100px)}
  #timer-card .fullscreen-scramble{font-size:22px;line-height:1.45}
- #timer-card.with-splits #timer-pad{grid-template-rows:auto minmax(0,1fr);gap:14px}
+ #timer-card.with-splits #timer-pad{grid-template-rows:max-content minmax(0,auto);align-content:center;gap:28px}
  #timer-card.with-splits .fullscreen-splits{position:static;grid-row:2;justify-self:start;align-self:center;transform:none;width:100%;max-width:460px;max-height:100%;gap:5px}
 }
 @media(max-width:740px){
@@ -346,6 +373,9 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card.with-splits .fullscreen-splits{gap:3px}
  .split-row{min-height:28px;padding:3px 6px}
  .split-name{font-size:14px}
+}
+@media(max-width:1100px) and (min-height:651px){
+ #timer-card.has-solve-feedback.with-splits #timer-pad{gap:60px}
 }
 @media(min-width:741px) and (max-height:600px){
  #timer-card #timer-pad,#timer-card.with-splits #timer-pad{grid-template-columns:minmax(180px,24%) minmax(0,1fr) minmax(180px,24%);grid-template-rows:minmax(0,1fr);padding-top:55px;padding-bottom:20px;gap:12px}
@@ -395,4 +425,179 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card .solve-feedback:not([hidden]){top:calc(100% + 5px);font-size:12px;line-height:1.3}
  .split-value.has-difference{transform:translateY(-3px)}
  .split-difference{font-size:10px}
+}
+
+/* Rotated phones need the height of an icon rail, not desktop or bottom navigation. */
+@media(orientation:landscape) and (max-height:500px) and (max-width:1100px){
+ .sidebar{inset:0 auto 0 0;width:68px;height:100dvh;padding:8px 6px 8px max(6px,env(safe-area-inset-left));flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;border:0;border-right:1px solid var(--line)}
+ .sidebar .brand,.sidebar #open-import{display:none}
+ .sidebar nav[aria-label]{display:flex;flex-direction:column;flex:none;margin:0;gap:4px;min-width:0}
+ .sidebar .side-bottom{display:flex;flex-direction:column;flex:none;margin-top:auto;padding:0}
+ .sidebar .nav{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-width:0;min-height:44px;margin:0;padding:4px 2px;font-size:10px;line-height:1.2;text-align:center}
+ .sidebar .nav>span:first-child{display:block;width:24px;height:24px;font-size:22px;line-height:24px}
+ main{margin-left:68px;padding:0 max(12px,env(safe-area-inset-right)) 12px 12px;max-width:none}
+ .app-bar{height:44px;min-height:44px;flex-wrap:nowrap;padding:0;gap:8px;margin-bottom:8px}
+ .app-bar #mobile-sync{font-size:11px}
+ .app-bar #install-app,.app-bar #connect-sync{font-size:12px;padding:6px;min-height:40px;white-space:nowrap}
+ .app-bar .icon-button{min-width:40px;min-height:40px}
+ body:not(.focus-mode) main:has(>#timer-page:not([hidden])){padding-bottom:0}
+ body:not(.focus-mode) #timer-card,body:not(.focus-mode) #timer-card.with-splits{min-height:180px}
+ #timer-card{--landscape-split-width:clamp(230px,30%,300px);--landscape-gap:clamp(20px,3vw,36px)}
+ #timer-card #timer-pad,#timer-card.with-splits #timer-pad{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding:56px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));gap:var(--landscape-gap);touch-action:none}
+ #timer-card.with-splits #timer-pad{grid-template-columns:var(--landscape-split-width) minmax(0,1fr)}
+ #timer-card .timer-center{grid-column:1;grid-row:1;max-width:100%;max-height:100%;gap:clamp(5px,2vh,10px)}
+ #timer-card.with-splits .timer-center{grid-column:2}
+ #timer-card .fullscreen-scramble{font-size:clamp(16px,2.2vw,22px);line-height:1.4}
+ #timer-card .cube-preview{width:clamp(48px,16vh,72px)}
+ #timer-card .clock{font-size:clamp(48px,17vh,78px);line-height:1.1}
+ #timer-card .timer-hint{display:block;font-size:16px;margin-bottom:4px}
+ #timer-card .timer-instruction,#timer-card .touch-instruction{margin-top:5px;font-size:12px;line-height:1.3}
+ #timer-card.with-splits .fullscreen-splits{position:static;grid-column:1;grid-row:1;align-self:center;justify-self:stretch;transform:none;width:100%;max-width:none;height:min(100%,280px);max-height:100%;display:grid;grid-auto-rows:minmax(24px,1fr);gap:2px;overflow-x:hidden;overflow-y:auto}
+ #timer-card .split-row{grid-template-columns:20px minmax(0,1fr) 66px;gap:6px;min-height:24px;padding:2px 4px}
+ #timer-card .split-number{font-size:12px}
+ #timer-card .split-name{font-size:14px;line-height:1.2;white-space:nowrap;overflow-wrap:normal}
+ #timer-card .split-value{font-size:15px}
+ #timer-card.has-solve-feedback #timer-pad{padding-bottom:max(76px,calc(env(safe-area-inset-bottom) + 64px))}
+ #timer-card.has-solve-feedback .timer-center{gap:4px}
+ #timer-card.has-solve-feedback .cube-preview{width:clamp(36px,12vh,52px)}
+ #timer-card.has-solve-feedback .clock{font-size:clamp(44px,15vh,66px)}
+ #timer-card .solve-ranking:not([hidden]){bottom:max(8px,env(safe-area-inset-bottom));font-size:11px;width:calc(100% - 40px)}
+ #timer-card.with-splits .solve-ranking:not([hidden]){left:auto;right:max(16px,env(safe-area-inset-right));transform:none;width:calc(100% - var(--landscape-split-width) - var(--landscape-gap) - 32px)}
+ #timer-card .ranking-track{margin:6px auto}
+ #timer-card .ranking-ends{font-size:10px}
+ #history-page:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) clamp(170px,23vw,220px);grid-template-rows:minmax(0,1fr);gap:12px 16px;min-height:0}
+ #history-page .table-card{display:contents}
+ #history-page .history-table-scroll{grid-column:1;grid-row:1;min-width:0;min-height:0;max-height:calc(100dvh - 120px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#19212e}
+ #history-page .pagination{grid-column:2;grid-row:1;align-self:end;display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:8px;padding:0;font-size:12px}
+ #history-page .pagination>div{display:flex;gap:6px;justify-content:space-between;width:100%}
+ #history-page .pagination .small-button{min-width:0;min-height:40px;padding:8px;font-size:12px}
+ #history-page table{width:100%;table-layout:fixed}
+ #history-page th{position:sticky;top:0;z-index:1}
+ #history-page th,#history-page td{padding:10px 8px}
+ #history-page .history-index,#history-page .history-splits{display:none}
+ #history-page .history-date{width:45%;white-space:normal}
+ #history-page .history-time{width:30%}
+ #history-page td.history-time{font-size:17px}
+ #history-page .history-action{width:25%;text-align:right}
+ #history-page .history-details-label{display:none}
+ #history-page .history-action button{min-width:40px;min-height:40px;padding:6px;font-size:18px}
+ #toast{bottom:max(12px,env(safe-area-inset-bottom))}
+}
+@media(orientation:landscape) and (max-height:350px) and (max-width:1100px){
+ body:not(.focus-mode) #timer-page .timer-center{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;align-content:center;align-items:center}
+ body:not(.focus-mode) #timer-page .scramble-kind{display:none}
+ body:not(.focus-mode) #timer-page .fullscreen-scramble{grid-column:1/-1;font-size:16px;line-height:1.3}
+ body:not(.focus-mode) #timer-page .cube-preview{grid-column:1;grid-row:2;width:44px}
+ body:not(.focus-mode) #timer-page .timer-readout{grid-column:2;grid-row:2}
+ body:not(.focus-mode) #timer-page .clock{font-size:46px}
+ body:not(.focus-mode) #timer-page .timer-instruction,body:not(.focus-mode) #timer-page .touch-instruction{font-size:10px}
+}
+
+.app-bar{height:auto;flex-wrap:wrap;min-height:76px;padding:8px 0;gap:8px 16px}
+.header-context{display:flex;align-items:center;min-width:0;max-width:100%}
+.app-bar .filter-bar{flex:1 1 320px;gap:8px;margin:0}
+.app-bar .filter-bar input{flex:1 1 100px;width:100px;min-width:0;max-width:240px;margin:0;order:0}
+.app-bar .filter-bar>select{min-width:0;max-width:100%;font-size:14px}
+.app-bar .filter-bar>button{margin:0;font-size:13px}
+.app-actions,.sync-attention{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;max-width:100%}
+.app-actions{margin-left:auto;flex-wrap:wrap}
+.sync-attention{flex:1 1 auto}
+.app-bar #mobile-sync{margin:0;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.app-bar #connect-sync{white-space:nowrap}
+.app-bar #sync-mobile,.app-bar #connect-sync,.app-bar #export,.app-bar #install-app{flex-shrink:0}
+.app-bar #lesson-back{min-height:44px;font-size:13px}
+@media(max-width:740px){
+ .app-bar{min-height:52px;gap:4px 8px;padding:4px 0}
+ .app-actions{display:contents}
+ .app-bar #update-app,.app-bar #open-settings{margin-left:auto}
+ .app-bar #update-app:not([hidden])+#open-settings{margin-left:0}
+ .app-bar .sync-attention{order:3;flex:1 0 100%;justify-content:flex-end}
+ .app-bar .filter-bar{order:2;flex:1 0 100%;display:flex;flex-wrap:nowrap;gap:6px;padding-bottom:4px}
+ .app-bar .filter-bar input{flex:1 1 0;max-width:none;width:0;font-size:16px}
+ .app-bar .filter-bar>select{flex:0 1 auto;font-size:16px;padding:8px}
+ .app-bar .filter-bar>button{flex-shrink:0;padding:8px;font-size:12px}
+ .app-bar #lesson-back{font-size:12px;padding:6px 8px}
+}
+@media(orientation:landscape) and (max-height:500px) and (max-width:1100px){
+ .app-bar{min-height:44px;padding:0;gap:4px 8px}
+ .app-bar .filter-bar{flex-basis:280px}
+ .app-bar .filter-bar>select,.app-bar .filter-bar input,.app-bar .filter-bar>button{font-size:14px;min-height:40px}
+}
+
+/* Brief motion supports changes of state; the live clock never animates digits. */
+:root{--motion-ease:cubic-bezier(.2,.7,.2,1)}
+button,input,textarea,select{transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease,opacity 150ms ease,translate 120ms var(--motion-ease)}
+button:not(:disabled):active{translate:0 1px}
+.sidebar nav .nav{transition:none;translate:none}
+:root{view-transition-name:none}
+::view-transition{pointer-events:none}
+html[data-motion="page"] .page:not([hidden]){view-transition-name:page-content}
+html[data-motion="page"] .page{pointer-events:none}
+html[data-motion="page"]::view-transition{clip-path:inset(var(--page-clip-top,0px) 0 var(--page-clip-bottom,0px) var(--page-clip-left,0px))}
+html[data-motion="focus"] #timer-card{view-transition-name:timer-surface}
+html[data-motion="focus"] #fullscreen-scramble{view-transition-name:focus-scramble}
+.scramble-move{display:inline-block}
+html[data-motion="focus"] .scramble-move{view-transition-name:var(--focus-move)}
+html[data-motion="focus"] #scramble-type:not(.sr-only){view-transition-name:focus-scramble-kind}
+html[data-motion="focus"] #cube-preview{view-transition-name:focus-cube}
+html[data-motion="focus"] #clock{view-transition-name:focus-clock}
+html[data-motion="focus"] #timer-hint{view-transition-name:focus-hint}
+html[data-motion="focus"] #timer-instruction{view-transition-name:focus-keyboard}
+html[data-motion="focus"] #touch-instruction{view-transition-name:focus-touch}
+html[data-motion="focus"] #new-scramble{view-transition-name:focus-refresh}
+html[data-motion="focus"] #manual-entry{view-transition-name:focus-manual}
+html[data-motion="focus"] #fullscreen-track{view-transition-name:focus-track}
+html[data-motion="focus"] #focus{view-transition-name:focus-toggle}
+html[data-motion="focus"] .split-row{view-transition-name:var(--focus-part)}
+html[data-motion="focus"] .split-row .split-number{view-transition-name:var(--focus-number)}
+html[data-motion="focus"] .split-row .split-name{view-transition-name:var(--focus-label)}
+html[data-motion="focus"] .split-row .split-value{view-transition-name:var(--focus-value)}
+html[data-motion="focus"] #solve-feedback{view-transition-name:focus-feedback}
+html[data-motion="focus"] #solve-ranking{view-transition-name:focus-ranking}
+html[data-motion="focus"] #ranking-count{view-transition-name:focus-rank-count}
+html[data-motion="focus"] .ranking-meta>span:last-child{view-transition-name:focus-rank-total}
+html[data-motion="focus"] #ranking-track{view-transition-name:focus-rank-track}
+html[data-motion="focus"] .ranking-ends>span:first-child{view-transition-name:focus-rank-fastest}
+html[data-motion="focus"] .ranking-ends>span:last-child{view-transition-name:focus-rank-slowest}
+#timer-card #clock,#timer-card #timer-instruction,#timer-card #touch-instruction,#timer-card #timer-hint,#timer-card .scramble-kind{width:fit-content;margin-inline:auto}
+#timer-card .split-name{width:fit-content;max-width:100%}
+#timer-card .split-value{width:fit-content;justify-self:end}
+#timer-card .solve-feedback:not([hidden]){width:max-content;max-width:100%}
+html[data-motion="focus"]::view-transition-group(*){animation-duration:320ms;animation-timing-function:var(--motion-ease)}
+html[data-motion="focus"]::view-transition-old(*){animation:none;opacity:0}
+html[data-motion="focus"]::view-transition-new(*){animation:none;opacity:1;mix-blend-mode:normal}
+::view-transition-group(page-content){animation:none;overflow:clip}
+::view-transition-image-pair(page-content){isolation:isolate;overflow:clip}
+::view-transition-old(page-content),::view-transition-new(page-content){mix-blend-mode:normal;animation:260ms var(--motion-ease) both;height:auto}
+::view-transition-old(page-content){animation-name:page-slide-out}
+::view-transition-new(page-content){animation-name:page-slide-in}
+@keyframes page-slide-out{to{transform:translateX(calc(-100% * var(--page-direction,1)))}}
+@keyframes page-slide-in{from{transform:translateX(calc(100% * var(--page-direction,1)))}}
+::view-transition-group(timer-surface){animation-duration:260ms;animation-timing-function:var(--motion-ease)}
+::view-transition-old(timer-surface),::view-transition-new(timer-surface){animation-duration:260ms;animation-timing-function:var(--motion-ease)}
+@media(max-width:740px){.sidebar nav{flex:1}}
+.split-row{transition:background-color 180ms ease,border-color 180ms ease,color 180ms ease}
+#timer-card .clock{transition:color 220ms ease}
+#timer-card.arming .clock,#timer-card.armed .clock{transition:none}
+.ranking-marker{transition:left 240ms var(--motion-ease),background-color 180ms ease}
+svg circle[data-id]{transition:fill 120ms ease,r 120ms ease}
+.bar-fill{transform-origin:left;animation:bar-reveal 360ms var(--motion-ease) both}
+@keyframes bar-reveal{from{transform:scaleX(0);opacity:.5}to{transform:scaleX(1);opacity:1}}
+
+/* Native dialog state and focus change immediately; display/overlay only defer paint. */
+dialog{opacity:0;transform:translateY(8px) scale(.99);transition:opacity 180ms ease,transform 220ms var(--motion-ease),display 220ms allow-discrete,overlay 220ms allow-discrete;pointer-events:none}
+dialog[open]{opacity:1;transform:none;pointer-events:auto}
+dialog::backdrop{background:#06090e00;transition:background-color 180ms ease,display 220ms allow-discrete,overlay 220ms allow-discrete}
+dialog[open]::backdrop{background:#06090ebd}
+#toast{opacity:0;translate:0 6px;transition:opacity 180ms ease,translate 220ms var(--motion-ease),display 220ms allow-discrete}
+#toast:not([hidden]){opacity:1;translate:0 0}
+@starting-style{
+ dialog[open]{opacity:0;transform:translateY(8px) scale(.99)}
+ dialog[open]::backdrop{background:#06090e00}
+ #toast:not([hidden]){opacity:0;translate:0 6px}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation:none!important;transition:none!important}
+ dialog::backdrop{transition:none!important}
+ ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }

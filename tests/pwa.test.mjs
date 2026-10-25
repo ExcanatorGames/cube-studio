@@ -2,13 +2,29 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import path from 'node:path';
 const source=await readFile(new URL('../web/sw.js',import.meta.url),'utf8');
 function harness(){const handlers={},entries=new Map(),keys=['cube-studio-old','other-app-cache'];const cache={async put(path,res){entries.set(path,res);}};const calls=[];let offline=false;const self={location:{origin:'https://cube.example'},addEventListener(n,cb){handlers[n]=cb;},clients:{async claim(){calls.push('claim');}},skipWaiting(){calls.push('skipWaiting');}};
 const caches={async open(){return cache;},async keys(){return keys;},async delete(k){calls.push('delete:'+k);},async match(p){return entries.get(p)?.clone();}};
 class RelativeRequest extends Request{constructor(p,opts){super(new URL(p,'https://cube.example'),opts);}}
 vm.runInNewContext(source,{self,caches,Request:RelativeRequest,Response,URL,fetch:async req=>{calls.push('fetch:'+req.url);if(offline)throw Error('Offline');const p=new URL(req.url).pathname;return new Response(p==='/'?'<h1>Cached Cube Studio</h1>':'asset',{headers:{'content-type':p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':'text/html'}});}});
 return {handlers,calls,entries,setOffline(){offline=true;},event(url,mode='cors',method='GET'){let promise;handlers.fetch({request:{url,mode,method},respondWith(p){promise=p;}});return promise;}};}
-test('service worker installs the full shell and reopens it offline',async()=>{const h=harness();let install;h.handlers.install({waitUntil(p){install=p;}});await install;for(const p of ['/','/app.js','/cube.js','/split-charts.js','/solve-feedback.js','/pwa.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'])assert.ok(h.entries.has(p));assert.ok(!h.calls.includes('skipWaiting'));h.setOffline();const response=await h.event('https://cube.example/','navigate');assert.match(await response.text(),/Cached Cube Studio/);assert.equal((await h.event('https://cube.example/app.js')).status,200);assert.equal((await h.event('https://cube.example/cube.js')).status,200);assert.equal((await h.event('https://cube.example/split-charts.js')).status,200);assert.equal((await h.event('https://cube.example/solve-feedback.js')).status,200);});
+test('service worker installs the full shell and reopens it offline',async()=>{const h=harness();let install;h.handlers.install({waitUntil(p){install=p;}});await install;for(const p of ['/','/app.js','/motion.js','/mobile-navigation.js','/cube.js','/lessons.js','/lesson-view.js','/lesson-cube.js','/lessons.css','/split-charts.js','/solve-feedback.js','/pwa.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'])assert.ok(h.entries.has(p));assert.ok(!h.calls.includes('skipWaiting'));h.setOffline();for(const path of ['/lessons.js','/lesson-view.js','/lesson-cube.js','/lessons.css'])assert.equal((await h.event('https://cube.example'+path)).status,200);const response=await h.event('https://cube.example/','navigate');assert.match(await response.text(),/Cached Cube Studio/);assert.equal((await h.event('https://cube.example/app.js')).status,200);assert.equal((await h.event('https://cube.example/cube.js')).status,200);assert.equal((await h.event('https://cube.example/split-charts.js')).status,200);assert.equal((await h.event('https://cube.example/solve-feedback.js')).status,200);});
 test('service worker never intercepts private API, auth or external requests',()=>{const h=harness();assert.equal(h.event('https://cube.example/api/solves'),undefined);assert.equal(h.event('https://cube.example/api/solves','cors','POST'),undefined);assert.equal(h.event('https://cube.example/cdn-cgi/access/login'),undefined);assert.equal(h.event('https://cdn.cubing.net/v0/js/cubing/scramble'),undefined);});
 test('activation cleans only Cube Studio caches and updates require an explicit message',async()=>{const h=harness();let activation;h.handlers.activate({waitUntil(p){activation=p;}});await activation;assert.ok(h.calls.includes('delete:cube-studio-old'));assert.ok(!h.calls.includes('delete:other-app-cache'));h.handlers.message({data:{type:'SKIP_WAITING'}});assert.ok(h.calls.includes('skipWaiting'));});
 test('install manifest has standalone mode and suitable real PNG icons',async()=>{const manifest=JSON.parse(await readFile(new URL('../web/manifest.webmanifest',import.meta.url),'utf8'));assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'/');for(const size of [192,512])assert.ok(manifest.icons.some(i=>i.sizes===`${size}x${size}`));});
+
+test('every local module and stylesheet needed by the app is available in its offline shell and build',async()=>{
+  const shell=new Set([...source.match(/const SHELL = (\[[^\]]+\])/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]));
+  const build=await readFile(new URL('../scripts/build-cloudflare.mjs',import.meta.url),'utf8');
+  const dev=await readFile(new URL('../scripts/dev.mjs',import.meta.url),'utf8');
+  for(const asset of shell){
+    if(!/\.(js|css)$/.test(asset))continue;
+    const text=await readFile(new URL('../web'+asset,import.meta.url),'utf8');
+    assert.ok(build.includes(`'${asset.slice(1)}'`),`${asset} must be copied and hashed by the build`);
+    assert.ok(dev.includes(`'${asset}':'web${asset}'`),`${asset} must be served locally`);
+    for(const match of text.matchAll(/from\s+['"](\.[^'"]+)['"]/g))assert.ok(shell.has(path.posix.join(path.posix.dirname(asset),match[1])),`${asset} imports an uncached module`);
+  }
+  const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
+  for(const match of html.matchAll(/(?:src|href)="(\/[^"?]+\.(?:js|css))"/g))assert.ok(shell.has(match[1]));
+});

@@ -6,7 +6,7 @@
  <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Cube Studio">
  <meta name="description" content="Cube timer, step splits and solve history."><title>Cube Studio</title>
  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-180.png">
- <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/dark.css">
+ <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/dark.css"><link rel="stylesheet" href="/lessons.css">
 </head>
 <body>
 <aside class="sidebar">
@@ -15,27 +15,30 @@
   <button data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true">◷</span>Timer</button>
   <button data-page="history" class="nav" aria-label="History"><span aria-hidden="true">☷</span>History</button>
   <button data-page="insights" class="nav" aria-label="Insights"><span aria-hidden="true">↗</span>Insights</button>
+  <button data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</button>
  </nav>
- <div class="side-bottom">
-  <button id="open-import" class="nav" aria-label="Import CSV"><span aria-hidden="true">↥</span>Import</button>
-  <button id="open-settings" class="nav" aria-label="Settings"><span aria-hidden="true">⚙</span>Settings</button>
- </div>
 </aside>
 <main>
  <header class="app-bar">
   <h1 id="page-title" class="sr-only">Timer</h1>
-  <span class="puzzle-label" aria-label="3 by 3 by 3 cube">3 × 3</span>
-  <span id="mobile-sync" role="status">Connecting…</span>
-  <button id="connect-sync" class="text-button" data-connect hidden>Connect ↗</button>
-  <button id="sync-mobile" class="icon-button" aria-label="Sync solves" title="Sync">↻</button>
-  <button id="export" class="icon-button" title="Export CSV" aria-label="Export CSV">↧</button>
-  <button id="install-app" class="text-button">Install <span id="app-status" class="sr-only"></span></button>
+  <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
+  <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
+  <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="small-button" type="button">← All lessons</button></div>
+  <div class="app-actions">
+   <div id="sync-attention" class="sync-attention" hidden>
+    <span id="mobile-sync" role="status" hidden></span>
+    <button id="connect-sync" class="text-button" data-connect hidden>Connect ↗</button>
+    <button id="sync-mobile" class="icon-button" aria-label="Retry sync" title="Retry sync" hidden>↻</button>
+   </div>
+   <button id="update-app" type="button" class="text-button" hidden>Update</button>
+   <button id="open-settings" type="button" class="icon-button" aria-label="Settings" title="Settings">⚙</button>
+  </div>
  </header>
  <section id="timer-page" class="page">
   <div class="timer-card" id="timer-card">
    <div class="timer-toolbar">
     <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button><button id="manual-entry" class="icon-button" title="Add time" aria-label="Add time">＋</button></div>
-    <button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
+    <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
    </div>
    <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
     <div class="timer-center">
@@ -52,19 +55,36 @@
     </div>
     <div id="fullscreen-splits" class="fullscreen-splits" role="list" aria-label="Solve splits" hidden></div>
    </div>
+   <div id="lesson-solution" class="lesson-solution" hidden><span>Insert the marked pair</span><strong>U R U' R'</strong></div>
    <div id="solve-ranking" class="solve-ranking" hidden>
     <div class="ranking-meta"><span id="ranking-count"></span><span>All-time <strong id="ranking-all-time"></strong></span></div>
     <div id="ranking-track" class="ranking-track" role="img"><div id="ranking-squares" class="ranking-squares"></div><i id="ranking-marker" class="ranking-marker" aria-hidden="true"></i></div>
     <div id="ranking-ends" class="ranking-ends"><span>Fastest</span><span>Slowest</span></div>
    </div>
   </div>
+  <aside class="timer-recent" aria-label="Recent solves">
+   <div class="card-top"><h2>Recent solves</h2><button data-page="history" type="button" class="text-button">History ↗</button></div>
+   <ol id="recent-solves"></ol>
+  </aside>
+ </section>
+ <section id="lessons-page" class="page" hidden>
+  <div id="lesson-list"><div id="lesson-cards"></div></div>
+  <div id="lesson-detail" hidden>
+   <header class="lesson-heading"><h2 id="lesson-title" class="lessons-title"></h2><p class="lesson-orientation">White down · Yellow up · Green front · Orange right</p></header>
+   <div class="lesson-tabs" role="tablist" aria-label="Lesson activity"><button id="lesson-tab-lesson" type="button" role="tab" aria-selected="true" aria-controls="lesson-panel-lesson" tabindex="0">Lesson</button><button id="lesson-tab-practice" type="button" role="tab" aria-selected="false" aria-controls="lesson-panel-practice" tabindex="-1">Practice</button></div>
+   <div id="lesson-panel-lesson" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-lesson">
+    <section id="lesson-demonstration" class="lesson-section" aria-labelledby="lesson-demo-title"><h3 id="lesson-demo-title">Insert the ready-right pair</h3><div id="lesson-demo"></div></section>
+   </div>
+   <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
+    <div class="lesson-practice-heading"><p>Start solved. Scramble, then solve fully.</p></div>
+    <div id="lesson-practice-mount"></div>
+   </div>
+  </div>
  </section>
  <section id="history-page" class="page" hidden>
-  <div class="filter-bar"><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
-  <div class="table-card"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
+  <div class="table-card"><div class="history-scroll history-table-scroll" tabindex="0" role="region" aria-label="Solve list"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table></div><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
  </section>
  <section id="insights-page" class="page" hidden>
-  <div class="filter-bar"><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
   <div id="insight-stats" class="stat-grid"></div>
   <div class="chart-card"><div class="card-top"><h2>Times (s)</h2><div class="legend"><span><i></i>Solve</span><span><i></i>ao12</span></div></div><div id="main-chart"></div></div>
   <div class="insight-grid"><div class="chart-card"><h2>Distribution</h2><div id="distribution"></div></div><div class="chart-card"><div class="card-top"><h2>Splits</h2><select id="split-preset" aria-label="Split method"><option value="beginner">Beginner</option><option value="cfop">CFOP</option><option value="custom">Custom</option></select></div><div id="split-chart"></div></div></div>
@@ -81,6 +101,7 @@
  <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
+ <div class="settings-actions"><button id="open-import" type="button" class="small-button">Import CSV</button><button id="export" type="button" class="small-button">Export CSV</button><button id="install-app" type="button" class="small-button">Install app <span id="app-status" class="sr-only"></span></button></div>
 </form></dialog>
 <dialog id="import-dialog"><form method="dialog">
  <div class="dialog-heading"><h2>Import</h2><button class="close" aria-label="Close import">×</button></div>

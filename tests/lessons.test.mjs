@@ -1,0 +1,90 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {LESSONS,createExercise} from '../web/lessons.js';
+import {cubeStickers,cubeSVG} from '../web/cube.js';
+import {lessonCubeSVG} from '../web/lesson-cube.js';
+
+test('lesson and practice colors represent a physical rotation with white down and green front',()=>{
+  for(const render of [cubeSVG,lessonCubeSVG]){
+    const svg=render('',{orientation:'white-bottom'});
+    const centerColor=id=>svg.match(new RegExp(`data-cubie="${id}"[^>]*fill="([^"]+)"`))[1];
+    assert.equal(centerColor('0,1,0'),'#f5d447','yellow top');
+    assert.equal(centerColor('0,0,1'),'#29b875','green front');
+    assert.equal(centerColor('1,0,0'),'#ff942f','orange right when white is down');
+    assert.match(svg,/yellow on top, white on bottom, green in front and orange on the right/);
+    const normal=render('');
+    assert.match(normal,/data-cubie="1,0,0"[^>]*fill="#e9474f"/,'normal timer retains red right');
+  }
+});
+
+const strips={
+  U:[['F0','L0','B0','R0'],['F1','L1','B1','R1'],['F2','L2','B2','R2']],
+  D:[['F6','R6','B6','L6'],['F7','R7','B7','L7'],['F8','R8','B8','L8']],
+  R:[['U2','B6','D2','F2'],['U5','B3','D5','F5'],['U8','B0','D8','F8']],
+  L:[['U0','F0','D0','B8'],['U3','F3','D3','B5'],['U6','F6','D6','B2']],
+  F:[['U6','R0','D2','L8'],['U7','R3','D1','L5'],['U8','R6','D0','L2']],
+  B:[['U0','L6','D8','R2'],['U1','L3','D7','R5'],['U2','L0','D6','R8']],
+};
+function simulate(alg){
+  const state=Object.fromEntries([...'URFDLB'].flatMap(f=>Array.from({length:9},(_,i)=>[f+i,f+i])));
+  for(const token of alg.split(/\s+/).filter(Boolean)){
+    assert.match(token,/^[URFDLB](2|')?$/);
+    const face=token[0],cycles=[[0,2,8,6],[1,5,7,3]].map(c=>c.map(i=>face+i)).concat(strips[face]);
+    for(let turn=0;turn<(token.endsWith('2')?2:token.endsWith("'")?3:1);turn++){
+      for(const cycle of cycles){const values=cycle.map(p=>state[p]);cycle.forEach((p,i)=>state[cycle[(i+1)%4]]=values[i]);}
+    }
+  }
+  return state;
+}
+const cross=['D1','F7','D3','L7','D5','R7','D7','B7'];
+const pair=['D2','F8','R6','F5','R3'];
+const solved=simulate('');
+
+test('every exercise starts with the solved cross and the exact ready-right pair, leaving other F2L work',()=>{
+  const canonical=simulate("R U R' U'"),seen=new Set();
+  for(let i=0;i<128;i++){
+    const exercise=createExercise('13',{random:()=>i/128});
+    seen.add(exercise.scramble);
+    const state=simulate(exercise.scramble);
+    for(const sticker of cross)assert.equal(state[sticker],sticker,exercise.scramble);
+    for(const sticker of pair)assert.equal(Object.keys(state).find(p=>state[p]===sticker),Object.keys(canonical).find(p=>canonical[p]===sticker));
+    const inserted=simulate(`${exercise.scramble} ${exercise.solution}`);
+    for(const sticker of [...cross,...pair])assert.equal(inserted[sticker],sticker);
+    assert.ok(Object.keys(solved).some(p=>(p[0]==='D'||'FRBL'.includes(p[0])&&Number(p[1])>=3)&&inserted[p]!==p));
+    assert.ok(exercise.scramble.split(' ').length>=12&&exercise.scramble.split(' ').length<=20);
+    assert.equal(exercise.orientation,'white-bottom');
+    assert.ok(Object.isFrozen(exercise));
+  }
+  assert.ok(seen.size>=16);
+});
+
+test('refresh produces a different exercise even with a repeated random sample',()=>{
+  let previousScramble='';
+  for(let i=0;i<50;i++){
+    const exercise=createExercise('13',{previousScramble,random:()=>0});
+    assert.notEqual(exercise.scramble,previousScramble);
+    previousScramble=exercise.scramble;
+  }
+  assert.throws(()=>createExercise('missing'),/Unknown lesson/);
+});
+
+test('cubie markers follow both physical pieces through every demonstration turn',()=>{
+  const lesson=LESSONS[0],target=lesson.case.target;
+  const moves=`${lesson.case.setup} ${lesson.case.solution}`.split(' ');
+  for(let i=0;i<=moves.length;i++){
+    const alg=moves.slice(0,i).join(' '),state=cubeStickers(alg);
+    const stickers=state.filter(s=>target.includes(s.cubie));
+    assert.equal(stickers.length,5);
+    for(const id of target){
+      const piece=stickers.filter(s=>s.cubie===id);
+      assert.ok(piece.every(s=>s.position.join(',')===piece[0].position.join(',')));
+    }
+    const svg=cubeSVG(alg,{orientation:'white-bottom',target});
+    assert.match(svg,/yellow on top, white on bottom/);
+    assert.equal((svg.match(/data-target=/g)||[]).length,stickers.filter(s=>s.normal.some(v=>v===1)).length);
+    assert.doesNotMatch(cubeSVG(alg),/data-target=/);
+  }
+  const whiteBottom=cubeSVG('',{orientation:'white-bottom'});
+  assert.match(whiteBottom,/<g data-face="U">.*?fill="#f5d447"/);
+  assert.match(cubeSVG(''),/<g data-face="U">.*?fill="#f4f4ef"/);
+});
