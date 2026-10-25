@@ -45,7 +45,7 @@ test('every exercise starts with the solved cross and the exact ready-right pair
   const canonical=simulate("L D L' D'"),seen=new Set();
   let seed=123456;const random=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
   for(let i=0;i<48;i++){
-    const exercise=createExercise('13',{random});
+    const exercise=createExercise('13',{random,varied:false});
     seen.add(exercise.scramble);
     const state=simulate(exercise.scramble);
     for(const sticker of cross)assert.equal(state[sticker],sticker,exercise.scramble);
@@ -73,8 +73,37 @@ test('refresh produces a different exercise even with a repeated random sample',
   assert.throws(()=>createExercise('missing'),/Unknown lesson/);
 });
 
+test('practice covers four white color pairs and all top-layer positions with matching insertion hints',()=>{
+  const slots=['Front right','Back right','Back left','Front left'];
+  const targets=[['1,-1,1','1,0,1'],['1,-1,-1','1,0,-1'],['-1,-1,-1','-1,0,-1'],['-1,-1,1','-1,0,1']];
+  const sides=['R','B','L','F'],lead=['U','',"U'",'U2'];
+  const inverted=algorithm=>algorithm.split(' ').reverse().map(move=>move.endsWith('2')?move:move.endsWith("'")?move.slice(0,-1):move+"'").join(' ');
+  const solvedStickers=cubeStickers(),topPositions=new Set(),colorPairs=new Set();
+  let seed=654321;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+  for(let slot=0;slot<4;slot++)for(let auf=0;auf<4;auf++){
+    const choices=[slot/4,auf/4],exercise=createExercise('13',{random:()=>choices.length?choices.shift():next()});
+    const expected=[lead[auf],sides[slot],"U'",sides[slot]+"'"].filter(Boolean).join(' ');
+    assert.equal(exercise.slot,slots[slot]);assert.equal(exercise.auf,auf);
+    assert.equal(exercise.solution,expected);assert.deepEqual(exercise.target,targets[slot]);
+    const scrambled=simulate(exercise.scramble);
+    for(const sticker of cross)assert.equal(scrambled[sticker],sticker,'white-up scramble preserves the white cross');
+    const initial=cubeStickers(exercise.setup),canonical=cubeStickers(inverted(expected));
+    const inserted=cubeStickers(exercise.setup+' '+exercise.solution);
+    for(let i=0;i<initial.length;i++){
+      if(exercise.target.includes(initial[i].cubie)){
+        assert.equal(JSON.stringify(initial[i]),JSON.stringify(canonical[i]),'the pair remains the taught insertion case');
+        assert.equal(JSON.stringify(inserted[i]),JSON.stringify(solvedStickers[i]),'the hint solves both target pieces');
+      }
+      if(['0,-1,1','1,-1,0','0,-1,-1','-1,-1,0'].includes(initial[i].cubie))assert.equal(JSON.stringify(inserted[i]),JSON.stringify(solvedStickers[i]));
+    }
+    colorPairs.add(exercise.target.join('|'));
+    topPositions.add(initial.find(s=>s.cubie===exercise.target[0]).position.join(','));
+  }
+  assert.equal(colorPairs.size,4);assert.equal(topPositions.size,4);
+});
+
 test('cubie markers follow both physical pieces through every demonstration turn',()=>{
-  const lesson=LESSONS[0],target=lesson.case.target,exercise=createExercise();
+  const lesson=LESSONS[0],target=lesson.case.target,exercise=createExercise('13',{varied:false});
   const moves=`${exercise.setup} ${lesson.case.solution}`.split(' ');
   for(let i=0;i<=moves.length;i++){
     const alg=moves.slice(0,i).join(' '),state=cubeStickers(alg);

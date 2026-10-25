@@ -7,14 +7,14 @@ import {createExercise} from '../../web/lesson-scrambler.js';
 import {createMotion} from '../../web/motion.js';
 
 const source=(await readFile(new URL('../../web/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
-const exercises=[createExercise(),createExercise()];
+const exercises=[createExercise(),createExercise()],demoExercise=createExercise('13',{varied:false});
 export function harness({online=false,fetch:fetchRequest=async()=>({ok:true,json:async()=>({solves:[]})}),saved=null,deferLessonScrambles=false}={}){
   const elements=new Map(),listeners=new Map(),timers=new Map(),storage=new Map(),intervals=[];
   if(saved)storage.set('cube-studio-v1',JSON.stringify(saved));
   let timerId=0,now=1000,demoResets=0,demoDestroys=0;
   const lessonRequests=[];
   class Worker{
-    postMessage(data){const complete=()=>this.onmessage({data:{request:data.request,exercise:exercises.find(e=>e.scramble!==data.previousScramble)}});if(deferLessonScrambles)lessonRequests.push(complete);else complete();}
+    postMessage(data){const complete=()=>this.onmessage({data:{request:data.request,exercise:exercises.find(e=>e.scramble!==data.previousScramble),demoExercise:data.withDemo?demoExercise:null}});if(deferLessonScrambles)lessonRequests.push(complete);else complete();}
     terminate(){}
   }
   function element(selector){

@@ -4,7 +4,7 @@ import {cubeSVG,scrambleLines} from './cube.js';
 import {initSplitCharts} from './split-charts.js';
 import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
-import {LESSONS,LESSON_SPLITS} from './lessons.js';
+import {LESSONS} from './lessons.js';
 import {createLessonDemo} from './lesson-view.js';
 import {initMobileNavigation} from './mobile-navigation.js';
 import {createMotion} from './motion.js';
@@ -22,10 +22,10 @@ let state='idle',started=0,elapsed=0,splitMarks=[],activeNames=[],scramble='',sc
 let lastSolveId=null,stepsHTML='';
 let touches=new Set(),gesture=false,scrambleRequest=0;
 let timerContext={kind:'normal'},normalScramble=null,activeAttempt=null,lessonDemo=null;
-const tracking=()=>timerContext.kind==='lesson'?timerContext.track:settings.track;
+const tracking=()=>timerContext.kind!=='lesson'&&settings.track;
 const timerVisible=()=>page==='timer'||page==='lessons'&&timerContext.kind==='lesson'&&timerContext.tab==='practice';
 const all=()=>[...records.values()].filter(s=>!s.deleted).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
-const names=()=>timerContext.kind==='lesson'?LESSON_SPLITS:settings.preset==='custom'?settings.custom:PRESETS[settings.preset];
+const names=()=>timerContext.kind==='lesson'?[]:settings.preset==='custom'?settings.custom:PRESETS[settings.preset];
 function persist(){try{localStorage.setItem(STORE,JSON.stringify({solves:[...records.values()],pending:[...pending.values()],lessonAttempts:[...lessonAttempts.values()],settings}));return true;}catch{toast('Device storage is full or blocked. Keep this page open and export your solves.');return false;}}
 function toast(message,undo){clearTimeout(toastTimeout);const t=$('#toast');t.replaceChildren(document.createTextNode(message));if(undo){const b=document.createElement('button');b.textContent='Undo';b.onclick=()=>{undo();t.hidden=true;};t.append(b);}t.hidden=false;toastTimeout=setTimeout(()=>t.hidden=true,undo?12000:5500);}
 function renderSyncStatus(){
@@ -47,8 +47,7 @@ function saveAttempt(s,attempt){
 function practiceTimes(){return [...lessonAttempts.values()].filter(s=>!s.deleted&&s.lessonId===timerContext.lessonId).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));}
 function renderPracticeTimes(){
   if(timerContext.kind!=='lesson')return;
-  const attempts=practiceTimes(),best=summary(attempts).best;
-  $('#lesson-practice-summary').textContent=attempts.length?`${attempts.length} practice ${attempts.length===1?'attempt':'attempts'} · Best ${formatTime(best)} · Saved on this device`:'Practice times are saved separately on this device.';
+  const attempts=practiceTimes();
   $('#lesson-practice-times').innerHTML=attempts.slice(-5).reverse().map(s=>`<li><time datetime="${esc(s.date)}" title="${esc(new Date(s.date).toLocaleString())}">${formatTime(result(s))}</time></li>`).join('');
   $('#lesson-practice-times').hidden=!attempts.length;
 }
@@ -153,7 +152,7 @@ function openLesson(id){
   if(timerContext.kind==='normal'&&scramble)normalScramble={scramble,kind:scrambleKind};
   ++scrambleRequest;
   resetTimerContext();
-  timerContext={kind:'lesson',lessonId:id,tab:'lesson',exercise:null,assistance:false,track:settings.track};
+  timerContext={kind:'lesson',lessonId:id,tab:'lesson',exercise:null,assistance:false};
   $('#lesson-list').hidden=true;$('#lesson-detail').hidden=false;
   $('#lesson-title').textContent=lesson.title;
   renderHeader();
@@ -175,18 +174,23 @@ function leaveLesson(){
 function renderLessonAssistance(){
   const lesson=timerContext.kind==='lesson',enabled=lesson&&timerContext.assistance;
   $('#lesson-help').hidden=!lesson;
+  $('#manual-entry').hidden=lesson;
+  $('#timer-pad').setAttribute('aria-label',lesson?'Hold Space or two fingers, then release to start. Tap to stop.':'Hold Space or two fingers, then release to start. Tap to stop or mark a split.');
   $('#lesson-help').disabled=busy()||lesson&&!timerContext.exercise;
   $('#lesson-help').setAttribute('aria-pressed',String(enabled));
   $('#lesson-help').innerHTML=`<span aria-hidden="true">${enabled?'✓':'✕'}</span> Hints`;
   $('#lesson-solution').hidden=!enabled||busy();
   $('#timer-card').classList.toggle('lesson-assisted',enabled&&!busy());
-  if(lesson)$('#lesson-solution strong').textContent=timerContext.exercise?.solution||'';
+  if(lesson){
+    $('#lesson-solution strong').textContent=timerContext.exercise?.solution||'';
+    $('#lesson-solution span').textContent=timerContext.exercise?.slot?`Insert the marked pair · ${timerContext.exercise.slot}`:'Insert the marked pair';
+  }
 }
 $('#lesson-help').onclick=()=>{
   if(busy()||timerContext.kind!=='lesson'||!timerContext.exercise)return;
   timerContext.assistance=!timerContext.assistance;
   if(!timerContext.assistance)lessonDemo?.reset();
-  renderLessonAssistance();showScramble();$('#lesson-help').blur();
+  renderLessonAssistance();showScramble({animate:false});$('#lesson-help').blur();
 };
 function render(){renderHeader();renderSteps();renderRecent();renderPracticeTimes();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
 function renderRecent(){
@@ -212,6 +216,7 @@ function renderSteps(){
   $('#timer-card').classList.toggle('with-splits',tracking());
   $('#fullscreen-splits .current')?.scrollIntoView({block:'nearest'});
   $('#fullscreen-track').setAttribute('aria-pressed',String(tracking()));
+  $('#fullscreen-track').hidden=lesson;
   $('#fullscreen-track').innerHTML=`<span aria-hidden="true">${tracking()?'✓':'✕'}</span> Splits`;
   $('#fullscreen-track').disabled=['running','arming','armed'].includes(state);
 }
@@ -312,7 +317,7 @@ window.addEventListener('keydown',e=>{if(e.repeat||$$('dialog').some(d=>d.open)|
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();keyboardHeld=false;if(state==='armed')start();else disarm();}});
 window.addEventListener('blur',()=>{keyboardHeld=false;touches.clear();gesture=false;disarm();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state==='running')keepAwake();if(Date.now()-lastSync>20000)sync();}else disarm();});
-function setTracking(enabled){if(busy())return;motion.layout([$('.timer-center')],()=>{if(timerContext.kind==='lesson')timerContext.track=enabled;else{settings.track=enabled;persist();}splitMarks=[];timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
+function setTracking(enabled){if(busy()||timerContext.kind==='lesson')return;motion.layout([$('.timer-center')],()=>{settings.track=enabled;persist();splitMarks=[];timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
 $('#fullscreen-track').onclick=()=>{setTracking(!tracking());$('#fullscreen-track').blur();};
 let automaticFocus=false,focusRequested=document.body.classList.contains('focus-mode');
 function focusView(enabled,{immediate=false}={}){
@@ -375,12 +380,12 @@ function requestLessonScramble(request,previousScramble){
       scramble=exercise.scramble;scrambleKind='Ready right · Scramble white up';scrambleLayoutKey='';
       if(!lessonDemo){
         const lesson=LESSONS.find(item=>item.id===timerContext.lessonId);
-        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:{...lesson.case,...exercise}});
+        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:{...lesson.case,...data.demoExercise}});
       }
       showScramble();renderLessonAssistance();$('#new-scramble').disabled=false;$('#manual-entry').disabled=busy();
     };
     lessonScrambler.onerror=()=>{lessonScrambler?.terminate();lessonScrambler=null;failed();};
-    lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble});
+    lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble,withDemo:!lessonDemo});
   }catch{failed();}
 }
 async function newScramble(){
@@ -445,12 +450,12 @@ function layoutScramble(){
 const scrambleObserver=new ResizeObserver(()=>requestAnimationFrame(layoutScramble));
 scrambleObserver.observe($('#fullscreen-scramble'));
 document.fonts?.ready.then(layoutScramble);
-function showScramble(){
+function showScramble({animate=true}={}){
   layoutScramble();
   $('#scramble-type').textContent=scrambleKind;
   $('#scramble-type').classList.toggle('sr-only',scrambleKind==='Random state');
   try{const exercise=timerContext.kind==='lesson'?timerContext.exercise:null;$('#cube-preview').innerHTML=cubeSVG(exercise?exercise.setup:scramble,exercise?{orientation:exercise.orientation,target:timerContext.assistance?exercise.target:[]}:{});}catch{$('#cube-preview').replaceChildren();}
-  if(state!=='running'){motion.reveal($('#fullscreen-scramble'),{distance:4});motion.reveal($('#cube-preview'),{delay:35,distance:5,duration:260});}
+  if(animate&&state!=='running'){motion.reveal($('#fullscreen-scramble'),{distance:4});motion.reveal($('#cube-preview'),{delay:35,distance:5,duration:260});}
 }
 $('#new-scramble').onclick=()=>newScramble();
 function openDialog(id){if(state==='running'||state==='arming'||state==='armed')return;$(id).showModal();}
@@ -469,8 +474,8 @@ $$('[data-penalty]').forEach(b=>b.onclick=()=>{selected.penalty=b.dataset.penalt
 $('#save-solve').onclick=()=>{if(!selected)return;updateSolve({...selected,note:$('#solve-note').value});$('#solve-dialog').close();toast('Solve updated.');};
 $('#delete-solve').onclick=()=>{if(!selected)return;const old={...selected};updateSolve({...selected,deleted:true});$('#solve-dialog').close();toast('Solve deleted.',()=>updateSolve({...old,deleted:false}));};
 document.addEventListener('click',e=>{const el=e.target.closest('[data-id]');if(el)openSolve(el.dataset.id);});
-$('#manual-entry').onclick=()=>{$('#manual-time').value='';$('#manual-error').textContent='';openDialog('#manual-dialog');};
-$('#save-manual').onclick=()=>{try{const ms=parseTime($('#manual-time').value);saveAttempt(makeSolve(ms,[],true),snapshotAttempt());$('#manual-dialog').close();toast(timerContext.kind==='lesson'?'Practice time added.':'Solve added.');}catch(e){$('#manual-error').textContent=e.message;}};
+$('#manual-entry').onclick=()=>{if(timerContext.kind==='lesson')return;$('#manual-time').value='';$('#manual-error').textContent='';openDialog('#manual-dialog');};
+$('#save-manual').onclick=()=>{if(timerContext.kind==='lesson')return;try{const ms=parseTime($('#manual-time').value);saveAttempt(makeSolve(ms,[],true),snapshotAttempt());$('#manual-dialog').close();toast('Solve added.');}catch(e){$('#manual-error').textContent=e.message;}};
 $('#manual-time').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#save-manual').click();}};
 $('#history-scope').onchange=()=>{historyPage=0;renderHistory();};$('#search').oninput=()=>{historyPage=0;renderHistory();};$('#prev').onclick=()=>{historyPage--;renderHistory();};$('#next').onclick=()=>{historyPage++;renderHistory();};
 $('#insight-scope').onchange=renderInsights;$('#insight-period').onchange=renderInsights;$('#split-preset').onchange=renderInsights;

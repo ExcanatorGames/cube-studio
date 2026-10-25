@@ -5,7 +5,7 @@ import {lessonCubeSVG} from '../web/lesson-cube.js';
 import {LESSONS} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 
-const options={...LESSONS[0].case,...createExercise()};
+const options={...LESSONS[0].case,...createExercise('13',{varied:false})};
 
 function demo({reduced=false}={}){
   const elements=new Map(),timers=new Map(),frames=new Map(),listeners=new Map();let now=0,id=0;
@@ -34,7 +34,6 @@ function demo({reduced=false}={}){
       const callbacks=[...frames.values()];frames.clear();for(const fn of callbacks)fn(now);
     },
     svg:()=>get('.lesson-cube').innerHTML,
-    status:()=>get('.lesson-move-status').textContent,
   };
 }
 const expected=alg=>lessonCubeSVG(alg,options);
@@ -43,7 +42,6 @@ test('Next and Previous tween the affected layer and settle on authoritative les
   const d=demo(),initial=d.svg();
   assert.equal(initial,expected(options.setup));
   d.click({action:'next'});
-  assert.equal(d.status(),'Insert the marked pair');
   assert.match(d.get('.lesson-moves').innerHTML,/aria-current="step">U/);
   assert.ok(d.get('[data-action="next"]').disabled);
   assert.ok(d.get('[data-action="previous"]').disabled);
@@ -52,9 +50,7 @@ test('Next and Previous tween the affected layer and settle on authoritative les
   assert.notEqual(halfway,expected(options.setup+' U'));
   d.click({action:'next'});d.click({action:'previous'});
   d.tick(240);assert.equal(d.svg(),expected(options.setup+' U'));
-  assert.equal(d.status(),'Insert the marked pair');
   d.click({action:'previous'});
-  assert.equal(d.status(),'Insert the marked pair');
   d.tick(240);assert.notEqual(d.svg(),initial);
   d.tick(240);assert.equal(d.svg(),initial);
   assert.ok(d.get('[data-action="previous"]').disabled);
@@ -63,14 +59,13 @@ test('Next and Previous tween the affected layer and settle on authoritative les
 test('Play leaves a reading pause between turns and stops at the last completed move',()=>{
   const d=demo();d.click({action:'play'});
   d.tick(599);assert.equal(d.svg(),expected(options.setup));
-  d.tick(1);assert.equal(d.status(),'Insert the marked pair');
+  d.tick(1);
   for(let i=0;i<4;i++){
-    d.tick(240);assert.equal(d.status(),'Insert the marked pair');
+    d.tick(240);
     d.tick(240);
     assert.equal(d.svg(),expected([options.setup,...options.solution.split(' ').slice(0,i+1)].join(' ')));
     if(i<3){const rest=d.svg();d.tick(469);assert.equal(d.svg(),rest);d.tick(1);}
   }
-  assert.equal(d.status(),'Pair inserted');
   assert.equal(d.get('[data-action="play"]').textContent,'Play');
   assert.equal(d.frames.size+d.timers.size,0);
   d.click({action:'play'});assert.equal(d.svg(),expected(options.setup));
@@ -100,10 +95,10 @@ for(const action of ['reset','external reset','destroy'])test(action+' cancels f
   if(action==='reset')d.click({action:'reset'});
   if(action==='external reset')d.view.reset();
   if(action==='destroy')d.view.destroy();
-  const snapshot=d.svg(),status=d.status();
+  const snapshot=d.svg();
   assert.equal(d.frames.size+d.timers.size,0);
   timer();frame(10000);d.tick(10000);
-  assert.equal(d.svg(),snapshot);assert.equal(d.status(),status);
+  assert.equal(d.svg(),snapshot);
   if(action==='destroy'){
     assert.equal(d.root.innerHTML,'');d.view.reset();d.view.destroy();assert.equal(d.root.innerHTML,'');
   }else{
@@ -115,7 +110,7 @@ for(const action of ['reset','external reset','destroy'])test(action+' cancels f
 
 test('demo exposes only insertion playback and displays the white-top scramble',()=>{
   const d=demo();
-  assert.doesNotMatch(d.root.innerHTML,/Watch setup|data-mode|Demonstration sequence/);
+  assert.doesNotMatch(d.root.innerHTML,/Watch setup|data-mode|Demonstration sequence|lesson-move-status|lesson-marker-key/);
   assert.ok(d.root.innerHTML.includes(`<code>${options.scramble}</code>`));
   assert.equal(d.svg(),expected(options.setup));
   assert.equal(d.get('.lesson-moves').innerHTML.match(/<span/g).length,4);

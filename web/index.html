@@ -23,7 +23,7 @@
   <h1 id="page-title" class="sr-only">Timer</h1>
   <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
   <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
-  <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="small-button" type="button">← All lessons</button></div>
+  <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="text-button" type="button">← All lessons</button></div>
   <div class="app-actions">
    <div id="sync-attention" class="sync-attention" hidden>
     <span id="mobile-sync" role="status" hidden></span>
@@ -45,6 +45,7 @@
      <span id="scramble-type" class="scramble-kind muted sr-only">Preparing…</span>
      <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble" aria-live="polite">…</div>
      <div id="cube-preview" class="cube-preview"></div>
+     <div id="lesson-solution" class="lesson-solution" hidden><span>Insert the marked pair</span><strong>U R U' R'</strong></div>
      <div class="timer-readout">
       <div id="timer-hint" class="timer-hint" aria-live="polite" hidden></div>
       <div id="clock" class="clock" aria-live="off">0.00</div>
@@ -55,7 +56,6 @@
     </div>
     <div id="fullscreen-splits" class="fullscreen-splits" role="list" aria-label="Solve splits" hidden></div>
    </div>
-   <div id="lesson-solution" class="lesson-solution" hidden><span>Insert the marked pair</span><strong>U R U' R'</strong></div>
    <div id="solve-ranking" class="solve-ranking" hidden>
     <div class="ranking-meta"><span id="ranking-count"></span><span>All-time <strong id="ranking-all-time"></strong></span></div>
     <div id="ranking-track" class="ranking-track" role="img"><div id="ranking-squares" class="ranking-squares"></div><i id="ranking-marker" class="ranking-marker" aria-hidden="true"></i></div>
@@ -70,14 +70,16 @@
  <section id="lessons-page" class="page" hidden>
   <div id="lesson-list"><div id="lesson-cards"></div></div>
   <div id="lesson-detail" hidden>
-   <header class="lesson-heading"><h2 id="lesson-title" class="lessons-title"></h2><p class="lesson-orientation">Scramble: white up · green front · red right<br>Then turn over: white down · green front</p></header>
+   <header class="lesson-heading"><h2 id="lesson-title" class="lessons-title"></h2></header>
+   <div class="lesson-activity">
    <div class="lesson-tabs" role="tablist" aria-label="Lesson activity"><button id="lesson-tab-lesson" type="button" role="tab" aria-selected="true" aria-controls="lesson-panel-lesson" tabindex="0">Lesson</button><button id="lesson-tab-practice" type="button" role="tab" aria-selected="false" aria-controls="lesson-panel-practice" tabindex="-1">Practice</button></div>
    <div id="lesson-panel-lesson" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-lesson">
      <section id="lesson-demonstration" class="lesson-section" aria-label="Pair demonstration"><div id="lesson-demo"></div></section>
    </div>
    <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
-     <div class="lesson-practice-heading"><p>Scramble from solved. The white cross is ready; insert the pair, then finish the cube.</p><p id="lesson-practice-summary"></p><ol id="lesson-practice-times" aria-label="Recent practice times"></ol></div>
     <div id="lesson-practice-mount"></div>
+    <ol id="lesson-practice-times" aria-label="Recent practice times" hidden></ol>
+   </div>
    </div>
   </div>
  </section>

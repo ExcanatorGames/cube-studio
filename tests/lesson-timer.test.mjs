@@ -10,7 +10,10 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   assert.equal(h.element('#lesson-panel-lesson').hidden,false);
   assert.equal(h.element('#lesson-panel-practice').hidden,true);
   h.element('#lesson-tab-practice').onclick();
-  assert.equal(h.run('names().join(",")'),'First pair,Remaining F2L,Last layer');
+  assert.equal(h.run('names().length'),0);
+  assert.equal(h.run('tracking()'),false);
+  assert.equal(h.element('#fullscreen-track').hidden,true);
+  assert.equal(h.element('#manual-entry').hidden,true);
   h.run('setTracking(false)');
   assert.equal(h.run('settings.track'),true);
   h.element('#lesson-help').onclick();
@@ -29,9 +32,9 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   assert.equal(h.demoDestroys,1);
 });
 
-test('busy lesson attempts lock context and record the starting exercise with full-cube splits and note',()=>{
+test('busy lesson attempts lock context and finish on the first stop, with no splits',()=>{
   const h=harness();
-  h.run("setPage('lessons');openLesson('13');setLessonTab('practice');setTracking(true)");
+  h.run("setTracking(true);setPage('lessons');openLesson('13');setLessonTab('practice');setTracking(true)");
   const initial=h.run('scramble');
   h.run('arm()');h.arm();h.run('start()');
   assert.equal(h.run('state'),'running');
@@ -40,9 +43,9 @@ test('busy lesson attempts lock context and record the starting exercise with fu
   h.run("setPage('timer');newScramble();setTracking(false);openLesson('13')");
   assert.equal(h.run('scramble'),initial);
   assert.equal(h.run('page'),'lessons');
-  h.advance(1000);h.run('mark()');h.advance(2000);h.run('mark()');
-  assert.equal(h.run('records.size'),0);
-  h.advance(3000);h.run('mark()');
+  assert.equal(h.run('activeAttempt.track'),false);
+  assert.equal(h.run('activeAttempt.splitNames.length'),0);
+  h.advance(6000);h.run('mark()');
   const stored=JSON.parse(h.storage.get('cube-studio-v1')),saved=stored.lessonAttempts[0];
   assert.equal(stored.solves.length,0);
   assert.equal(stored.pending.length,0);
@@ -51,7 +54,7 @@ test('busy lesson attempts lock context and record the starting exercise with fu
   assert.equal(h.run('records.size'),0);
   assert.equal(saved.scramble,initial);
   assert.equal(saved.ms,6000);
-  assert.deepEqual(saved.splits,[{name:'First pair',ms:1000},{name:'Remaining F2L',ms:3000},{name:'Last layer',ms:6000}]);
+  assert.deepEqual(saved.splits,[]);
   assert.match(saved.note,/13 · Use one F2L pair.*Full cube/);
   assert.notEqual(h.run('scramble'),initial);
   assert.equal(saved.source,'timer');
@@ -129,7 +132,7 @@ test('two-finger hold and release starts the shared lesson timer and a later tap
   assert.equal(h.run('lessonAttempts.size'),1);
 });
 
-test('lesson tabs preserve the generated exercise, hints and splits while resetting demo playback',()=>{
+test('lesson tabs preserve the generated exercise and hints while keeping splits unavailable',()=>{
   const h=harness();
   h.run("setPage('lessons');openLesson('13')");
   const exercise=h.run('timerContext.exercise'),scramble=h.run('scramble'),card=h.element('#timer-card');
@@ -148,7 +151,8 @@ test('lesson tabs preserve the generated exercise, hints and splits while resett
   assert.equal(h.element('#timer-card'),card);
   assert.equal(card.parentElement.id,'lesson-practice-mount');
   assert.equal(h.element('#lesson-help').getAttribute('aria-pressed'),'true');
-  assert.equal(h.element('#fullscreen-track').getAttribute('aria-pressed'),'true');
+  assert.equal(h.element('#fullscreen-track').getAttribute('aria-pressed'),'false');
+  assert.equal(h.element('#fullscreen-track').hidden,true);
   assert.equal(h.element('#lesson-panel-lesson').hidden,true);
   assert.equal(h.element('#lesson-panel-practice').hidden,false);
 });
@@ -204,12 +208,11 @@ test('practice times survive reload and stay out of history, exports, sync and n
   assert.equal(h.run('lessonAttempts.size'),1);
   assert.equal(h.run('all().length'),0);
   assert.equal(h.run('pending.size'),0);
-  assert.match(h.element('#lesson-practice-summary').textContent,/1 practice attempt · Best 4.32/);
   assert.match(h.element('#lesson-practice-times').innerHTML,/4.32/);
   const stored=JSON.parse(h.storage.get('cube-studio-v1'));
   const reloaded=harness({saved:stored});
   reloaded.run("setPage('lessons');openLesson('13')");
-  assert.match(reloaded.element('#lesson-practice-summary').textContent,/1 practice attempt · Best 4.32/);
+  assert.match(reloaded.element('#lesson-practice-times').innerHTML,/4.32/);
   reloaded.run("setPage('timer');arm()");reloaded.arm();reloaded.run('start()');reloaded.advance(9000);reloaded.run('stop()');
   assert.equal(reloaded.run('records.size'),1);
   assert.equal(reloaded.run('lessonAttempts.size'),1);
@@ -217,18 +220,42 @@ test('practice times survive reload and stay out of history, exports, sync and n
   assert.equal(reloaded.run('pending.size'),1);
 });
 
-test('manual lesson times use practice storage and both toggles show explicit on/off icons',()=>{
+test('practice keeps hints but removes manual entry and split timing, restoring normal controls on exit',()=>{
   const h=harness();h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
   assert.match(h.element('#lesson-help').innerHTML,/✕.*Hints/);
-  assert.match(h.element('#fullscreen-track').innerHTML,/✕.*Splits/);
+  assert.equal(h.element('#fullscreen-track').hidden,true);
+  assert.equal(h.element('#manual-entry').hidden,true);
   h.element('#lesson-help').onclick();h.element('#fullscreen-track').onclick();
   assert.match(h.element('#lesson-help').innerHTML,/✓.*Hints/);
-  assert.match(h.element('#fullscreen-track').innerHTML,/✓.*Splits/);
+  assert.equal(h.run('tracking()'),false);
+  assert.equal(h.element('#fullscreen-splits').hidden,true);
   h.element('#manual-time').value='12.34';h.element('#save-manual').onclick();
-  assert.equal(h.run('lessonAttempts.size'),1);
+  assert.equal(h.run('lessonAttempts.size'),0);
   assert.equal(h.run('records.size'),0);
   assert.equal(h.run('pending.size'),0);
-  assert.equal(h.run('[...lessonAttempts.values()][0].source'),'manual');
+  h.run("setPage('timer')");
+  assert.equal(h.element('#fullscreen-track').hidden,false);
+  assert.equal(h.element('#manual-entry').hidden,false);
+  h.element('#manual-time').value='12.34';h.element('#save-manual').onclick();
+  assert.equal(h.run('records.size'),1);
+});
+
+test('toggling hints updates markers immediately without fading the cube or scramble out',()=>{
+  const h=harness();h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
+  const animations=[];
+  for(const selector of ['#cube-preview','#fullscreen-scramble']){
+    const element=h.element(selector);
+    element.getClientRects=()=>[{}];
+    element.animate=(keyframes)=>{animations.push({selector,keyframes});return {finished:Promise.resolve(),cancel(){}};};
+  }
+  h.element('#lesson-help').onclick();
+  assert.match(h.element('#cube-preview').innerHTML,/data-target=/);
+  assert.equal(h.element('#lesson-solution').hidden,false);
+  assert.equal(animations.length,0,'enabling hints must not start an opacity-zero reveal');
+  h.element('#lesson-help').onclick();
+  assert.doesNotMatch(h.element('#cube-preview').innerHTML,/data-target=/);
+  assert.equal(h.element('#lesson-solution').hidden,true);
+  assert.equal(animations.length,0,'disabling hints must not start an opacity-zero reveal');
 });
 
 test('pending lesson scrambles cannot start or save a timer, and leaving ignores the worker result',()=>{

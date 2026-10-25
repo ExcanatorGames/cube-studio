@@ -5,15 +5,17 @@
 .lesson-card small{display:block;margin-top:10px;color:#acbad0;font-size:14px}
 .lesson-card>span:last-child{font-size:26px}
 main:has(#lesson-detail:not([hidden])){padding-bottom:calc(var(--lesson-navigation-height,0px) + 12px)}
-#lesson-detail{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:10px;height:var(--lesson-available-height,calc(100dvh - 120px));min-width:0}
+#lesson-detail{display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;height:var(--lesson-available-height,calc(100dvh - 120px));min-width:0}
+.lesson-activity{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;min-width:0;border:1px solid #35435b;border-radius:12px;overflow:hidden;background:#19212e}
 .lesson-heading{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;row-gap:4px}
 .lesson-heading .lessons-title{font-size:22px;margin:0}
-.lesson-orientation{margin:0;color:#acbad0;font-size:12px;line-height:1.4}
-.lesson-tabs{display:flex;gap:6px;border-bottom:1px solid #35435b}
-.lesson-tabs [role="tab"]{min-height:44px;min-width:100px;padding:8px 20px;border-bottom:3px solid transparent;font-size:15px;color:#acbad0}
-.lesson-tabs [aria-selected="true"]{border-color:#adbeef;color:#e0e9ff;background:#202d43;border-radius:6px 6px 0 0}
+#lesson-back{min-height:44px;padding:0;border:0;border-radius:0;background:none;font-size:13px;color:#acbad0}
+#lesson-back:hover{background:none;color:#dce7ff;text-decoration:underline}
+.lesson-tabs{display:flex;gap:0;border-bottom:1px solid #35435b}
+.lesson-tabs [role="tab"]{flex:1;min-width:0;min-height:44px;padding:8px 20px;border-bottom:3px solid transparent;font-size:15px;color:#acbad0}
+.lesson-tabs [aria-selected="true"]{border-color:#adbeef;color:#e0e9ff;background:#202d43}
 .lesson-panel{min-height:0;min-width:0}
-.lesson-section{height:100%;display:flex;flex-direction:column;padding:clamp(10px,2vh,24px);border:1px solid #35435b;border-radius:12px;background:#19212e}
+.lesson-section{height:100%;display:flex;flex-direction:column;padding:clamp(10px,2vh,24px)}
 #lesson-demo{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
 .lesson-section h3{margin:0;font-size:18px;line-height:1.3}
 .lesson-section p{color:#acbad0;font-size:13px;line-height:1.4;margin:6px 0}
@@ -30,26 +32,22 @@ main:has(#lesson-detail:not([hidden])){padding-bottom:calc(var(--lesson-navigati
 .lesson-moves span{display:inline-block;min-width:38px;padding:6px;text-align:center;border:1px solid transparent;border-radius:6px}
 .lesson-moves .done{color:#91a7c8}
 .lesson-moves .current{background:#304669;border-color:#adbeef;color:#fff}
-.lesson-section .lesson-move-status{min-height:36px;color:#d6e4ff}
-.lesson-section .lesson-marker-key{font-size:12px;text-align:center;margin:0}
-.lesson-speed{display:flex;align-items:center;gap:12px;max-width:440px;width:100%;margin:0 auto;color:#acbad0;font-size:12px}
-.lesson-speed input{flex:1;min-width:40px;min-height:44px;accent-color:#adbeef;cursor:pointer}
-.lesson-speed output{min-width:34px;text-align:right;font-family:var(--mono)}
-#lesson-panel-practice{display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px}
-.lesson-practice-heading p{margin:0;color:#acbad0;font-size:13px;line-height:1.4}
-#lesson-practice-summary{font-size:11px;margin-top:4px}
+.lesson-speed{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;max-width:440px;width:100%;margin:0 auto;color:#acbad0;font-size:12px}
+.lesson-speed>span{grid-area:1/1/2/3;text-align:center}
+.lesson-speed input{grid-area:2/1;min-width:40px;width:100%;min-height:44px;accent-color:#adbeef;cursor:pointer}
+.lesson-speed output{grid-area:2/2;min-width:34px;text-align:right;font-family:var(--mono)}
+#lesson-panel-practice{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:8px}
 #lesson-practice-times{display:flex;flex-wrap:wrap;gap:6px 14px;list-style:none;padding:0;margin:4px 0 0;font:600 13px/1.4 var(--mono);color:#dce7ff}
 #lesson-practice-mount{min-height:0;min-width:0}
 #lesson-help{min-height:44px;font-size:13px}
-.lesson-solution{position:absolute;top:58px;left:16px;right:16px;text-align:center;z-index:2;pointer-events:none;color:#bdcce4;font-size:12px;line-height:1.5}
+.lesson-solution{position:static;width:100%;text-align:center;pointer-events:none;color:#bdcce4;font-size:12px;line-height:1.5}
 .lesson-solution strong{display:block;font:600 20px/1.5 var(--mono);color:#dce7ff}
-#timer-card.lesson-assisted #timer-pad{padding-top:120px}
-body:not(.focus-mode) #lesson-practice-mount #timer-card{height:100%;min-height:0;overflow:visible;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;padding:6px 10px;gap:4px}
+body:not(.focus-mode) #lesson-practice-mount #timer-card{height:100%;min-height:0;overflow:visible;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 10px;gap:4px;border:0;border-radius:0}
 body:not(.focus-mode) #lesson-practice-mount .timer-toolbar{position:static;min-height:44px;margin:0;gap:4px}
 body:not(.focus-mode) #lesson-practice-mount .timer-toolbar .icon-button,body:not(.focus-mode) #lesson-practice-mount #fullscreen-track{min-height:44px;min-width:44px}
-body:not(.focus-mode) #lesson-practice-mount .lesson-solution{position:static;grid-row:2;font-size:12px;line-height:1.25}
+body:not(.focus-mode) #lesson-practice-mount .lesson-solution{font-size:12px;line-height:1.25}
 body:not(.focus-mode) #lesson-practice-mount .lesson-solution strong{display:inline;margin-left:8px;font-size:16px;line-height:1.25}
-body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-row:3;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:auto;min-height:0;padding:0;gap:6px}
+body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-row:2;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:auto;min-height:0;padding:0;gap:6px}
 body:not(.focus-mode) #lesson-practice-mount .timer-center{grid-column:1;grid-row:1;max-width:100%;gap:8px}
 body:not(.focus-mode) #lesson-practice-mount .scramble-kind{display:none}
 body:not(.focus-mode) #lesson-practice-mount .fullscreen-scramble{font-size:clamp(17px,2vw,24px);line-height:1.4}
@@ -57,16 +55,12 @@ body:not(.focus-mode) #lesson-practice-mount .cube-preview{width:clamp(60px,12vh
 body:not(.focus-mode) #lesson-practice-mount .clock{font-size:clamp(48px,9vh,100px);line-height:1.1}
 body:not(.focus-mode) #lesson-practice-mount .timer-instruction,body:not(.focus-mode) #lesson-practice-mount .touch-instruction{margin-top:4px;font-size:12px;line-height:1.3}
 body:not(.focus-mode) #lesson-practice-mount .timer-hint{font-size:16px;margin-bottom:2px}
-body:not(.focus-mode) #lesson-practice-mount .with-splits #timer-pad{grid-template-rows:minmax(0,1fr) auto}
-body:not(.focus-mode) #lesson-practice-mount .fullscreen-splits{position:static;grid-column:1;grid-row:2;align-self:end;justify-self:center;transform:none;width:100%;max-width:460px;max-height:none;overflow:visible;gap:2px}
-body:not(.focus-mode) #lesson-practice-mount .split-row{grid-template-columns:20px minmax(0,1fr) 65px;min-height:26px;padding:3px 6px;gap:6px}
-body:not(.focus-mode) #lesson-practice-mount .split-name{font-size:13px}
-body:not(.focus-mode) #lesson-practice-mount .split-value{font-size:14px}
 body:not(.focus-mode) #lesson-practice-mount .solve-feedback:not([hidden]){position:static;transform:none;font-size:12px;line-height:1.3;max-width:none}
-body:not(.focus-mode) #lesson-practice-mount .solve-ranking:not([hidden]){position:static;grid-row:4;transform:none;width:100%;max-width:none;font-size:11px;line-height:1.2}
+body:not(.focus-mode) #lesson-practice-mount .solve-ranking:not([hidden]){position:static;grid-row:3;transform:none;width:100%;max-width:none;font-size:11px;line-height:1.2}
 body:not(.focus-mode) #lesson-practice-mount .ranking-track{margin:5px auto}
-body.focus-mode #lesson-detail>.lesson-heading,body.focus-mode .lesson-tabs,body.focus-mode #lesson-panel-lesson,body.focus-mode .lesson-practice-heading{display:none}
+body.focus-mode #lesson-detail>.lesson-heading,body.focus-mode .lesson-tabs,body.focus-mode #lesson-panel-lesson,body.focus-mode #lesson-practice-times{display:none}
 body.focus-mode #lesson-detail{height:auto;display:block}
+body.focus-mode .lesson-activity{display:block;border:0;border-radius:0;background:none;overflow:visible}
 body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
 @media(min-width:741px){
  #lesson-detail{max-width:760px;margin-inline:auto;height:min(800px,var(--lesson-available-height,calc(100dvh - 120px)))}
@@ -76,13 +70,11 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
  .sidebar nav .nav{width:100%;min-width:0;padding-left:2px;padding-right:2px}
  #lesson-detail{gap:8px}
  .lesson-heading .lessons-title{font-size:18px}
- .lesson-heading .lesson-orientation{grid-column:1/-1;font-size:11px}
  .lesson-section{padding:10px}
  .lesson-section h3{font-size:16px}
  .lesson-demo-layout{gap:8px}
  .lesson-moves{gap:2px;font-size:20px;margin:2px 0}
  .lesson-moves span{min-width:26px;padding:4px 2px}
- .lesson-section .lesson-move-status{font-size:12px;margin:2px 0;min-height:34px}
  .lesson-card{padding:20px}
  .lesson-card strong{font-size:18px}
  body:not(.focus-mode) #lesson-practice-mount .timer-toolbar #lesson-help,body:not(.focus-mode) #lesson-practice-mount #fullscreen-track{padding:6px 8px;font-size:12px}
@@ -96,54 +88,37 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
  .lesson-demo-setup code{font-size:12px}
  #lesson-demo{gap:4px}
  .lesson-moves{font-size:16px}
- .lesson-section .lesson-marker-key{margin:2px 0;font-size:11px}
- .lesson-practice-heading p{font-size:12px}
  body:not(.focus-mode) #lesson-practice-mount #timer-card{padding:2px 6px;gap:2px}
- body:not(.focus-mode) #lesson-practice-mount .timer-center{display:grid;grid-template-columns:52px minmax(0,1fr);gap:4px 8px}
+ body:not(.focus-mode) #lesson-practice-mount .timer-center{gap:4px}
  body:not(.focus-mode) #lesson-practice-mount .fullscreen-scramble{grid-column:1/-1;font-size:16px;line-height:1.35}
- body:not(.focus-mode) #lesson-practice-mount .cube-preview{grid-column:1;grid-row:2;width:52px}
- body:not(.focus-mode) #lesson-practice-mount .timer-readout{grid-column:2;grid-row:2}
+ body:not(.focus-mode) #lesson-practice-mount .cube-preview{width:52px}
  body:not(.focus-mode) #lesson-practice-mount .clock{font-size:40px}
  body:not(.focus-mode) #lesson-practice-mount .lesson-solution{font-size:11px}
  body:not(.focus-mode) #lesson-practice-mount .lesson-solution strong{font-size:14px;margin-left:4px}
  body:not(.focus-mode) #lesson-practice-mount .timer-instruction,body:not(.focus-mode) #lesson-practice-mount .touch-instruction{font-size:11px;margin-top:1px}
  body:not(.focus-mode) #lesson-practice-mount .timer-instruction kbd{font-size:9px;padding:1px 5px}
- body:not(.focus-mode) #lesson-practice-mount .fullscreen-splits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
- body:not(.focus-mode) #lesson-practice-mount .split-row{grid-template-columns:minmax(0,1fr);gap:2px;padding:3px;text-align:center}
- body:not(.focus-mode) #lesson-practice-mount .split-number{display:none}
- body:not(.focus-mode) #lesson-practice-mount .split-name{font-size:11px;line-height:1.2;min-height:27px}
- body:not(.focus-mode) #lesson-practice-mount .split-value{text-align:center;font-size:13px;line-height:1.2}
  body:not(.focus-mode) #lesson-practice-mount .has-solve-feedback .clock{font-size:36px}
 }
 @media(min-width:741px) and (max-height:600px){
  main:has(#lesson-detail:not([hidden]))>.app-bar{height:auto;min-height:48px;margin-bottom:6px}
  .lesson-heading{grid-template-columns:minmax(0,1fr) auto;gap:12px}
  .lesson-heading .lessons-title{font-size:18px}
- .lesson-heading .lesson-orientation{max-width:210px;font-size:11px}
  #lesson-detail{gap:6px}
  .lesson-section{padding:8px}
  #lesson-demo{gap:4px}
- .lesson-section .lesson-marker-key{display:none}
  .lesson-section .lesson-demo-setup{margin:0}
  .lesson-demo-setup code{font-size:12px}
  .lesson-playback button{font-size:12px;padding:5px 8px}
  .lesson-moves{font-size:18px;margin:0;gap:4px}
  .lesson-moves span{padding:2px;min-width:32px}
- .lesson-section .lesson-move-status,.lesson-section .lesson-marker-key{margin:0;font-size:11px;line-height:1.3;min-height:0}
  #lesson-panel-practice{gap:4px}
- .lesson-practice-heading p{font-size:12px}
  body:not(.focus-mode) #lesson-practice-mount #timer-card{padding:2px 8px;gap:2px}
- body:not(.focus-mode) #lesson-practice-mount .with-splits #timer-pad{grid-template-columns:minmax(180px,.9fr) minmax(0,2fr);grid-template-rows:minmax(0,1fr);gap:10px}
- body:not(.focus-mode) #lesson-practice-mount .timer-center{display:grid;grid-template-columns:56px minmax(0,1fr);gap:2px 8px}
- body:not(.focus-mode) #lesson-practice-mount .with-splits .timer-center{grid-column:2}
+ body:not(.focus-mode) #lesson-practice-mount .timer-center{gap:4px}
  body:not(.focus-mode) #lesson-practice-mount .fullscreen-scramble{grid-column:1/-1;font-size:16px;line-height:1.3}
- body:not(.focus-mode) #lesson-practice-mount .cube-preview{grid-row:2;grid-column:1;width:56px}
- body:not(.focus-mode) #lesson-practice-mount .timer-readout{grid-row:2;grid-column:2}
+ body:not(.focus-mode) #lesson-practice-mount .cube-preview{width:56px}
  body:not(.focus-mode) #lesson-practice-mount .clock{font-size:40px}
  body:not(.focus-mode) #lesson-practice-mount .timer-instruction,body:not(.focus-mode) #lesson-practice-mount .touch-instruction{font-size:11px;margin-top:1px}
  body:not(.focus-mode) #lesson-practice-mount .timer-instruction kbd{font-size:9px;padding:1px 5px}
- body:not(.focus-mode) #lesson-practice-mount .fullscreen-splits{grid-row:1;grid-column:1;align-self:center}
- body:not(.focus-mode) #lesson-practice-mount .lesson-solution{position:absolute;grid-row:auto;top:12px;left:110px;right:190px;font-size:11px}
  body:not(.focus-mode) #lesson-practice-mount .lesson-solution span{display:none}
  body:not(.focus-mode) #lesson-practice-mount .lesson-solution strong{font-size:14px}
 }
