@@ -1,29 +1,29 @@
 import {lessonCubeSVG} from './lesson-cube.js';
 
 export function createLessonDemo(root,lesson,runtime=globalThis){
-  const {setup,solution,orientation,target}=lesson.case;
-  let mode='solution',step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0;
-  root.innerHTML=`<p class="lesson-demo-setup">Demo scramble · Start solved <code>${setup}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide">
-    <div class="lesson-demo-modes" role="group" aria-label="Demonstration sequence"><button type="button" class="small-button" data-mode="setup">Watch setup</button><button type="button" class="small-button" data-mode="solution">Insert pair</button></div>
+  const {setup,scramble,solution,orientation,target}=lesson.case;
+  let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
+  root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide">
     <div class="lesson-moves" aria-label="Moves"></div>
     <p class="lesson-move-status" role="status" aria-live="polite"></p>
-    <div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
+  </div></div><div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
     <p class="lesson-marker-key">Dots mark the corner and edge.</p>
-  </div></div>`;
+    <label class="lesson-speed" for="lesson-animation-speed"><span>Animation speed</span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="1"><output for="lesson-animation-speed">1×</output></label>`;
   const find=selector=>root.querySelector(selector);
-  const moves=()=> (mode==='setup'?setup:solution).trim().split(/\s+/).filter(Boolean);
-  const algorithm=()=>[mode==='solution'?setup:'',...moves().slice(0,step)].filter(Boolean).join(' ');
+  const moves=()=>solution.trim().split(/\s+/).filter(Boolean);
+  const algorithm=()=>[setup,...moves().slice(0,step)].join(' ');
   const paint=()=>{find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});};
   function renderControls(){
     const sequence=moves();
     const current=turn?turn.index:step-1;
     find('.lesson-moves').innerHTML=sequence.map((move,i)=>`<span class="${i<step?'done':''} ${i===current?'current':''}" ${i===current?'aria-current="step"':''}>${move}</span>`).join(' ');
-    find('.lesson-move-status').textContent=turn?`Move ${turn.index+1} of ${sequence.length} · ${turn.move}${turn.to<step?' · Undoing':' · Turning'}`:step?`Move ${step} of ${sequence.length} · ${sequence[step-1]}${step===sequence.length?mode==='setup'?' · Pair ready':' · Pair inserted':''}`:mode==='setup'?'Start with a solved cube':'Find the marked pair in the top layer';
+    find('.lesson-moves .current')?.scrollIntoView?.({block:'nearest'});
+    const status=step===sequence.length&&!turn?'Pair inserted':'Insert the marked pair';
+    if(find('.lesson-move-status').textContent!==status)find('.lesson-move-status').textContent=status;
     find('[data-action="play"]').textContent=playing?'Pause':'Play';
     find('[data-action="play"]').setAttribute('aria-pressed',String(playing));
     find('[data-action="previous"]').disabled=!!turn||step===0;
     find('[data-action="next"]').disabled=!!turn||step===sequence.length;
-    for(const button of root.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
   }
   function pause(){playing=false;runtime.clearTimeout(timeout);timeout=null;++generation;}
   function cancel(){pause();runtime.cancelAnimationFrame(frame);frame=null;turn=null;}
@@ -32,7 +32,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     timeout=runtime.setTimeout(()=>{
       if(destroyed||expected!==generation||!playing)return;
       timeout=null;advance(1);
-    },delay);
+    },delay/speed);
   }
   function advance(direction){
     if(destroyed||turn)return;
@@ -40,7 +40,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     if(to<0||to>moves().length)return;
     const index=direction>0?step:step-1,token=moves()[index];
     const move=direction>0||token.endsWith('2')?token:token.endsWith("'")?token.slice(0,-1):token+"'";
-    const active={move,index,to,alg:algorithm(),started:runtime.performance.now()};
+    const active={move,index,to,alg:algorithm(),lastFrame:runtime.performance.now(),elapsed:0};
     turn=active;
     renderControls();
     function finish(){
@@ -52,7 +52,8 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     if(runtime.matchMedia?.('(prefers-reduced-motion: reduce)').matches){finish();return;}
     function animate(now){
       if(destroyed||turn!==active)return;
-      const progress=Math.min(1,Math.max(0,(now-active.started)/480));
+      active.elapsed+=Math.max(0,now-active.lastFrame)*speed;active.lastFrame=now;
+      const progress=Math.min(1,active.elapsed/480);
       if(progress===1){finish();return;}
       const eased=progress*progress*(3-2*progress);
       find('.lesson-cube').innerHTML=lessonCubeSVG(active.alg,{orientation,target,move,progress:eased});
@@ -63,8 +64,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
   function onClick(event){
     const button=event.target.closest('button');
     if(destroyed||!button||!root.contains(button))return;
-    if(button.dataset.mode){cancel();mode=button.dataset.mode;step=0;paint();}
-    else if(button.dataset.action==='play'){
+    if(button.dataset.action==='play'){
       if(playing)pause();
       else{
         playing=true;
@@ -80,10 +80,18 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
     }
     renderControls();
   }
+  function onSpeed(event){
+    if(event.target!==find('#lesson-animation-speed'))return;
+    const next=Number(event.target.value);if(!Number.isFinite(next)||next<0.5||next>4)return;
+    if(turn){const now=runtime.performance.now();turn.elapsed+=Math.max(0,now-turn.lastFrame)*speed;turn.lastFrame=now;}
+    speed=next;find('.lesson-speed output').textContent=`${speed}×`;
+    if(timeout!==null){runtime.clearTimeout(timeout);timeout=null;if(playing)schedule(470);}
+  }
   root.addEventListener('click',onClick);
+  root.addEventListener('input',onSpeed);
   paint();renderControls();
   return {
     reset(){if(destroyed)return;cancel();step=0;paint();renderControls();},
-    destroy(){if(destroyed)return;cancel();destroyed=true;root.removeEventListener('click',onClick);root.replaceChildren();},
+    destroy(){if(destroyed)return;cancel();destroyed=true;root.removeEventListener('click',onClick);root.removeEventListener('input',onSpeed);root.replaceChildren();},
   };
 }

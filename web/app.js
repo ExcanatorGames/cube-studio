@@ -4,7 +4,7 @@ import {cubeSVG,scrambleLines} from './cube.js';
 import {initSplitCharts} from './split-charts.js';
 import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
-import {LESSONS,LESSON_SPLITS,createExercise} from './lessons.js';
+import {LESSONS,LESSON_SPLITS} from './lessons.js';
 import {createLessonDemo} from './lesson-view.js';
 import {initMobileNavigation} from './mobile-navigation.js';
 import {createMotion} from './motion.js';
@@ -14,6 +14,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const STORE='cube-studio-v1';
 let saved={},storageReadFailed=false;try{saved=JSON.parse(localStorage.getItem(STORE)||'{}');}catch{storageReadFailed=true;}
 let records=new Map((saved.solves||[]).map(s=>[s.id,normalizeSolve(s)])), pending=new Map((saved.pending||[]).map(s=>[s.id,normalizeSolve(s)]));
+let lessonAttempts=new Map((saved.lessonAttempts||[]).map(s=>[s.id,{...normalizeSolve(s),lessonId:s.lessonId,caseId:s.caseId}]));
 let settings={preset:'beginner',custom:['Cross','First pair','Remaining F2L','Last layer'],hold:550,track:false,...saved.settings};
 let page='timer', historyPage=0, selected=null, imported=[], toastTimeout;
 let syncBusy=false,syncRequested=false,syncState='healthy',lastSync=0;
@@ -25,7 +26,7 @@ const tracking=()=>timerContext.kind==='lesson'?timerContext.track:settings.trac
 const timerVisible=()=>page==='timer'||page==='lessons'&&timerContext.kind==='lesson'&&timerContext.tab==='practice';
 const all=()=>[...records.values()].filter(s=>!s.deleted).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
 const names=()=>timerContext.kind==='lesson'?LESSON_SPLITS:settings.preset==='custom'?settings.custom:PRESETS[settings.preset];
-function persist(){try{localStorage.setItem(STORE,JSON.stringify({solves:[...records.values()],pending:[...pending.values()],settings}));return true;}catch{toast('Device storage is full or blocked. Keep this page open and export your solves.');return false;}}
+function persist(){try{localStorage.setItem(STORE,JSON.stringify({solves:[...records.values()],pending:[...pending.values()],lessonAttempts:[...lessonAttempts.values()],settings}));return true;}catch{toast('Device storage is full or blocked. Keep this page open and export your solves.');return false;}}
 function toast(message,undo){clearTimeout(toastTimeout);const t=$('#toast');t.replaceChildren(document.createTextNode(message));if(undo){const b=document.createElement('button');b.textContent='Undo';b.onclick=()=>{undo();t.hidden=true;};t.append(b);}t.hidden=false;toastTimeout=setTimeout(()=>t.hidden=true,undo?12000:5500);}
 function renderSyncStatus(){
   const messages={healthy:pending.size?`${pending.size} waiting to sync`:'',offline:pending.size?`${pending.size} saved offline`:'Offline',auth:pending.size?`${pending.size} saved · connect to sync`:'Not connected',setup:'Cloud sync setup needed',error:pending.size?`${pending.size} saved on device · sync failed`:'Sync failed'};
@@ -37,6 +38,20 @@ function renderSyncStatus(){
   $('#sync-attention').hidden=!text;
 }
 function updateSolve(s){s=normalizeSolve({...s,updatedAt:Math.max(Date.now(),(records.get(s.id)?.updatedAt||0)+1)});records.set(s.id,s);pending.set(s.id,s);persist();render();sync();return s;}
+function saveAttempt(s,attempt){
+  if(attempt.context!=='lesson')return updateSolve(s);
+  const exercise=attempt.exercise;
+  const practice={...s,lessonId:exercise.lessonId,caseId:exercise.caseId};
+  lessonAttempts.set(s.id,practice);persist();render();return practice;
+}
+function practiceTimes(){return [...lessonAttempts.values()].filter(s=>!s.deleted&&s.lessonId===timerContext.lessonId).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));}
+function renderPracticeTimes(){
+  if(timerContext.kind!=='lesson')return;
+  const attempts=practiceTimes(),best=summary(attempts).best;
+  $('#lesson-practice-summary').textContent=attempts.length?`${attempts.length} practice ${attempts.length===1?'attempt':'attempts'} · Best ${formatTime(best)} · Saved on this device`:'Practice times are saved separately on this device.';
+  $('#lesson-practice-times').innerHTML=attempts.slice(-5).reverse().map(s=>`<li><time datetime="${esc(s.date)}" title="${esc(new Date(s.date).toLocaleString())}">${formatTime(result(s))}</time></li>`).join('');
+  $('#lesson-practice-times').hidden=!attempts.length;
+}
 async function sync(){
   if(syncBusy){syncRequested=true;renderSyncStatus();return;}
   syncBusy=true;renderSyncStatus();
@@ -143,8 +158,10 @@ function openLesson(id){
   $('#lesson-title').textContent=lesson.title;
   renderHeader();
   $('#lesson-practice-mount').append($('#timer-card'));
-  lessonDemo?.destroy();lessonDemo=createLessonDemo($('#lesson-demo'),lesson);
+  lessonDemo?.destroy();lessonDemo=null;
+  $('#lesson-demo').innerHTML='<p role="status">Preparing scramble…</p>';
   newScramble();timerVisual();updateTimerHeight();window.scrollTo({top:0,behavior:'instant'});
+  renderPracticeTimes();
 }
 function leaveLesson(){
   ++scrambleRequest;resetTimerContext();timerContext={kind:'normal'};
@@ -158,26 +175,28 @@ function leaveLesson(){
 function renderLessonAssistance(){
   const lesson=timerContext.kind==='lesson',enabled=lesson&&timerContext.assistance;
   $('#lesson-help').hidden=!lesson;
-  $('#lesson-help').disabled=busy();
+  $('#lesson-help').disabled=busy()||lesson&&!timerContext.exercise;
   $('#lesson-help').setAttribute('aria-pressed',String(enabled));
+  $('#lesson-help').innerHTML=`<span aria-hidden="true">${enabled?'✓':'✕'}</span> Hints`;
   $('#lesson-solution').hidden=!enabled||busy();
   $('#timer-card').classList.toggle('lesson-assisted',enabled&&!busy());
   if(lesson)$('#lesson-solution strong').textContent=timerContext.exercise?.solution||'';
 }
 $('#lesson-help').onclick=()=>{
-  if(busy()||timerContext.kind!=='lesson')return;
+  if(busy()||timerContext.kind!=='lesson'||!timerContext.exercise)return;
   timerContext.assistance=!timerContext.assistance;
   if(!timerContext.assistance)lessonDemo?.reset();
   renderLessonAssistance();showScramble();$('#lesson-help').blur();
 };
-function render(){renderHeader();renderSteps();renderRecent();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
+function render(){renderHeader();renderSteps();renderRecent();renderPracticeTimes();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
 function renderRecent(){
   const solves=all(),recent=solves.slice(-12).reverse();
   $('#recent-solves').innerHTML=recent.length?recent.map((s,i)=>`<li><button class="recent-solve" data-id="${esc(s.id)}" title="${esc(new Date(s.date).toLocaleString())}" aria-label="Open solve ${solves.length-i}, ${esc(formatTime(result(s)))}"><span class="recent-solve-index">${solves.length-i}</span><span class="recent-solve-time">${formatTime(result(s))}${s.penalty==='+2'?'<small>+2</small>':''}</span><span class="recent-solve-date">${esc(new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric'}))} · ${esc(new Date(s.date).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</span></button></li>`).join(''):'<li class="empty">No solves yet.</li>';
 }
 function renderSteps(){
-  const currentSolve=state==='stopped'&&lastSolveId?records.get(lastSolveId):null;
-  const feedback=currentSolve?solveFeedback(all(),currentSolve):null;
+  const lesson=timerContext.kind==='lesson';
+  const currentSolve=state==='stopped'&&lastSolveId?(lesson?lessonAttempts:records).get(lastSolveId):null;
+  const feedback=currentSolve?solveFeedback(lesson?practiceTimes():all(),currentSolve):null;
   feedbackView.render(feedback);
   if(currentSolve&&!currentSolve.deleted)$('#clock').textContent=formatTime(result(currentSolve));
   const labels=state==='running'||state==='stopped'&&splitMarks.length?activeNames:names();
@@ -193,6 +212,7 @@ function renderSteps(){
   $('#timer-card').classList.toggle('with-splits',tracking());
   $('#fullscreen-splits .current')?.scrollIntoView({block:'nearest'});
   $('#fullscreen-track').setAttribute('aria-pressed',String(tracking()));
+  $('#fullscreen-track').innerHTML=`<span aria-hidden="true">${tracking()?'✓':'✕'}</span> Splits`;
   $('#fullscreen-track').disabled=['running','arming','armed'].includes(state);
 }
 function renderHistory(){
@@ -242,7 +262,8 @@ function timerVisual(){
   $('#timer-hint').textContent=hint;$('#timer-hint').hidden=!hint;
   $('#timer-instruction').innerHTML=state==='armed'?'<span>Release</span>':state==='arming'?'<span>Hold…</span>':state==='running'?`<kbd>space</kbd><span>${tracking()?'Split':'Stop'}</span>`:'<kbd>space</kbd><span>Hold · release</span>';
   $('#touch-instruction').textContent=state==='armed'?'Release':state==='arming'?'Hold…':state==='running'?(tracking()?'Tap to split':'Tap to stop'):'Two fingers · hold · release';
-  $('#new-scramble').disabled=busy();$('#manual-entry').disabled=busy();
+  const preparing=timerContext.kind==='lesson'&&!timerContext.exercise;
+  $('#new-scramble').disabled=busy()||preparing;$('#manual-entry').disabled=busy()||preparing;
   $$('[data-page],#lesson-back,.brand').forEach(el=>{if(el.tagName==='BUTTON')el.disabled=busy();else el.setAttribute('aria-disabled',String(busy()));});
   document.body.classList.toggle('lesson-busy',timerContext.kind==='lesson'&&busy());
   renderLessonTabs();renderLessonAssistance();renderSteps();
@@ -268,7 +289,7 @@ function makeSolve(ms,splits=[],manual=false){
   const attempt=manual?snapshotAttempt():activeAttempt;
   return normalizeSolve({id:crypto.randomUUID(),date:new Date().toISOString(),ms:Math.max(1,Math.round(ms)),penalty:'none',scramble:attempt.scramble,splits,source:manual?'manual':'timer',note:attempt.note,updatedAt:Date.now()});
 }
-function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(performance.now()-started));cancelAnimationFrame(frame);if(activeAttempt.track)splitMarks.push({name:activeNames[splitMarks.length],ms:elapsed});state='stopped';lastFinished=Date.now();$('#clock').textContent=formatTime(elapsed);const solve=makeSolve(elapsed,[...splitMarks]);lastSolveId=solve.id;updateSolve(solve);wakeLock?.release();automaticFocus=false;timerVisual();animateResult();newScramble();}
+function stop(){if(state!=='running')return;elapsed=Math.max(1,Math.round(performance.now()-started));cancelAnimationFrame(frame);if(activeAttempt.track)splitMarks.push({name:activeNames[splitMarks.length],ms:elapsed});state='stopped';lastFinished=Date.now();$('#clock').textContent=formatTime(elapsed);const solve=makeSolve(elapsed,[...splitMarks]);lastSolveId=solve.id;saveAttempt(solve,activeAttempt);wakeLock?.release();automaticFocus=false;timerVisual();animateResult();newScramble();}
 function mark(){if(state!=='running')return;if(!activeAttempt.track||splitMarks.length>=activeNames.length-1){stop();return;}splitMarks.push({name:activeNames[splitMarks.length],ms:Math.round(performance.now()-started)});navigator.vibrate?.(10);timerVisual();motion.reveal($('#fullscreen-splits .current'),{distance:3,duration:150});}
 function animateResult(){
   motion.reveal($('.timer-readout'),{distance:4});
@@ -334,14 +355,43 @@ function updateTimerHeight(){
 const chromeObserver=new ResizeObserver(()=>requestAnimationFrame(updateTimerHeight));
 [$('.app-bar'),$('.sidebar')].forEach(el=>chromeObserver.observe(el));
 addEventListener('resize',updateTimerHeight);
-let officialScrambler;
+let officialScrambler,lessonScrambler;
+$('#lesson-demo').onclick=e=>{if(e.target.closest('[data-lesson-retry]'))newScramble();};
+function requestLessonScramble(request,previousScramble){
+  const failed=()=>{
+    if(request!==scrambleRequest||timerContext.kind!=='lesson')return;
+    scramble='';scrambleKind='Scramble unavailable';
+    $('#fullscreen-scramble').textContent='Could not prepare a scramble.';
+    $('#scramble-type').textContent=scrambleKind;$('#new-scramble').disabled=false;
+    if(!lessonDemo)$('#lesson-demo').innerHTML='<p role="status">Could not prepare a scramble.</p><button type="button" class="small-button" data-lesson-retry>Try again</button>';
+  };
+  try{
+    lessonScrambler ||= new Worker('/lesson-scramble-worker.js',{type:'module'});
+    lessonScrambler.onmessage=({data})=>{
+      if(data.request!==scrambleRequest||timerContext.kind!=='lesson')return;
+      if(data.error){failed();return;}
+      const exercise=data.exercise;
+      timerContext.exercise=Object.freeze({...exercise,target:Object.freeze([...exercise.target])});
+      scramble=exercise.scramble;scrambleKind='Ready right · Scramble white up';scrambleLayoutKey='';
+      if(!lessonDemo){
+        const lesson=LESSONS.find(item=>item.id===timerContext.lessonId);
+        lessonDemo=createLessonDemo($('#lesson-demo'),{...lesson,case:{...lesson.case,...exercise}});
+      }
+      showScramble();renderLessonAssistance();$('#new-scramble').disabled=false;$('#manual-entry').disabled=busy();
+    };
+    lessonScrambler.onerror=()=>{lessonScrambler?.terminate();lessonScrambler=null;failed();};
+    lessonScrambler.postMessage({request,lessonId:timerContext.lessonId,previousScramble});
+  }catch{failed();}
+}
 async function newScramble(){
   if(busy())return;
   const req=++scrambleRequest;
   if(timerContext.kind==='lesson'){
-    timerContext.exercise=createExercise(timerContext.lessonId,{previousScramble:timerContext.exercise?.scramble});
-    scramble=timerContext.exercise.scramble;scrambleKind='Ready right · Yellow up, white down';scrambleLayoutKey='';
-    showScramble();renderLessonAssistance();$('#new-scramble').disabled=false;return;
+    const previousScramble=timerContext.exercise?.scramble;
+    timerContext.exercise=null;scramble='';scrambleLayoutKey='';
+    $('#fullscreen-scramble').textContent='Preparing scramble…';$('#cube-preview').replaceChildren();
+    $('#scramble-type').textContent='Preparing…';$('#new-scramble').disabled=true;$('#manual-entry').disabled=true;
+    renderLessonAssistance();requestLessonScramble(req,previousScramble);return;
   }
   normalScramble=null;
   $('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';
@@ -399,7 +449,7 @@ function showScramble(){
   layoutScramble();
   $('#scramble-type').textContent=scrambleKind;
   $('#scramble-type').classList.toggle('sr-only',scrambleKind==='Random state');
-  try{$('#cube-preview').innerHTML=cubeSVG(scramble,timerContext.kind==='lesson'?{orientation:timerContext.exercise.orientation,target:timerContext.assistance?timerContext.exercise.target:[]}:{});}catch{$('#cube-preview').replaceChildren();}
+  try{const exercise=timerContext.kind==='lesson'?timerContext.exercise:null;$('#cube-preview').innerHTML=cubeSVG(exercise?exercise.setup:scramble,exercise?{orientation:exercise.orientation,target:timerContext.assistance?exercise.target:[]}:{});}catch{$('#cube-preview').replaceChildren();}
   if(state!=='running'){motion.reveal($('#fullscreen-scramble'),{distance:4});motion.reveal($('#cube-preview'),{delay:35,distance:5,duration:260});}
 }
 $('#new-scramble').onclick=()=>newScramble();
@@ -420,7 +470,7 @@ $('#save-solve').onclick=()=>{if(!selected)return;updateSolve({...selected,note:
 $('#delete-solve').onclick=()=>{if(!selected)return;const old={...selected};updateSolve({...selected,deleted:true});$('#solve-dialog').close();toast('Solve deleted.',()=>updateSolve({...old,deleted:false}));};
 document.addEventListener('click',e=>{const el=e.target.closest('[data-id]');if(el)openSolve(el.dataset.id);});
 $('#manual-entry').onclick=()=>{$('#manual-time').value='';$('#manual-error').textContent='';openDialog('#manual-dialog');};
-$('#save-manual').onclick=()=>{try{const ms=parseTime($('#manual-time').value);updateSolve(makeSolve(ms,[],true));$('#manual-dialog').close();toast('Solve added.');}catch(e){$('#manual-error').textContent=e.message;}};
+$('#save-manual').onclick=()=>{try{const ms=parseTime($('#manual-time').value);saveAttempt(makeSolve(ms,[],true),snapshotAttempt());$('#manual-dialog').close();toast(timerContext.kind==='lesson'?'Practice time added.':'Solve added.');}catch(e){$('#manual-error').textContent=e.message;}};
 $('#manual-time').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#save-manual').click();}};
 $('#history-scope').onchange=()=>{historyPage=0;renderHistory();};$('#search').oninput=()=>{historyPage=0;renderHistory();};$('#prev').onclick=()=>{historyPage--;renderHistory();};$('#next').onclick=()=>{historyPage++;renderHistory();};
 $('#insight-scope').onchange=renderInsights;$('#insight-period').onchange=renderInsights;$('#split-preset').onchange=renderInsights;

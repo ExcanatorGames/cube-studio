@@ -43,7 +43,12 @@ test('busy lesson attempts lock context and record the starting exercise with fu
   h.advance(1000);h.run('mark()');h.advance(2000);h.run('mark()');
   assert.equal(h.run('records.size'),0);
   h.advance(3000);h.run('mark()');
-  const saved=JSON.parse(h.storage.get('cube-studio-v1')).solves[0];
+  const stored=JSON.parse(h.storage.get('cube-studio-v1')),saved=stored.lessonAttempts[0];
+  assert.equal(stored.solves.length,0);
+  assert.equal(stored.pending.length,0);
+  assert.equal(saved.lessonId,'13');
+  assert.equal(saved.caseId,'ready-right');
+  assert.equal(h.run('records.size'),0);
   assert.equal(saved.scramble,initial);
   assert.equal(saved.ms,6000);
   assert.deepEqual(saved.splits,[{name:'First pair',ms:1000},{name:'Remaining F2L',ms:3000},{name:'Last layer',ms:6000}]);
@@ -82,7 +87,7 @@ test('a delayed normal scramble cannot replace an exercise after opening a lesso
   const exercise=h.run('scramble');
   complete('R2 U2 F2');await pending;
   assert.equal(h.run('scramble'),exercise);
-  assert.equal(h.run('scrambleKind'),'Ready right · Yellow up, white down');
+  assert.equal(h.run('scrambleKind'),'Ready right · Scramble white up');
 });
 
 test('leaving a lesson regenerates an interrupted replacement scramble without reusing the finished solve',async()=>{
@@ -120,7 +125,8 @@ test('two-finger hold and release starts the shared lesson timer and a later tap
   up(touch(2));assert.equal(h.run('state'),'running');
   h.advance(5000);down(touch(3));up(touch(3));
   assert.equal(h.run('state'),'stopped');
-  assert.equal(h.run('records.size'),1);
+  assert.equal(h.run('records.size'),0);
+  assert.equal(h.run('lessonAttempts.size'),1);
 });
 
 test('lesson tabs preserve the generated exercise, hints and splits while resetting demo playback',()=>{
@@ -189,4 +195,69 @@ test('arming, armed and running attempts lock tab clicks and keyboard navigation
   h.element('#lesson-tab-lesson').onclick();
   assert.equal(h.element('#lesson-panel-practice').hidden,true);
   assert.equal(h.run('records.size'),0);
+});
+
+test('practice times survive reload and stay out of history, exports, sync and normal comparisons',()=>{
+  const h=harness();
+  h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");h.arm();h.run('start()');
+  h.advance(4321);h.run('stop()');
+  assert.equal(h.run('lessonAttempts.size'),1);
+  assert.equal(h.run('all().length'),0);
+  assert.equal(h.run('pending.size'),0);
+  assert.match(h.element('#lesson-practice-summary').textContent,/1 practice attempt · Best 4.32/);
+  assert.match(h.element('#lesson-practice-times').innerHTML,/4.32/);
+  const stored=JSON.parse(h.storage.get('cube-studio-v1'));
+  const reloaded=harness({saved:stored});
+  reloaded.run("setPage('lessons');openLesson('13')");
+  assert.match(reloaded.element('#lesson-practice-summary').textContent,/1 practice attempt · Best 4.32/);
+  reloaded.run("setPage('timer');arm()");reloaded.arm();reloaded.run('start()');reloaded.advance(9000);reloaded.run('stop()');
+  assert.equal(reloaded.run('records.size'),1);
+  assert.equal(reloaded.run('lessonAttempts.size'),1);
+  assert.equal(reloaded.run('all()[0].ms'),9000);
+  assert.equal(reloaded.run('pending.size'),1);
+});
+
+test('manual lesson times use practice storage and both toggles show explicit on/off icons',()=>{
+  const h=harness();h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
+  assert.match(h.element('#lesson-help').innerHTML,/✕.*Hints/);
+  assert.match(h.element('#fullscreen-track').innerHTML,/✕.*Splits/);
+  h.element('#lesson-help').onclick();h.element('#fullscreen-track').onclick();
+  assert.match(h.element('#lesson-help').innerHTML,/✓.*Hints/);
+  assert.match(h.element('#fullscreen-track').innerHTML,/✓.*Splits/);
+  h.element('#manual-time').value='12.34';h.element('#save-manual').onclick();
+  assert.equal(h.run('lessonAttempts.size'),1);
+  assert.equal(h.run('records.size'),0);
+  assert.equal(h.run('pending.size'),0);
+  assert.equal(h.run('[...lessonAttempts.values()][0].source'),'manual');
+});
+
+test('pending lesson scrambles cannot start or save a timer, and leaving ignores the worker result',()=>{
+  const h=harness({deferLessonScrambles:true}),normal=h.run('scramble');
+  h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");
+  assert.equal(h.run('state'),'idle');assert.equal(h.run('scramble'),'');
+  assert.equal(h.element('#new-scramble').disabled,true);
+  assert.equal(h.element('#manual-entry').disabled,true);
+  assert.equal(h.element('#lesson-help').disabled,true);
+  assert.equal(h.run('lessonDemo'),null);
+  h.run("setPage('timer')");h.lessonRequests[0]();
+  assert.equal(h.run('scramble'),normal);
+  assert.equal(h.run('timerContext.kind'),'normal');
+  assert.equal(h.run('lessonDemo'),null);
+});
+
+test('only the newest lesson request can install a case, including after a worker failure',()=>{
+  const h=harness({deferLessonScrambles:true});
+  h.run("setPage('lessons');openLesson('13');newScramble()");
+  h.lessonRequests[0]();assert.equal(h.run('scramble'),'');
+  h.lessonRequests[1]();
+  assert.ok(h.run('scramble.length')>0);
+  assert.equal(h.element('#new-scramble').disabled,false);
+  assert.equal(h.element('#manual-entry').disabled,false);
+  assert.ok(h.run('Object.isFrozen(timerContext.exercise.target)'));
+  h.run('newScramble();lessonScrambler.onerror()');
+  assert.equal(h.run('scramble'),'');
+  assert.equal(h.element('#new-scramble').disabled,false);
+  assert.equal(h.element('#manual-entry').disabled,true);
+  h.run('newScramble()');h.lessonRequests.at(-1)();
+  assert.ok(h.run('scramble.length')>0);
 });

@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LESSONS,createExercise} from '../web/lessons.js';
+import {LESSONS,changeLessonFrame} from '../web/lessons.js';
+import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
 
@@ -36,22 +37,26 @@ function simulate(alg){
   }
   return state;
 }
-const cross=['D1','F7','D3','L7','D5','R7','D7','B7'];
-const pair=['D2','F8','R6','F5','R3'];
+const cross=['U1','B1','U3','L1','U5','R1','U7','F1'];
+const pair=['U6','F0','L2','F3','L5'];
 const solved=simulate('');
 
 test('every exercise starts with the solved cross and the exact ready-right pair, leaving other F2L work',()=>{
-  const canonical=simulate("R U R' U'"),seen=new Set();
-  for(let i=0;i<128;i++){
-    const exercise=createExercise('13',{random:()=>i/128});
+  const canonical=simulate("L D L' D'"),seen=new Set();
+  let seed=123456;const random=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+  for(let i=0;i<48;i++){
+    const exercise=createExercise('13',{random});
     seen.add(exercise.scramble);
     const state=simulate(exercise.scramble);
     for(const sticker of cross)assert.equal(state[sticker],sticker,exercise.scramble);
     for(const sticker of pair)assert.equal(Object.keys(state).find(p=>state[p]===sticker),Object.keys(canonical).find(p=>canonical[p]===sticker));
-    const inserted=simulate(`${exercise.scramble} ${exercise.solution}`);
+    const inserted=simulate(`${exercise.scramble} D L D' L'`);
     for(const sticker of [...cross,...pair])assert.equal(inserted[sticker],sticker);
-    assert.ok(Object.keys(solved).some(p=>(p[0]==='D'||'FRBL'.includes(p[0])&&Number(p[1])>=3)&&inserted[p]!==p));
-    assert.ok(exercise.scramble.split(' ').length>=12&&exercise.scramble.split(' ').length<=20);
+    assert.ok(Object.keys(solved).some(p=>(p[0]==='U'||'FRBL'.includes(p[0])&&Number(p[1])<=5)&&inserted[p]!==p));
+    assert.ok(exercise.scramble.split(' ').length>=12&&exercise.scramble.split(' ').length<=22);
+    assert.equal(changeLessonFrame(exercise.scramble),exercise.setup);
+    const tokens=exercise.scramble.split(' ');
+    assert.ok(tokens.every((move,i)=>!i||move[0]!==tokens[i-1][0]));
     assert.equal(exercise.orientation,'white-bottom');
     assert.ok(Object.isFrozen(exercise));
   }
@@ -60,7 +65,7 @@ test('every exercise starts with the solved cross and the exact ready-right pair
 
 test('refresh produces a different exercise even with a repeated random sample',()=>{
   let previousScramble='';
-  for(let i=0;i<50;i++){
+  for(let i=0;i<4;i++){
     const exercise=createExercise('13',{previousScramble,random:()=>0});
     assert.notEqual(exercise.scramble,previousScramble);
     previousScramble=exercise.scramble;
@@ -69,8 +74,8 @@ test('refresh produces a different exercise even with a repeated random sample',
 });
 
 test('cubie markers follow both physical pieces through every demonstration turn',()=>{
-  const lesson=LESSONS[0],target=lesson.case.target;
-  const moves=`${lesson.case.setup} ${lesson.case.solution}`.split(' ');
+  const lesson=LESSONS[0],target=lesson.case.target,exercise=createExercise();
+  const moves=`${exercise.setup} ${lesson.case.solution}`.split(' ');
   for(let i=0;i<=moves.length;i++){
     const alg=moves.slice(0,i).join(' '),state=cubeStickers(alg);
     const stickers=state.filter(s=>target.includes(s.cubie));

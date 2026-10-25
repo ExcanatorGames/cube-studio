@@ -3,13 +3,20 @@ import vm from 'node:vm';
 import * as core from '../../web/core.js';
 import * as cube from '../../web/cube.js';
 import * as lessons from '../../web/lessons.js';
+import {createExercise} from '../../web/lesson-scrambler.js';
 import {createMotion} from '../../web/motion.js';
 
 const source=(await readFile(new URL('../../web/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
-export function harness({online=false,fetch:fetchRequest=async()=>({ok:true,json:async()=>({solves:[]})}),saved=null}={}){
+const exercises=[createExercise(),createExercise()];
+export function harness({online=false,fetch:fetchRequest=async()=>({ok:true,json:async()=>({solves:[]})}),saved=null,deferLessonScrambles=false}={}){
   const elements=new Map(),listeners=new Map(),timers=new Map(),storage=new Map(),intervals=[];
   if(saved)storage.set('cube-studio-v1',JSON.stringify(saved));
   let timerId=0,now=1000,demoResets=0,demoDestroys=0;
+  const lessonRequests=[];
+  class Worker{
+    postMessage(data){const complete=()=>this.onmessage({data:{request:data.request,exercise:exercises.find(e=>e.scramble!==data.previousScramble)}});if(deferLessonScrambles)lessonRequests.push(complete);else complete();}
+    terminate(){}
+  }
   function element(selector){
     if(elements.has(selector))return elements.get(selector);
     const classes=new Set(),attrs=new Map();
@@ -35,12 +42,12 @@ export function harness({online=false,fetch:fetchRequest=async()=>({ok:true,json
     setTimeout(fn){timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),setInterval(fn,ms){intervals.push({fn,ms});},
     requestAnimationFrame(){return 1;},cancelAnimationFrame(){},ResizeObserver:class{observe(){}},
     matchMedia:()=>({matches:false}),innerWidth:1280,innerHeight:900,scrollY:0,getComputedStyle:()=>({fontWeight:'700',fontSize:'24px',fontFamily:'monospace',letterSpacing:'0'}),
-    performance:{now:()=>now},crypto,console,AbortSignal,
+    performance:{now:()=>now},crypto,console,AbortSignal,Worker,
     initPWA(){},initConnection(){},syncHeaders:()=>({}),initSplitCharts:()=>()=>{},initSolveFeedback:()=>({render(){},fit(){}}),formatDifference:String,
     createMotion:()=>createMotion(sandbox.window),initMobileNavigation:options=>{sandbox.mobileNavigation=options;},
     createLessonDemo:()=>({reset(){demoResets++;},destroy(){demoDestroys++;}}),
   };
   const context=vm.createContext(sandbox);
   vm.runInContext(source,context);
-  return {element,storage,listeners,intervals,run:code=>vm.runInContext(code,context),advance(ms){now+=ms;},arm(){const callback=[...timers.values()].at(-1);callback();},get demoResets(){return demoResets;},get demoDestroys(){return demoDestroys;}};
+  return {element,storage,listeners,intervals,lessonRequests,run:code=>vm.runInContext(code,context),advance(ms){now+=ms;},arm(){const callback=[...timers.values()].at(-1);callback();},get demoResets(){return demoResets;},get demoDestroys(){return demoDestroys;}};
 }
