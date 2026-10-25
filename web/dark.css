@@ -353,7 +353,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card .cube-preview{width:96px}
  #timer-card .clock{font-size:clamp(66px,12vw,100px)}
  #timer-card .fullscreen-scramble{font-size:22px;line-height:1.45}
- #timer-card.with-splits #timer-pad{grid-template-rows:auto minmax(0,1fr);gap:14px}
+ #timer-card.with-splits #timer-pad{grid-template-rows:max-content minmax(0,auto);align-content:center;gap:28px}
  #timer-card.with-splits .fullscreen-splits{position:static;grid-row:2;justify-self:start;align-self:center;transform:none;width:100%;max-width:460px;max-height:100%;gap:5px}
 }
 @media(max-width:740px){
@@ -379,6 +379,9 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card.with-splits .fullscreen-splits{gap:3px}
  .split-row{min-height:28px;padding:3px 6px}
  .split-name{font-size:14px}
+}
+@media(max-width:1100px) and (min-height:651px){
+ #timer-card.has-solve-feedback.with-splits #timer-pad{gap:60px}
 }
 @media(min-width:741px) and (max-height:600px){
  #timer-card #timer-pad,#timer-card.with-splits #timer-pad{grid-template-columns:minmax(180px,24%) minmax(0,1fr) minmax(180px,24%);grid-template-rows:minmax(0,1fr);padding-top:55px;padding-bottom:20px;gap:12px}
