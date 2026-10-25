@@ -466,22 +466,23 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  #timer-card.with-splits .solve-ranking:not([hidden]){left:auto;right:max(16px,env(safe-area-inset-right));transform:none;width:calc(100% - var(--landscape-split-width) - var(--landscape-gap) - 32px)}
  #timer-card .ranking-track{margin:6px auto}
  #timer-card .ranking-ends{font-size:10px}
- #history-page:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) clamp(170px,23vw,220px);grid-template-rows:minmax(0,1fr);gap:12px 16px;min-height:0}
- #history-page .table-card{display:contents}
- #history-page .history-table-scroll{grid-column:1;grid-row:1;min-width:0;min-height:0;max-height:calc(100dvh - 120px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#19212e}
- #history-page .pagination{grid-column:2;grid-row:1;align-self:end;display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:8px;padding:0;font-size:12px}
- #history-page .pagination>div{display:flex;gap:6px;justify-content:space-between;width:100%}
+ #history-page .history-table-scroll{min-width:0}
+ #history-page .pagination{flex-wrap:nowrap;gap:12px;padding:8px 12px;border-top:1px solid var(--line);font-size:12px}
+ #history-page .pagination>span{width:auto;min-width:0}
+ #history-page .pagination>div{flex-shrink:0;gap:8px;width:auto}
  #history-page .pagination .small-button{min-width:0;min-height:40px;padding:8px;font-size:12px}
  #history-page table{width:100%;table-layout:fixed}
  #history-page th{position:sticky;top:0;z-index:1}
- #history-page th,#history-page td{padding:10px 8px}
+ #history-page th,#history-page td{padding:8px 12px}
+ #history-page th{font-size:12px}
  #history-page .history-index,#history-page .history-splits{display:none}
- #history-page .history-date{width:45%;white-space:normal}
- #history-page .history-time{width:30%}
+ #history-page .history-date{width:44%;white-space:normal}
+ #history-page .history-date small{display:inline-block;margin:0 0 0 10px}
+ #history-page .history-time{width:auto}
  #history-page td.history-time{font-size:17px}
- #history-page .history-action{width:25%;text-align:right}
+ #history-page .history-action{width:64px;text-align:right}
  #history-page .history-details-label{display:none}
- #history-page .history-action button{min-width:40px;min-height:40px;padding:6px;font-size:18px}
+ #history-page .history-action button{width:40px;min-width:40px;min-height:40px;padding:6px;font-size:18px}
  #toast{bottom:max(12px,env(safe-area-inset-bottom))}
 }
 @media(orientation:landscape) and (max-height:350px) and (max-width:1100px){
