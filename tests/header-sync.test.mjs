@@ -20,7 +20,7 @@ function assertContext(h,active){
 test('page controls live once in the shared header and lessons retain only their detail heading',async()=>{
   const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
   const header=html.match(/<header class="app-bar">([\s\S]*?)<\/header>/)[1];
-  for(const id of ['history-scope','search','history-import','insight-scope','insight-period','lesson-back','mobile-sync','sync-mobile','connect-sync','open-settings','update-app']){
+  for(const id of ['history-scope','search','history-import','insight-period','lesson-back','mobile-sync','sync-mobile','connect-sync','open-settings','update-app']){
     assert.ok(header.includes(`id="${id}"`),id);
     assert.equal(html.split(`id="${id}"`).length-1,1,id);
   }

@@ -9,14 +9,17 @@ A personal 3×3 timer with phone and desktop layouts, two-finger start, keyboard
 - Hold two fingers on the timer, wait for green, then lift both to start. On a PC, hold and release Space, or hold and release the mouse on the timer.
 - Tap the timer or press Space to stop. With step tracking enabled, these actions mark the next step; the last step finishes the solve. Enter also marks steps. Escape cancels without recording.
 - On phones, swipe left or right between Timer, History and Insights, following the bottom tabs. Vertical drags scroll normally. Swiping is disabled during timing, in fullscreen, and while a dialog is open.
+- Lesson cards preview the taught cube case and marked target pieces using the saved lesson orientation.
 - Enable step tracking with the Splits button. Choose the seven-stage beginner method, CFOP, or custom step names in Timer settings.
 - Use **White ↑ / White ↓** beside Splits to choose the timer's starting orientation, with green in front. Scramble moves refer to the preview's labelled faces: U/F/R are white/green/red with white up, and yellow/green/orange with white down. Flipping rewrites the notation while preserving the same physical scramble. **Settings → Lesson orientation** saves a separate preference for lesson demonstrations and practice. Lesson scrambles, move hints and marked pieces follow that preference. The orientation button in lesson practice updates the lesson preference; both choices are saved on the device and lock during timing.
 - The timer page is one card with the scramble, cube preview, clock and optional splits. Wide desktop screens also show recent solves on the right. The recent list disappears below 1700px and in fullscreen. Fullscreen hides the app navigation and the card border while keeping the same timer layout and controls. History and progress charts have their own pages.
 - After a solve, fullscreen shows recent-median differences, gold personal bests, green improvements, and a 50-solve ranking strip with your all-time position. Prepare the next solve normally, or leave fullscreen with the corner button or Escape.
 - Open a solve to edit its penalty or practice note. Deletion has an Undo notification.
-- Insights includes all history by default. Filters include today and recent periods.
+- Analysis includes all history by default, with filters for the last 200, 100, 50, 20, 10 or 5 solves. Green and red dots mark the fastest and slowest displayed results, including in split graphs. Stat changes compare the selected solves with the preceding group of the same size (or the available earlier solves); All time compares the latest four calendar months with the four months before them. Comparison badges appear only when a valid baseline exists.
 - History keeps filters and pagination in place while the solve list scrolls. Import, export and app installation are in Settings.
 - Time and split charts use chronological solve numbers on the x-axis, with dates available in point details. The header shows Update only when an app update is ready; it reloads after applying the update between solves.
+- Filtered charts use earlier hidden solves to calculate ao12 from the first visible point whenever enough history exists. Split means begin at the first recorded point and average up to five matching recordings, including earlier hidden history. Distribution groups the selected solves into five-second buckets.
+- Split progress cards compare mean step durations across the same groups as the main stats, showing percentage and seconds gained or lost when a valid baseline exists. The large time remains the latest recorded split.
 - Export includes IDs, exact milliseconds, penalties, step splits, and notes. Reimporting the export skips duplicate IDs.
 
 ## Run locally

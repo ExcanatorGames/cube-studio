@@ -2,6 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './helpers/app-harness.mjs';
 
+test('returning from lessons repeatedly restores the timer before recent solves',()=>{
+  const h=harness();
+  for(let i=0;i<3;i++){
+    h.run("setPage('lessons');openLesson('13');setLessonTab('practice');setPage('timer')");
+    assert.deepEqual(h.element('#timer-page').children.map(child=>child.id),['timer-card','timer-recent']);
+  }
+});
+
 test('lesson shares the actual timer card and restores the prepared normal scramble and preferences',()=>{
   const h=harness(),normal=h.run('scramble');
   assert.match(h.element('#timer-instruction').innerHTML,/Hold · release/);

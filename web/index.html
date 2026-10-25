@@ -22,7 +22,7 @@
  <header class="app-bar">
   <h1 id="page-title" class="sr-only">Timer</h1>
   <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="manual-entry" type="button" class="icon-button" title="Add time" aria-label="Add time">＋</button><button id="history-import" class="small-button">↥ Import</button></div>
-  <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
+  <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-period" aria-label="Solve count"><option value="all">All time</option><option value="200">Last 200 solves</option><option value="100">Last 100 solves</option><option value="50">Last 50 solves</option><option value="20">Last 20 solves</option><option value="10">Last 10 solves</option><option value="5">Last 5 solves</option></select></div>
   <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="text-button" type="button">← All lessons</button></div>
   <div class="app-actions">
    <div id="sync-attention" class="sync-attention" hidden>
@@ -87,11 +87,12 @@
   <div class="table-card"><div class="history-scroll history-table-scroll" tabindex="0" role="region" aria-label="Solve list"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table></div><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
  </section>
  <section id="insights-page" class="page" hidden>
+  <p id="insight-comparison" class="insight-comparison"></p>
   <div id="insight-stats" class="stat-grid"></div>
-  <div class="chart-card"><div class="card-top"><h2>Times (s)</h2><div class="legend"><span><i></i>Solve</span><span><i></i>ao12</span></div></div><div id="main-chart"></div></div>
+  <div class="chart-card"><div class="card-top"><h2>Times (s)</h2><div class="legend"><span><i></i>Solve</span><span><i></i>ao12</span><span class="fastest-legend"><i></i>Fastest</span><span class="slowest-legend"><i></i>Slowest</span></div></div><div id="main-chart"></div></div>
   <div class="insight-grid"><div class="chart-card"><h2>Distribution</h2><div id="distribution"></div></div><div class="chart-card"><div class="card-top"><h2>Splits</h2><select id="split-preset" aria-label="Split method"><option value="beginner">Beginner</option><option value="cfop">CFOP</option><option value="custom">Custom</option></select></div><div id="split-chart"></div></div></div>
   <section class="split-progress" aria-label="Split progress">
-   <div class="card-top"><h2>Split progress <span id="split-progress-count" class="count"></span></h2><div id="split-progress-legend" class="legend"><span title="Recorded step time; solve penalties are not assigned to individual steps"><i></i>Split</span><span id="split-mean-legend" title="Arithmetic mean of the latest five completed solves with matching recorded splits"><i></i>Mean 5</span></div></div>
+   <div class="card-top"><h2>Split progress <span id="split-progress-count" class="count"></span></h2><div id="split-progress-legend" class="legend"><span title="Recorded step time; solve penalties are not assigned to individual steps"><i></i>Split</span><span id="split-mean-legend" title="Arithmetic mean of up to five latest matching recorded splits, including earlier hidden history when available"><i></i>Mean (up to 5)</span></div></div>
    <div id="split-trend-charts" class="split-trend-grid"></div>
   </section>
  </section>

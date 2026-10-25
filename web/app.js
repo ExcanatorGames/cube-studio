@@ -1,4 +1,4 @@
-import {PRESETS,formatTime,result,summary,average,parseCSV,parseTime,exportCSV,practiceScramble,decodeCSV,splitProgress,solveFeedback,normalizeSolve} from './core.js';
+import {PRESETS,formatTime,result,summary,average,parseCSV,parseTime,exportCSV,practiceScramble,decodeCSV,splitProgress,solveFeedback,normalizeSolve,insightPeriods,metricChange,timeExtremes,solveDistribution,splitComparisons} from './core.js';
 import {initPWA} from './pwa.js';
 import {cubeSVG,scrambleLines,cubeFrame,orientAlgorithm} from './cube.js';
 import {initSplitCharts} from './split-charts.js';
@@ -6,6 +6,7 @@ import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
 import {LESSONS,orientLessonCase} from './lessons.js';
 import {createLessonDemo} from './lesson-view.js';
+import {lessonCubeSVG} from './lesson-cube.js';
 import {initMobileNavigation} from './mobile-navigation.js';
 import {createMotion} from './motion.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -112,7 +113,13 @@ function setPage(p){
 }
 $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
 $('.brand').onclick=e=>{e.preventDefault();setPage('timer');};
-$('#lesson-cards').innerHTML=LESSONS.map(lesson=>`<button type="button" class="lesson-card" data-lesson="${lesson.id}"><span><strong>${esc(lesson.title)}</strong><small>Ready right · One pair, then a full solve</small></span><span aria-hidden="true">→</span></button>`).join('');
+function renderLessonCards(){
+  $('#lesson-cards').innerHTML=LESSONS.map(lesson=>{
+    const preview=orientLessonCase(lesson.case,settings.lessonOrientation);
+    return `<button type="button" class="lesson-card" data-lesson="${lesson.id}"><span class="lesson-card-cube" aria-hidden="true">${lessonCubeSVG(preview.setup,preview)}</span><span class="lesson-card-copy"><strong>${esc(lesson.title)}</strong><small>Ready right · One pair, then a full solve</small></span><span class="lesson-card-arrow" aria-hidden="true">→</span></button>`;
+  }).join('');
+}
+renderLessonCards();
 $('#lesson-cards').onclick=e=>{const button=e.target.closest('[data-lesson]');if(button)openLesson(button.dataset.lesson);};
 $('#lesson-back').onclick=()=>setPage('lessons');
 const lessonTabs=['lesson','practice'];
@@ -162,7 +169,7 @@ function openLesson(id){
 }
 function leaveLesson(){
   ++scrambleRequest;resetTimerContext();timerContext={kind:'normal'};
-  $('#timer-page').append($('#timer-card'));
+  $('#timer-page').prepend($('#timer-card'));
   $('#lesson-detail').hidden=true;$('#lesson-list').hidden=false;
   renderHeader();
   if(normalScramble){scramble=orientAlgorithm(normalScramble.scramble,'white-top',settings.orientation);scrambleKind=normalScramble.kind;showScramble();}
@@ -238,30 +245,64 @@ function renderHistory(){
   $('.history-scroll').scrollTop=0;
   if(previousRows!==$('#history-body').innerHTML)motion.play($('#history-body'),[{opacity:.55},{opacity:1}],{duration:140});
 }
-function chart(a,width){
+function chart(a,width,history=a){
   if(a.length<2)return '<div class="empty">Not enough solves.</div>';
-  const w=Math.max(260,width||950),h=280,left=44,right=16,top=12,bottom=44,values=a.map(result).filter(Number.isFinite);
+  const w=Math.max(260,width||950),h=280,left=44,right=16,top=12,bottom=44,values=a.map(result).filter(Number.isFinite),extremes=timeExtremes(values);
   if(!values.length)return '<div class="empty">No completed solves.</div>';
-  let low=Math.max(0,Math.floor(Math.min(...values)/10000)*10000-10000),high=Math.ceil(Math.max(...values)/10000)*10000+5000;
+  const indices=new Map(history.map((s,i)=>[s.id,i]));
+  const averages=a.map(s=>{const i=indices.get(s.id);return i===undefined?null:average(history.slice(Math.max(0,i-11),i+1),12);});
+  const scaleValues=[...values,...averages.filter(Number.isFinite)];
+  let low=Math.max(0,Math.floor(Math.min(...scaleValues)/10000)*10000-10000),high=Math.ceil(Math.max(...scaleValues)/10000)*10000+5000;
   if(low===high)high+=10000;
   const x=i=>left+i/(a.length-1)*(w-left-right),y=v=>h-bottom-(v-low)/(high-low)*(h-top-bottom);
   let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${a.length} solve times in seconds by solve number, oldest to newest">`;
   for(let i=0;i<=3;i++){const v=low+(high-low)*i/3,yy=y(v);svg+=`<line x1="${left}" x2="${w-right}" y1="${yy}" y2="${yy}" stroke="#eef1f6"/><text x="${left-9}" y="${yy+4}" text-anchor="end">${(v/1000).toFixed(0)}s</text>`;}
-  let path='',avgPath='',avgOpen=false,open=false;
+  let path='',avgPath='',dots='',avgOpen=false,open=false;
   for(let i=0;i<a.length;i++){
     const v=result(a[i]);
-    if(Number.isFinite(v)){path+=`${open?'L':'M'}${x(i).toFixed(2)} ${y(v).toFixed(2)} `;open=true;svg+=`<circle data-id="${esc(a[i].id)}" cx="${x(i)}" cy="${y(v)}" r="2.8" fill="#b9c5e9"><title>Solve #${i+1} · ${esc(new Date(a[i].date).toLocaleString())} · ${formatTime(v)}</title></circle>`;}else open=false;
-    const av=i>=11?average(a.slice(0,i+1),12):null;
+    if(Number.isFinite(v)){const fastest=v===extremes.fastest,slowest=v===extremes.slowest,label=fastest&&slowest?'Fastest and slowest':fastest?'Fastest':slowest?'Slowest':'';path+=`${open?'L':'M'}${x(i).toFixed(2)} ${y(v).toFixed(2)} `;open=true;dots+=`<circle class="solve-point${fastest?' fastest':''}${slowest?' slowest':''}" data-id="${esc(a[i].id)}" cx="${x(i)}" cy="${y(v)}" r="${label?4.5:2.8}" fill="#b9c5e9"><title>${label?label+' · ':''}Solve #${i+1} · ${esc(new Date(a[i].date).toLocaleString())} · ${formatTime(v)}</title></circle>`;}else open=false;
+    const av=averages[i];
     if(Number.isFinite(av)&&av!==null){avgPath+=`${avgOpen?'L':'M'}${x(i)} ${y(av)} `;avgOpen=true;}else avgOpen=false;
   }
-  svg+=`<path d="${path}" fill="none" stroke="#bdc9ed" stroke-width="1" opacity=".65" pointer-events="none"/><path d="${avgPath}" fill="none" stroke="#7489d4" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`;
+  svg+=`<path d="${path}" fill="none" stroke="#bdc9ed" stroke-width="1" opacity=".65" pointer-events="none"/><path class="solve-average-line" d="${avgPath}" fill="none" stroke="#7489d4" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>${dots}`;
   svg+=`<text x="${left}" y="${h-24}">#1</text><text x="${w-right}" y="${h-24}" text-anchor="end">#${a.length}</text><text x="${(left+w-right)/2}" y="${h-5}" text-anchor="middle">Solve</text></svg>`;
   return svg;
 }
 let mainChartWidth=0;
-function renderMainChart(a){mainChartWidth=Math.floor($('#main-chart').clientWidth);$('#main-chart').innerHTML=chart(a,mainChartWidth);motion.play($('#main-chart'),[{opacity:.5},{opacity:1}],{duration:200});}
-new ResizeObserver(()=>requestAnimationFrame(()=>{if(page==='insights'&&Math.floor($('#main-chart').clientWidth)!==mainChartWidth)renderMainChart(filtered($('#insight-scope').value,$('#insight-period').value));})).observe($('#main-chart'));
-function renderInsights(){const a=filtered($('#insight-scope').value,$('#insight-period').value),s=summary(a);const cards=[['BEST',formatTime(s.best),'Fastest result in this view'],['AO5',formatTime(s.ao5),'Latest 5 · best and worst removed'],['AO12',formatTime(s.ao12),'Latest 12 · best and worst removed'],['SUB-MINUTE',s.completed?`${Math.round(100*s.sub60/s.completed)}%`:'—',`${s.sub60} of ${s.completed} completed solves`],['MEAN',formatTime(s.mean),'Completed solves, including +2'],['MEDIAN',formatTime(s.median),'Middle completed result'],['AO100',formatTime(s.ao100),'Latest 100 · trim 5 on each side'],['SOLVES',String(s.count),'All attempts in this view']];$('#insight-stats').innerHTML=cards.map(c=>`<div class="stat" title="${esc(c[2])}"><span>${c[0]}</span><strong>${c[1]}</strong></div>`).join('');renderMainChart(a);const bins=[['Under 45s',0,45000],['45–60s',45000,60000],['1:00–1:30',60000,90000],['1:30–2:00',90000,120000],['Over 2:00',120000,Infinity]],counts=bins.map(b=>a.filter(x=>Number.isFinite(result(x))&&result(x)>=b[1]&&result(x)<b[2]).length),max=Math.max(...counts,1);$('#distribution').innerHTML=s.completed?bins.map((b,i)=>`<div class="bar-row"><span>${b[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${counts[i]/max*100}%"></div></div><strong>${counts[i]}</strong></div>`).join(''):'<div class="empty">No completed solves.</div>';const preset=$('#split-preset').value,labels=preset==='custom'?settings.custom:PRESETS[preset],progress=splitProgress(a,labels);
+function renderMainChart(a){mainChartWidth=Math.floor($('#main-chart').clientWidth);$('#main-chart').innerHTML=chart(a,mainChartWidth,insightPeriods(all()).view);motion.play($('#main-chart'),[{opacity:.5},{opacity:1}],{duration:200});}
+new ResizeObserver(()=>requestAnimationFrame(()=>{if(page==='insights'&&Math.floor($('#main-chart').clientWidth)!==mainChartWidth)renderMainChart(insightPeriods(all(),$('#insight-period').value).view);})).observe($('#main-chart'));
+function renderInsights(){
+  const periods=insightPeriods(all(),$('#insight-period').value),a=periods.view,s=summary(a),current=summary(periods.current),previous=summary(periods.previous);
+  const subMinute=stats=>stats.completed?100*stats.sub60/stats.completed:null;
+  const cards=[
+    ['BEST',formatTime(s.best),'Fastest result in this view','best'],
+    ['AO5',formatTime(s.ao5),'Latest 5 · best and worst removed','ao5'],
+    ['AO12',formatTime(s.ao12),'Latest 12 · best and worst removed','ao12'],
+    ['SUB-MINUTE',s.completed?`${Math.round(subMinute(s))}%`:'—',`${s.sub60} of ${s.completed} completed solves`,'subMinute'],
+    ['MEAN',formatTime(s.mean),'Completed solves, including +2','mean'],
+    ['MEDIAN',formatTime(s.median),'Middle completed result','median'],
+    ['AO100',formatTime(s.ao100),'Latest 100 · trim 5 on each side','ao100'],
+    ['SOLVES',String(s.count),'All attempts in this view','count'],
+  ];
+  $('#insight-comparison').textContent=`Change: ${periods.label.toLowerCase()}.`;
+  let comparisonCount=0;
+  $('#insight-stats').innerHTML=cards.map(([label,value,help,key])=>{
+    const higherBetter=key==='subMinute'||key==='count';
+    const change=metricChange(key==='subMinute'?subMinute(current):current[key],key==='subMinute'?subMinute(previous):previous[key],{higherBetter});
+    const direction=change?.tone==='neutral'?'unchanged':key==='count'?(change?.percent>0?'more solves':'fewer solves'):change?.tone==='good'?'improved':'slower';
+    const description=key==='subMinute'&&change?.tone==='bad'?'lower sub-minute rate':direction;
+    const percent=change?`${change.percent>0?'+':''}${change.percent.toFixed(1)}%`:null;
+    if(change)comparisonCount++;
+    const badge=change?`<small class="stat-change ${change.tone}" title="${esc(periods.label)}" aria-label="${esc(percent+' '+description+'. '+periods.label)}">${percent} <span>${description}</span></small>`:'';
+    return `<div class="stat" title="${esc(help)}"><span>${label}</span><strong>${value}</strong>${badge}</div>`;
+  }).join('');
+  $('#insight-comparison').hidden=comparisonCount===0;
+  renderMainChart(a);
+  const bins=solveDistribution(a),max=Math.max(...bins.map(bin=>bin.count),1);
+  $('#distribution').innerHTML=bins.length?bins.map(bin=>`<div class="bar-row"><span>${bin.label}</span><div class="bar-track"><div class="bar-fill" style="width:${bin.count/max*100}%"></div></div><strong>${bin.count}</strong></div>`).join(''):'<div class="empty">No completed solves.</div>';
+  const preset=$('#split-preset').value,labels=preset==='custom'?settings.custom:PRESETS[preset],progress=splitProgress(a,labels,insightPeriods(all()).view);
+progress.comparisons=splitComparisons(periods.current,periods.previous,labels);
+progress.comparisonLabel=periods.label;
 renderSplitProgress(progress);
 if(!progress.count){$('#split-chart').innerHTML='<div class="empty">No split data.</div>';return;}
 const mx=Math.max(...progress.means,1);
@@ -327,6 +368,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state=
 function setTracking(enabled){if(busy()||timerContext.kind==='lesson')return;motion.layout([$('.timer-center')],()=>{settings.track=enabled;persist();splitMarks=[];timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
 $('#fullscreen-track').onclick=()=>{setTracking(!tracking());$('#fullscreen-track').blur();};
 function refreshOrientation(){
+  renderLessonCards();
   if(timerContext.kind==='lesson'){
     const exercise=lessonExercise();
     if(exercise){scramble=exercise.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';}
@@ -515,7 +557,7 @@ $('#manual-entry').onclick=()=>{if(timerContext.kind==='lesson')return;$('#manua
 $('#save-manual').onclick=()=>{if(timerContext.kind==='lesson')return;try{const ms=parseTime($('#manual-time').value);saveAttempt(makeSolve(ms,[],true),snapshotAttempt());$('#manual-dialog').close();toast('Solve added.');}catch(e){$('#manual-error').textContent=e.message;}};
 $('#manual-time').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#save-manual').click();}};
 $('#history-scope').onchange=()=>{historyPage=0;renderHistory();};$('#search').oninput=()=>{historyPage=0;renderHistory();};$('#prev').onclick=()=>{historyPage--;renderHistory();};$('#next').onclick=()=>{historyPage++;renderHistory();};
-$('#insight-scope').onchange=renderInsights;$('#insight-period').onchange=renderInsights;$('#split-preset').onchange=renderInsights;
+$('#insight-period').onchange=renderInsights;$('#split-preset').onchange=renderInsights;
 $('#export').onclick=()=>{const blob=new Blob(['\uFEFF'+exportCSV(all())],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`cube-studio-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('CSV exported.');};
 $('#sync-mobile').onclick=()=>{sync();};window.addEventListener('online',sync);window.addEventListener('offline',()=>{syncState='offline';renderSyncStatus();});setInterval(()=>{if(!document.hidden&&state!=='running')sync();},60000);
 const busy=()=>['running','arming','armed'].includes(state);

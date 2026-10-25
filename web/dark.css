@@ -252,12 +252,28 @@ main:has(>#history-page:not([hidden])){padding-bottom:0}
 #main-chart{overflow:visible}
 #main-chart svg{display:block;width:100%;height:auto;min-width:0}
 #main-chart svg text{font:12px var(--mono)}
+.insight-grid{align-items:start}
+#distribution{max-height:360px;overflow-y:auto;scrollbar-width:thin;padding-right:6px}
+.insight-comparison{margin:20px 0 -12px;color:var(--muted);font-size:13px;line-height:1.5}
+.stat-change{display:block;margin-top:10px;font:600 14px var(--mono);line-height:1.5}
+.stat-change span{font:400 12px/1.5 var(--sans,"DM Sans",system-ui,sans-serif)}
+.stat-change.good{color:#71d9a1}
+.stat-change.bad{color:#ff8999}
+.stat-change.neutral{color:var(--muted)}
+.legend{flex-wrap:wrap;justify-content:flex-end}
+.legend .fastest-legend i{background:#71d9a1}
+.legend .slowest-legend i{background:#ff8999}
+#main-chart .solve-point.fastest,svg .split-point.fastest{fill:#71d9a1}
+#main-chart .solve-point.slowest:not(.fastest),svg .split-point.slowest:not(.fastest){fill:#ff8999}
+svg .solve-point.fastest.slowest,svg .split-point.fastest.slowest{stroke:#ff8999;stroke-width:2}
 
 /* Recent history uses spare desktop space without reducing smaller timers. */
 .timer-recent{display:none}
 @media(min-width:1700px){
  body:not(.focus-mode) main:has(>#timer-page:not([hidden])){max-width:none}
  body:not(.focus-mode) #timer-page:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
+ body:not(.focus-mode) #timer-page>#timer-card{grid-column:1;grid-row:1;min-width:0}
+ body:not(.focus-mode) #timer-page>.timer-recent{grid-column:2;grid-row:1;min-width:0}
  body:not(.focus-mode) .timer-recent{display:flex;flex-direction:column;min-height:0;height:var(--timer-available-height,calc(100dvh - 114px));padding:18px 14px;background:#19212e;border:1px solid var(--line);border-radius:12px}
  .timer-recent>.card-top{flex-shrink:0;gap:8px;margin-bottom:8px;padding:0 4px}
  .timer-recent h2{margin:0;font-size:16px}
@@ -284,6 +300,7 @@ main:has(>#history-page:not([hidden])){padding-bottom:0}
 .split-trend-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
 .split-trend-heading h3{font-size:16px;line-height:1.4;margin:0;font-weight:550;overflow-wrap:anywhere}
 .split-trend-heading strong{font:22px var(--mono);white-space:nowrap;color:#dce5f5}
+.split-trend-card .split-change{margin:-6px 0 15px;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
 .split-trend-plot{width:100%;min-width:0}
 .split-trend-plot svg{display:block;width:100%;height:auto;overflow:visible}
 .split-trend-plot svg text{font:13px var(--mono);fill:#a7b5cd}

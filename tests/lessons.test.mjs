@@ -2,8 +2,18 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {LESSONS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
-import {cubeStickers,cubeSVG} from '../web/cube.js';
+import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
+
+test('lesson card preview depicts the taught case in either saved orientation',()=>{
+  for(const orientation of ['white-top','white-bottom']){
+    const preview=orientLessonCase(LESSONS[0].case,orientation);
+    assert.deepEqual(cubeFaces(preview.setup+' '+preview.solution),cubeFaces(''));
+    const svg=lessonCubeSVG(preview.setup,preview);
+    assert.match(svg,/data-target=/);
+    assert.notEqual(svg,lessonCubeSVG('',preview),'Preview shows the case before insertion');
+  }
+});
 
 test('lesson and practice colors represent a physical rotation with white down and green front',()=>{
   for(const render of [cubeSVG,lessonCubeSVG]){

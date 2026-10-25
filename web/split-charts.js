@@ -1,5 +1,7 @@
+import {timeExtremes} from './core.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const seconds=ms=>(ms/1000).toFixed(2)+'s';
+const signed=(value,decimals)=>{const rounded=Number(value.toFixed(decimals));return `${rounded>0?'+':''}${rounded.toFixed(decimals)}`;};
 
 export function initSplitCharts({openSolve}){
   const root=document.querySelector('#split-trend-charts'),count=document.querySelector('#split-progress-count');
@@ -11,7 +13,7 @@ export function initSplitCharts({openSolve}){
     return {step,top:Math.ceil(maximum/step)*step};
   }
   function graph(series,width){
-    const points=series.points,w=width,h=232,left=54,right=14,top=16,bottom=50,{step,top:maximum}=scale();
+    const points=series.points,w=width,h=232,left=54,right=14,top=16,bottom=50,{step,top:maximum}=scale(),extremes=timeExtremes(points.map(p=>p.ms));
     const x=i=>points.length===1?(left+w-right)/2:left+i/(points.length-1)*(w-left-right);
     const y=ms=>h-bottom-ms/1000/maximum*(h-top-bottom);
     let svg=`<svg viewBox="0 0 ${w} ${h}" role="group" aria-label="${esc(series.name)} split times in seconds by solve number, oldest to newest. All split graphs share the same scale."><g aria-hidden="true">`;
@@ -29,8 +31,9 @@ export function initSplitCharts({openSolve}){
     svg+=`<text x="${(left+w-right)/2}" y="${h-6}" text-anchor="middle">Solve</text>`;
     svg+='</g>';
     points.forEach((p,i)=>{
-      const label=`Solve #${i+1} · ${series.name}: ${seconds(p.ms)} · ${new Date(p.date).toLocaleString()}${p.mean5===null?'':` · Mean 5: ${seconds(p.mean5)}`}. Open solve.`;
-      svg+=`<circle class="split-point" data-split-point="${i}" cx="${x(i)}" cy="${y(p.ms)}" r="4" tabindex="0" role="button" aria-label="${esc(label)}"/>`;
+      const fastest=p.ms===extremes.fastest,slowest=p.ms===extremes.slowest;
+      const label=`${fastest?'Fastest · ':''}${slowest?'Slowest · ':''}Solve #${i+1} · ${series.name}: ${seconds(p.ms)} · ${new Date(p.date).toLocaleString()}${p.mean5===null?'':` · Mean ${p.meanCount}: ${seconds(p.mean5)}`}. Open solve.`;
+      svg+=`<circle class="split-point${fastest?' fastest':''}${slowest?' slowest':''}" data-split-point="${i}" cx="${x(i)}" cy="${y(p.ms)}" r="${fastest||slowest?5:4}" tabindex="0" role="button" aria-label="${esc(label)}"/>`;
     });
     return svg+'</svg>';
   }
@@ -48,7 +51,7 @@ export function initSplitCharts({openSolve}){
   function showTooltip(element){
     const {point,card}=pointFor(element);if(!point||!card)return;
     const tooltip=card.querySelector('.split-trend-tooltip');
-    tooltip.textContent=`Solve #${Number(element.dataset.splitPoint)+1} · ${new Date(point.date).toLocaleString()} · ${seconds(point.ms)}${point.mean5===null?'':` · Mean 5: ${seconds(point.mean5)}`}`;
+    tooltip.textContent=`Solve #${Number(element.dataset.splitPoint)+1} · ${new Date(point.date).toLocaleString()} · ${seconds(point.ms)}${point.mean5===null?'':` · Mean ${point.meanCount}: ${seconds(point.mean5)}`}`;
     tooltip.hidden=false;element.setAttribute('aria-describedby',tooltip.id);
   }
   function hideTooltip(element){
@@ -70,9 +73,15 @@ export function initSplitCharts({openSolve}){
     count.textContent=`${next.count} ${next.count===1?'solve':'solves'}`;
     count.title='Completed solves with matching recorded splits';
     document.querySelector('#split-progress-legend').hidden=!next.count;
-    document.querySelector('#split-mean-legend').hidden=next.count<5;
+    document.querySelector('#split-mean-legend').hidden=!next.series.some(series=>series.points.some(point=>point.mean5!==null));
     if(!next.count){root.innerHTML='<div class="chart-card empty">No recorded splits for this method.</div>';return;}
-    root.innerHTML=next.series.map((series,i)=>`<div class="chart-card split-trend-card"><div class="split-trend-heading"><h3>${esc(series.name)}</h3><strong title="Latest split" aria-label="Latest split: ${seconds(series.points.at(-1).ms)}">${seconds(series.points.at(-1).ms)}</strong></div><div class="split-trend-tooltip" id="split-tooltip-${i}" role="tooltip" hidden></div><div class="split-trend-plot" data-series-index="${i}"></div></div>`).join('');
+    root.innerHTML=next.series.map((series,i)=>{
+      const change=next.comparisons?.[i];
+      const direction=change?.tone==='good'?'faster':change?.tone==='bad'?'slower':'unchanged';
+      const help=change?`Mean ${seconds(change.currentMean)} vs ${seconds(change.previousMean)}. ${next.comparisonLabel}.`:'';
+      const comparison=change?`<small class="stat-change split-change ${change.tone}" title="${esc(help)}"><span>Mean</span> ${signed(change.percent,1)}% (${signed(change.deltaMs/1000,2)}s) <span>${direction}</span></small>`:'';
+      return `<div class="chart-card split-trend-card"><div class="split-trend-heading"><h3>${esc(series.name)}</h3><strong title="Latest split" aria-label="Latest split: ${seconds(series.points.at(-1).ms)}">${seconds(series.points.at(-1).ms)}</strong></div>${comparison}<div class="split-trend-tooltip" id="split-tooltip-${i}" role="tooltip" hidden></div><div class="split-trend-plot" data-series-index="${i}"></div></div>`;
+    }).join('');
     draw();
   };
 }

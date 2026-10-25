@@ -1,7 +1,7 @@
 import {orientAlgorithm} from './cube.js';
 
 const target=Object.freeze(['1,-1,1','1,0,1']);
-const readyRight=Object.freeze({id:'ready-right',title:'Ready right',solution:"U R U' R'",orientation:'white-bottom',target});
+const readyRight=Object.freeze({id:'ready-right',title:'Ready right',setup:"R U R' U'",solution:"U R U' R'",orientation:'white-bottom',target});
 export const LESSONS=Object.freeze([Object.freeze({id:'13',title:'Use one F2L pair',case:readyRight})]);
 
 // Turn over about the front/back axis: green stays in front while white-top,

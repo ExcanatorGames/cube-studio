@@ -7,8 +7,8 @@ export function createLessonDemo(root,lesson,runtime=globalThis){
   let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
   root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide">
     <div class="lesson-moves" aria-label="Moves"></div>
-  </div></div><div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
-    <label class="lesson-speed" for="lesson-animation-speed"><span>Animation speed</span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="1"><output for="lesson-animation-speed">1×</output></label>`;
+  <div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
+    <label class="lesson-speed" for="lesson-animation-speed"><span>Animation speed</span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="1"><output for="lesson-animation-speed">1×</output></label></div></div>`;
   const find=selector=>root.querySelector(selector);
   const moves=()=>solution.trim().split(/\s+/).filter(Boolean);
   const algorithm=()=>[setup,...moves().slice(0,step)].join(' ');
