@@ -13,15 +13,15 @@
  <a class="brand" href="/" aria-label="Cube Studio home"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>cube<span class="light">studio</span></span></a>
  <nav aria-label="Main navigation">
   <button data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true">◷</span>Timer</button>
-  <button data-page="history" class="nav" aria-label="History"><span aria-hidden="true">☷</span>History</button>
-  <button data-page="insights" class="nav" aria-label="Insights"><span aria-hidden="true">↗</span>Insights</button>
+  <button data-page="history" class="nav" aria-label="Solves"><span aria-hidden="true">☷</span>Solves</button>
+  <button data-page="insights" class="nav" aria-label="Analysis"><span aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 3v18h18M6 15l5-5 4 3 6-7"/></svg></span>Analysis</button>
   <button data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</button>
  </nav>
 </aside>
 <main>
  <header class="app-bar">
   <h1 id="page-title" class="sr-only">Timer</h1>
-  <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
+  <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="manual-entry" type="button" class="icon-button" title="Add time" aria-label="Add time">＋</button><button id="history-import" class="small-button">↥ Import</button></div>
   <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
   <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="text-button" type="button">← All lessons</button></div>
   <div class="app-actions">
@@ -37,7 +37,7 @@
  <section id="timer-page" class="page">
   <div class="timer-card" id="timer-card">
    <div class="timer-toolbar">
-    <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button><button id="manual-entry" class="icon-button" title="Add time" aria-label="Add time">＋</button></div>
+    <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
     <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
    </div>
    <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
@@ -63,7 +63,7 @@
    </div>
   </div>
   <aside class="timer-recent" aria-label="Recent solves">
-   <div class="card-top"><h2>Recent solves</h2><button data-page="history" type="button" class="text-button">History ↗</button></div>
+   <div class="card-top"><h2>Recent solves</h2><button data-page="history" type="button" class="text-button">Solves ↗</button></div>
    <ol id="recent-solves"></ol>
   </aside>
  </section>
