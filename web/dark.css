@@ -226,9 +226,9 @@ body.focus-mode .timer-footer{display:none}
 @media(min-width:741px) and (max-width:950px){.sidebar .nav{font-size:0}}
 
 @media(max-width:740px){
- #history-page .filter-bar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+ #history-page .filter-bar{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1fr);gap:10px}
  #history-page .filter-bar>select{width:100%;min-width:0;max-width:100%}
- #history-page .filter-bar input{grid-column:1/-1}
+ #history-page .filter-bar input{grid-column:auto;width:100%;min-width:0}
  #history-page .table-card{width:100%;max-width:100%}
  #history-page table{width:100%;table-layout:fixed}
  #history-page th,#history-page td{padding:12px 8px}
@@ -257,6 +257,25 @@ main:has(>#history-page:not([hidden])){padding-bottom:0}
 #main-chart{overflow:visible}
 #main-chart svg{display:block;width:100%;height:auto;min-width:0}
 #main-chart svg text{font:12px var(--mono)}
+
+/* Recent history uses spare desktop space without reducing smaller timers. */
+.timer-recent{display:none}
+@media(min-width:1700px){
+ body:not(.focus-mode) main:has(>#timer-page:not([hidden])){max-width:none}
+ body:not(.focus-mode) #timer-page:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
+ body:not(.focus-mode) .timer-recent{display:flex;flex-direction:column;min-height:0;height:var(--timer-available-height,calc(100dvh - 114px));padding:18px 14px;background:#19212e;border:1px solid var(--line);border-radius:12px}
+ .timer-recent>.card-top{flex-shrink:0;gap:8px;margin-bottom:8px;padding:0 4px}
+ .timer-recent h2{margin:0;font-size:16px}
+ .timer-recent .text-button{font-size:13px;padding:6px;white-space:nowrap}
+ #recent-solves{list-style:none;padding:0;margin:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+ #recent-solves>li+li{border-top:1px solid var(--line)}
+ .recent-solve{display:grid;grid-template-columns:30px minmax(0,1fr);gap:5px 10px;width:100%;padding:12px 7px;border:0;border-radius:6px;background:transparent;color:var(--ink);text-align:left}
+ .recent-solve:hover,.recent-solve:focus-visible{background:#26344c}
+ .recent-solve-index{grid-row:span 2;align-self:center;font:12px var(--mono);color:var(--muted)}
+ .recent-solve-time{font:21px var(--mono);font-variant-numeric:tabular-nums}
+ .recent-solve-time small{margin-left:6px;font-size:12px;color:var(--muted)}
+ .recent-solve-date{font-size:12px;line-height:1.4;color:var(--muted)}
+}
 
 
 

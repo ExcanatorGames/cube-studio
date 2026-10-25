@@ -28,7 +28,11 @@ async function sync(){if(syncBusy)return;if(!navigator.onLine){status(pending.si
 function filtered(scope,period='all'){let a=all();if(scope==='today')a=a.filter(s=>new Date(s.date).toDateString()===new Date().toDateString());if(period!=='all')a=a.filter(s=>Date.parse(s.date)>=Date.now()-Number(period)*86400000);return a;}
 function setPage(p){if(state==='running'||state==='arming'||state==='armed')return;page=p;focusView(false);$('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights'}[p];$$('.page').forEach(el=>el.hidden=el.id!==p+'-page');$$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});render();window.scrollTo({top:0,behavior:'instant'});}
 $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
-function render(){renderSteps();if(page==='history')renderHistory();if(page==='insights')renderInsights();updatePageHeight();}
+function render(){renderSteps();renderRecent();if(page==='history')renderHistory();if(page==='insights')renderInsights();updatePageHeight();}
+function renderRecent(){
+  const solves=all(),recent=solves.slice(-12).reverse();
+  $('#recent-solves').innerHTML=recent.length?recent.map((s,i)=>`<li><button class="recent-solve" data-id="${esc(s.id)}" title="${esc(new Date(s.date).toLocaleString())}" aria-label="Open solve ${solves.length-i}, ${esc(formatTime(result(s)))}"><span class="recent-solve-index">${solves.length-i}</span><span class="recent-solve-time">${formatTime(result(s))}${s.penalty==='+2'?'<small>+2</small>':''}</span><span class="recent-solve-date">${esc(new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric'}))} · ${esc(new Date(s.date).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</span></button></li>`).join(''):'<li class="empty">No solves yet.</li>';
+}
 function renderSteps(){
   const currentSolve=state==='stopped'&&lastSolveId?records.get(lastSolveId):null;
   const feedback=currentSolve?solveFeedback(all(),currentSolve):null;
@@ -119,7 +123,7 @@ function focusView(enabled){
 $('#focus').onclick=()=>{automaticFocus=false;focusView(!document.body.classList.contains('focus-mode'));$('#focus').blur();};
 function updatePageHeight(){
   if(document.body.classList.contains('focus-mode')||!['timer','history'].includes(page))return;
-  const target=$(page==='timer'?'#timer-card':'#history-page'),navigation=matchMedia('(max-width:740px)').matches?$('.sidebar').getBoundingClientRect().height:0;
+  const target=$(page==='timer'?'#timer-page':'#history-page'),navigation=matchMedia('(max-width:740px)').matches?$('.sidebar').getBoundingClientRect().height:0;
   const available=innerHeight-target.getBoundingClientRect().top-scrollY-navigation-12;
   target.style.setProperty(page==='timer'?'--timer-available-height':'--history-available-height',Math.max(page==='timer'?320:220,available)+'px');
 }

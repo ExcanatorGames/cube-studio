@@ -46,7 +46,7 @@ Online random-state scrambles use cubing.js. Offline practice scrambles are gene
 
 App files are cached as one version. The header shows **Update** only when a downloaded update is waiting. It applies the update and reloads when pressed between solves; an active or armed timer blocks updating. Installation and offline storage controls are in **Settings → Install app**. LocalStorage survives updates. Use **Keep offline data on this device** to request persistent storage; browsers decide whether to grant it. Keep CSV backups as well.
 
-History keeps its filters, table headings and pagination in place while only the solve rows scroll. Import and CSV export are in Settings. Time and split progress charts use evenly spaced chronological solve numbers, starting at 1 within the selected view or matching split series. Dates remain available in point details.
+History keeps its filters, table headings and pagination in place while only the solve rows scroll. Its dropdown and search sit next to each other on phones as well as desktop. Import and CSV export are in Settings. The timer shows its 12 most recent solves in a right-hand panel on screens at least 1700px wide, using otherwise spare space. The panel hides on smaller screens and in fullscreen. Time and split progress charts use evenly spaced chronological solve numbers, starting at 1 within the selected view or matching split series. Dates remain available in point details.
 
 ## Free-tier usage
 
