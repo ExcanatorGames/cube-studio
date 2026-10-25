@@ -17,7 +17,6 @@
   <button data-page="insights" class="nav" aria-label="Insights"><span aria-hidden="true">↗</span>Insights</button>
  </nav>
  <div class="side-bottom">
-  <button id="open-import" class="nav" aria-label="Import CSV"><span aria-hidden="true">↥</span>Import</button>
   <button id="open-settings" class="nav" aria-label="Settings"><span aria-hidden="true">⚙</span>Settings</button>
  </div>
 </aside>
@@ -28,8 +27,7 @@
   <span id="mobile-sync" role="status">Connecting…</span>
   <button id="connect-sync" class="text-button" data-connect hidden>Connect ↗</button>
   <button id="sync-mobile" class="icon-button" aria-label="Sync solves" title="Sync">↻</button>
-  <button id="export" class="icon-button" title="Export CSV" aria-label="Export CSV">↧</button>
-  <button id="install-app" class="text-button">Install <span id="app-status" class="sr-only"></span></button>
+  <button id="update-app" type="button" class="text-button" hidden>Update</button>
  </header>
  <section id="timer-page" class="page">
   <div class="timer-card" id="timer-card">
@@ -60,8 +58,8 @@
   </div>
  </section>
  <section id="history-page" class="page" hidden>
-  <div class="filter-bar"><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="history-import" class="small-button">↥ Import</button></div>
-  <div class="table-card"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
+  <div class="filter-bar"><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"></div>
+  <div class="table-card"><div class="history-scroll" tabindex="0" role="region" aria-label="Solve list"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table></div><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
  </section>
  <section id="insights-page" class="page" hidden>
   <div class="filter-bar"><select id="insight-scope" aria-label="Solve scope"><option value="all">All solves</option><option value="today">Today</option></select><select id="insight-period" aria-label="Period"><option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
@@ -81,6 +79,7 @@
  <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
+ <div class="settings-actions"><button id="open-import" type="button" class="small-button">Import CSV</button><button id="export" type="button" class="small-button">Export CSV</button><button id="install-app" type="button" class="small-button">Install app <span id="app-status" class="sr-only"></span></button></div>
 </form></dialog>
 <dialog id="import-dialog"><form method="dialog">
  <div class="dialog-heading"><h2>Import</h2><button class="close" aria-label="Close import">×</button></div>

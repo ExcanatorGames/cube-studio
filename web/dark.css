@@ -226,10 +226,9 @@ body.focus-mode .timer-footer{display:none}
 @media(min-width:741px) and (max-width:950px){.sidebar .nav{font-size:0}}
 
 @media(max-width:740px){
- #history-page .filter-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+ #history-page .filter-bar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
  #history-page .filter-bar>select{width:100%;min-width:0;max-width:100%}
  #history-page .filter-bar input{grid-column:1/-1}
- #history-page .filter-bar>button{margin-left:0}
  #history-page .table-card{width:100%;max-width:100%}
  #history-page table{width:100%;table-layout:fixed}
  #history-page th,#history-page td{padding:12px 8px}
@@ -244,6 +243,20 @@ body.focus-mode .timer-footer{display:none}
  #history-page .pagination>span,#history-page .pagination>div{width:100%}
  #history-page .pagination>div{justify-content:space-between}
 }
+
+/* The history viewport holds its filters and pagination in place. */
+body:has(#history-page:not([hidden])){overflow:hidden}
+main:has(>#history-page:not([hidden])){padding-bottom:0}
+#history-page:not([hidden]){display:flex;flex-direction:column;height:var(--history-available-height,calc(100dvh - 140px));min-height:0}
+#history-page>.filter-bar{flex-shrink:0}
+#history-page .table-card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;margin-bottom:0}
+.history-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
+.history-scroll thead{position:sticky;top:0;z-index:1}
+#history-page .pagination{flex-shrink:0}
+.settings-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}
+#main-chart{overflow:visible}
+#main-chart svg{display:block;width:100%;height:auto;min-width:0}
+#main-chart svg text{font:12px var(--mono)}
 
 
 

@@ -28,7 +28,7 @@ async function sync(){if(syncBusy)return;if(!navigator.onLine){status(pending.si
 function filtered(scope,period='all'){let a=all();if(scope==='today')a=a.filter(s=>new Date(s.date).toDateString()===new Date().toDateString());if(period!=='all')a=a.filter(s=>Date.parse(s.date)>=Date.now()-Number(period)*86400000);return a;}
 function setPage(p){if(state==='running'||state==='arming'||state==='armed')return;page=p;focusView(false);$('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights'}[p];$$('.page').forEach(el=>el.hidden=el.id!==p+'-page');$$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});render();window.scrollTo({top:0,behavior:'instant'});}
 $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
-function render(){renderSteps();if(page==='history')renderHistory();if(page==='insights')renderInsights();updateTimerHeight();}
+function render(){renderSteps();if(page==='history')renderHistory();if(page==='insights')renderInsights();updatePageHeight();}
 function renderSteps(){
   const currentSolve=state==='stopped'&&lastSolveId?records.get(lastSolveId):null;
   const feedback=currentSolve?solveFeedback(all(),currentSolve):null;
@@ -55,11 +55,32 @@ function renderHistory(){
   $('#history-body').innerHTML=rows.length?rows.map((s,i)=>`<tr><td class="history-index">${a.length-historyPage*n-i}</td><td class="history-date">${esc(new Date(s.date).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}))}<small>${esc(new Date(s.date).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</small></td><td class="history-time">${formatTime(result(s))}${s.penalty==='+2'?'<small>includes +2</small>':''}</td><td class="history-splits">${s.splits.length||'—'}</td><td class="history-action"><button class="small-button" data-id="${esc(s.id)}" aria-label="Open solve ${esc(formatTime(result(s)))}"><span class="history-details-label">Details </span><span aria-hidden="true">↗</span></button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">No matching solves.</td></tr>';
   $('#history-summary').textContent=a.length?`${historyPage*n+1}–${Math.min(a.length,(historyPage+1)*n)} of ${a.length} solves`:'0 solves';
   $('#prev').disabled=historyPage===0;$('#next').disabled=(historyPage+1)*n>=a.length;
+  $('.history-scroll').scrollTop=0;
 }
-function chart(a,mini=false){if(a.length<2)return '<div class="empty">Not enough solves.</div>';const w=mini?600:950,h=mini?120:290,left=mini?6:47,right=15,top=12,bottom=mini?19:32;const values=a.map(result).filter(Number.isFinite);if(!values.length)return '<div class="empty">No completed solves.</div>';let low=Math.max(0,Math.floor(Math.min(...values)/10000)*10000-10000),high=Math.ceil(Math.max(...values)/10000)*10000+5000;if(low===high)high+=10000;const x=i=>left+i/(a.length-1)*(w-left-right),y=v=>h-bottom-(v-low)/(high-low)*(h-top-bottom);let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${a.length} solve times, oldest to newest, in seconds">`;for(let i=0;i<=3;i++){const v=low+(high-low)*i/3,yy=y(v);svg+=`<line x1="${left}" x2="${w-right}" y1="${yy}" y2="${yy}" stroke="#eef1f6" ${mini?'stroke-dasharray="3 4"':''}/>`;if(!mini)svg+=`<text x="${left-9}" y="${yy+3}" text-anchor="end">${(v/1000).toFixed(0)}s</text>`;}
-let path='',avgPath='',avgOpen=false,open=false;for(let i=0;i<a.length;i++){const v=result(a[i]);if(Number.isFinite(v)){path+=`${open?'L':'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)} `;open=true;svg+=`<circle data-id="${esc(a[i].id)}" cx="${x(i)}" cy="${y(v)}" r="${mini?1.9:2.8}" fill="#b9c5e9"><title>${esc(new Date(a[i].date).toLocaleString())} · ${formatTime(v)}</title></circle>`;}else open=false;const av=i>=11?average(a.slice(0,i+1),12):null;if(Number.isFinite(av)&&av!==null){avgPath+=`${avgOpen?'L':'M'}${x(i)} ${y(av)} `;avgOpen=true;}else avgOpen=false;}
-svg+=`<path d="${path}" fill="none" stroke="#bdc9ed" stroke-width="${mini?1.3:1}" opacity=".65" pointer-events="none"/><path d="${avgPath}" fill="none" stroke="#7489d4" stroke-width="${mini?2:2.5}" stroke-linecap="round" pointer-events="none"/>`;svg+=`<text x="${left}" y="${h-3}">${esc(new Date(a[0].date).toLocaleDateString(undefined,{month:'short',day:'numeric'}))}</text><text x="${w-right}" y="${h-3}" text-anchor="end">${esc(new Date(a.at(-1).date).toLocaleDateString(undefined,{month:'short',day:'numeric'}))}</text></svg>`;return svg;}
-function renderInsights(){const a=filtered($('#insight-scope').value,$('#insight-period').value),s=summary(a);const cards=[['BEST',formatTime(s.best),'Fastest result in this view'],['AO5',formatTime(s.ao5),'Latest 5 · best and worst removed'],['AO12',formatTime(s.ao12),'Latest 12 · best and worst removed'],['SUB-MINUTE',s.completed?`${Math.round(100*s.sub60/s.completed)}%`:'—',`${s.sub60} of ${s.completed} completed solves`],['MEAN',formatTime(s.mean),'Completed solves, including +2'],['MEDIAN',formatTime(s.median),'Middle completed result'],['AO100',formatTime(s.ao100),'Latest 100 · trim 5 on each side'],['SOLVES',String(s.count),'All attempts in this view']];$('#insight-stats').innerHTML=cards.map(c=>`<div class="stat" title="${esc(c[2])}"><span>${c[0]}</span><strong>${c[1]}</strong></div>`).join('');$('#main-chart').innerHTML=chart(a);const bins=[['Under 45s',0,45000],['45–60s',45000,60000],['1:00–1:30',60000,90000],['1:30–2:00',90000,120000],['Over 2:00',120000,Infinity]],counts=bins.map(b=>a.filter(x=>Number.isFinite(result(x))&&result(x)>=b[1]&&result(x)<b[2]).length),max=Math.max(...counts,1);$('#distribution').innerHTML=s.completed?bins.map((b,i)=>`<div class="bar-row"><span>${b[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${counts[i]/max*100}%"></div></div><strong>${counts[i]}</strong></div>`).join(''):'<div class="empty">No completed solves.</div>';const preset=$('#split-preset').value,labels=preset==='custom'?settings.custom:PRESETS[preset],progress=splitProgress(a,labels);
+function chart(a,width){
+  if(a.length<2)return '<div class="empty">Not enough solves.</div>';
+  const w=Math.max(260,width||950),h=280,left=44,right=16,top=12,bottom=44,values=a.map(result).filter(Number.isFinite);
+  if(!values.length)return '<div class="empty">No completed solves.</div>';
+  let low=Math.max(0,Math.floor(Math.min(...values)/10000)*10000-10000),high=Math.ceil(Math.max(...values)/10000)*10000+5000;
+  if(low===high)high+=10000;
+  const x=i=>left+i/(a.length-1)*(w-left-right),y=v=>h-bottom-(v-low)/(high-low)*(h-top-bottom);
+  let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${a.length} solve times in seconds by solve number, oldest to newest">`;
+  for(let i=0;i<=3;i++){const v=low+(high-low)*i/3,yy=y(v);svg+=`<line x1="${left}" x2="${w-right}" y1="${yy}" y2="${yy}" stroke="#eef1f6"/><text x="${left-9}" y="${yy+4}" text-anchor="end">${(v/1000).toFixed(0)}s</text>`;}
+  let path='',avgPath='',avgOpen=false,open=false;
+  for(let i=0;i<a.length;i++){
+    const v=result(a[i]);
+    if(Number.isFinite(v)){path+=`${open?'L':'M'}${x(i).toFixed(2)} ${y(v).toFixed(2)} `;open=true;svg+=`<circle data-id="${esc(a[i].id)}" cx="${x(i)}" cy="${y(v)}" r="2.8" fill="#b9c5e9"><title>Solve #${i+1} · ${esc(new Date(a[i].date).toLocaleString())} · ${formatTime(v)}</title></circle>`;}else open=false;
+    const av=i>=11?average(a.slice(0,i+1),12):null;
+    if(Number.isFinite(av)&&av!==null){avgPath+=`${avgOpen?'L':'M'}${x(i)} ${y(av)} `;avgOpen=true;}else avgOpen=false;
+  }
+  svg+=`<path d="${path}" fill="none" stroke="#bdc9ed" stroke-width="1" opacity=".65" pointer-events="none"/><path d="${avgPath}" fill="none" stroke="#7489d4" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`;
+  svg+=`<text x="${left}" y="${h-24}">#1</text><text x="${w-right}" y="${h-24}" text-anchor="end">#${a.length}</text><text x="${(left+w-right)/2}" y="${h-5}" text-anchor="middle">Solve</text></svg>`;
+  return svg;
+}
+let mainChartWidth=0;
+function renderMainChart(a){mainChartWidth=Math.floor($('#main-chart').clientWidth);$('#main-chart').innerHTML=chart(a,mainChartWidth);}
+new ResizeObserver(()=>requestAnimationFrame(()=>{if(page==='insights'&&Math.floor($('#main-chart').clientWidth)!==mainChartWidth)renderMainChart(filtered($('#insight-scope').value,$('#insight-period').value));})).observe($('#main-chart'));
+function renderInsights(){const a=filtered($('#insight-scope').value,$('#insight-period').value),s=summary(a);const cards=[['BEST',formatTime(s.best),'Fastest result in this view'],['AO5',formatTime(s.ao5),'Latest 5 · best and worst removed'],['AO12',formatTime(s.ao12),'Latest 12 · best and worst removed'],['SUB-MINUTE',s.completed?`${Math.round(100*s.sub60/s.completed)}%`:'—',`${s.sub60} of ${s.completed} completed solves`],['MEAN',formatTime(s.mean),'Completed solves, including +2'],['MEDIAN',formatTime(s.median),'Middle completed result'],['AO100',formatTime(s.ao100),'Latest 100 · trim 5 on each side'],['SOLVES',String(s.count),'All attempts in this view']];$('#insight-stats').innerHTML=cards.map(c=>`<div class="stat" title="${esc(c[2])}"><span>${c[0]}</span><strong>${c[1]}</strong></div>`).join('');renderMainChart(a);const bins=[['Under 45s',0,45000],['45–60s',45000,60000],['1:00–1:30',60000,90000],['1:30–2:00',90000,120000],['Over 2:00',120000,Infinity]],counts=bins.map(b=>a.filter(x=>Number.isFinite(result(x))&&result(x)>=b[1]&&result(x)<b[2]).length),max=Math.max(...counts,1);$('#distribution').innerHTML=s.completed?bins.map((b,i)=>`<div class="bar-row"><span>${b[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${counts[i]/max*100}%"></div></div><strong>${counts[i]}</strong></div>`).join(''):'<div class="empty">No completed solves.</div>';const preset=$('#split-preset').value,labels=preset==='custom'?settings.custom:PRESETS[preset],progress=splitProgress(a,labels);
 renderSplitProgress(progress);
 if(!progress.count){$('#split-chart').innerHTML='<div class="empty">No split data.</div>';return;}
 const mx=Math.max(...progress.means,1);
@@ -91,19 +112,20 @@ function focusView(enabled){
   document.body.classList.toggle('focus-mode',enabled);
   $('#focus').setAttribute('aria-pressed',String(enabled));
   $('#focus').title=enabled?'Exit fullscreen':'Fullscreen';
-  updateTimerHeight();
+  updatePageHeight();
   layoutScramble();
   requestAnimationFrame(()=>feedbackView.fit());
 }
 $('#focus').onclick=()=>{automaticFocus=false;focusView(!document.body.classList.contains('focus-mode'));$('#focus').blur();};
-function updateTimerHeight(){
-  if(page!=='timer'||document.body.classList.contains('focus-mode'))return;
-  const card=$('#timer-card'),navigation=matchMedia('(max-width:740px)').matches?$('.sidebar').getBoundingClientRect().height:0;
-  card.style.setProperty('--timer-available-height',Math.max(320,innerHeight-card.getBoundingClientRect().top-scrollY-navigation-12)+'px');
+function updatePageHeight(){
+  if(document.body.classList.contains('focus-mode')||!['timer','history'].includes(page))return;
+  const target=$(page==='timer'?'#timer-card':'#history-page'),navigation=matchMedia('(max-width:740px)').matches?$('.sidebar').getBoundingClientRect().height:0;
+  const available=innerHeight-target.getBoundingClientRect().top-scrollY-navigation-12;
+  target.style.setProperty(page==='timer'?'--timer-available-height':'--history-available-height',Math.max(page==='timer'?320:220,available)+'px');
 }
-const chromeObserver=new ResizeObserver(()=>requestAnimationFrame(updateTimerHeight));
+const chromeObserver=new ResizeObserver(()=>requestAnimationFrame(updatePageHeight));
 [$('.app-bar'),$('.sidebar')].forEach(el=>chromeObserver.observe(el));
-addEventListener('resize',updateTimerHeight);
+addEventListener('resize',updatePageHeight);
 let officialScrambler;
 async function newScramble(){const req=++scrambleRequest;$('#new-scramble').disabled=true;scramble='';scrambleLayoutKey='';$('#fullscreen-scramble').textContent='…';$('#cube-preview').replaceChildren();$('#scramble-type').textContent='Preparing…';let timeout;try{if(!navigator.onLine)throw Error('Offline practice');officialScrambler ||= import('https://cdn.cubing.net/v0/js/cubing/scramble');const generated=officialScrambler.then(lib=>lib.randomScrambleForEvent('333'));const alg=await Promise.race([generated,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Scrambler timed out')),6000);})]);if(req!==scrambleRequest)return;scramble=alg.toString();scrambleKind='Random state';}catch{if(req!==scrambleRequest)return;scramble=practiceScramble();scrambleKind='25-move practice';officialScrambler=null;}finally{clearTimeout(timeout);if(req===scrambleRequest){showScramble();if(!['running','arming','armed'].includes(state))$('#new-scramble').disabled=false;}}}
 const scrambleMeasure=document.createElement('canvas').getContext('2d');let scrambleLayoutKey='';
@@ -140,8 +162,8 @@ function openDialog(id){if(state==='running'||state==='arming'||state==='armed')
 $('#open-settings').onclick=()=>{if(state==='running')return;$('#preset').value=settings.preset;$('#custom-steps').value=settings.custom.join(', ');$('#custom-field').hidden=settings.preset!=='custom';$('#hold-duration').value=settings.hold;openDialog('#settings-dialog');};
 $('#preset').onchange=()=>$('#custom-field').hidden=$('#preset').value!=='custom';
 $('#save-settings').onclick=()=>{const custom=$('#custom-steps').value.split(',').map(s=>s.trim()).filter(Boolean);if($('#preset').value==='custom'&&(custom.length<2||custom.length>12||custom.some(x=>x.length>50))){toast('Use 2–12 steps, with names under 50 characters.');return;}settings={...settings,preset:$('#preset').value,custom,hold:Number($('#hold-duration').value)};splitMarks=[];persist();$('#settings-dialog').close();renderSteps();};
-function openImport(){imported=[];$('#import-preview').textContent='';$('#confirm-import').disabled=true;$('#csv-file').value='';openDialog('#import-dialog');}
-$('#open-import').onclick=openImport;$('#history-import').onclick=openImport;
+function openImport(){$('#settings-dialog').close();imported=[];$('#import-preview').textContent='';$('#confirm-import').disabled=true;$('#csv-file').value='';openDialog('#import-dialog');}
+$('#open-import').onclick=openImport;
 async function previewImport(){try{const file=$('#csv-file').files[0];if(!file)return;if(file.size>5000000)throw Error('Please import a file smaller than 5 MB.');imported=parseCSV(decodeCSV(await file.arrayBuffer()));const duplicates=imported.filter(s=>records.has(s.id)).length;$('#import-preview').textContent=`${imported.length} solves found. ${duplicates} already in your history.`;$('#import-preview').className='info-box';$('#confirm-import').disabled=imported.length===duplicates;}catch(e){imported=[];$('#import-preview').textContent=e.message;$('#confirm-import').disabled=true;}}
 $('#csv-file').onchange=previewImport;
 $('#confirm-import').onclick=()=>{let count=0;for(const s of imported)if(!records.has(s.id)){records.set(s.id,s);pending.set(s.id,s);count++;}persist();$('#import-dialog').close();render();toast(`${count} solves imported. Duplicates skipped.`);sync();};

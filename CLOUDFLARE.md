@@ -22,9 +22,9 @@ Rotation intentionally disconnects all devices until they use the new code. It p
 
 Open the app online and connect history first.
 
-- **Android / Chrome:** choose **Install app** in Cube Studio. If a direct prompt is unavailable, use Chrome's menu > **Install app** or **Add to Home screen**.
+- **Android / Chrome:** choose **Settings → Install app** in Cube Studio. If a direct prompt is unavailable, use Chrome's menu > **Install app** or **Add to Home screen**.
 - **iPhone / Safari:** choose **Share** > **Add to Home Screen**, enable **Open as Web App** if offered, then tap **Add**. If the installed app has separate storage, connect its history using the code again.
-- **PC / Edge or Chrome:** use the browser install icon or Cube Studio's **Install app** button.
+- **PC / Edge or Chrome:** use the browser install icon or **Settings → Install app**.
 
 The manifest specifies standalone display, 192px and 512px PNG icons, a maskable icon and an Apple touch icon. The installed app launches without browser navigation bars.
 
@@ -44,7 +44,9 @@ Once **Offline ready** appears, you can reopen the app without a connection, tim
 
 Online random-state scrambles use cubing.js. Offline practice scrambles are generated locally and labelled **25-move practice**. Fonts fall back to system fonts. A first-ever offline visit cannot download the app or cloud history.
 
-App files are cached as one version. Available updates appear under **Install app** and are applied only when requested between solves. LocalStorage survives updates. Use **Keep offline data on this device** to request persistent storage; browsers decide whether to grant it. Keep CSV backups as well.
+App files are cached as one version. The header shows **Update** only when a downloaded update is waiting. It applies the update and reloads when pressed between solves; an active or armed timer blocks updating. Installation and offline storage controls are in **Settings → Install app**. LocalStorage survives updates. Use **Keep offline data on this device** to request persistent storage; browsers decide whether to grant it. Keep CSV backups as well.
+
+History keeps its filters, table headings and pagination in place while only the solve rows scroll. Import and CSV export are in Settings. Time and split progress charts use evenly spaced chronological solve numbers, starting at 1 within the selected view or matching split series. Dates remain available in point details.
 
 ## Free-tier usage
 

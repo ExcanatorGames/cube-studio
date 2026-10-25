@@ -13,6 +13,8 @@ A personal 3×3 timer with phone and desktop layouts, two-finger start, keyboard
 - After a solve, fullscreen shows recent-median differences, gold personal bests, green improvements, and a 50-solve ranking strip with your all-time position. Prepare the next solve normally, or leave fullscreen with the corner button or Escape.
 - Open a solve to edit its penalty or practice note. Deletion has an Undo notification.
 - Insights includes all history by default. Filters include today and recent periods.
+- History keeps filters and pagination in place while the solve list scrolls. Import, export and app installation are in Settings.
+- Time and split charts use chronological solve numbers on the x-axis, with dates available in point details. The header shows Update only when an app update is ready; it reloads after applying the update between solves.
 - Export includes IDs, exact milliseconds, penalties, step splits, and notes. Reimporting the export skips duplicate IDs.
 
 ## Run locally
