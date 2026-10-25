@@ -92,7 +92,7 @@ function setPage(p){
   if(busy()||p===page&&timerContext.kind!=='lesson')return;
   const previous=page;page=p;
   focusView(false,{immediate:true});
-  $('#page-title').textContent={timer:'Timer',history:'History',insights:'Insights',lessons:'Lessons'}[p];
+  $('#page-title').textContent={timer:'Timer',history:'Solves',insights:'Analysis',lessons:'Lessons'}[p];
   // Selection is immediate and stays outside the moving page snapshots.
   $$('.sidebar [data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===p);if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   const order=$$('.sidebar nav [data-page]').map(b=>b.dataset.page),direction=order.indexOf(p)>order.indexOf(previous)?1:-1;

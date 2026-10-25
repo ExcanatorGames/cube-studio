@@ -317,7 +317,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 #timer-card .timer-toolbar{position:absolute;top:10px;left:12px;right:12px;display:flex;align-items:center;gap:8px;margin:0;z-index:2;letter-spacing:normal}
 #timer-card .timer-actions{display:flex;align-items:center;gap:2px;margin-right:auto}
 #timer-card .timer-toolbar .icon-button{margin:0;min-width:40px;min-height:40px;font-size:22px}
-#fullscreen-track{display:inline-flex;align-items:center;min-height:36px;padding:7px 11px;font-size:13px}
+#fullscreen-track{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 11px;font-size:13px}
 #fullscreen-track[aria-pressed="true"]{background:#293d63;border-color:#839fe9;color:#d3dfff}
 #timer-card #timer-pad{position:relative;display:grid;grid-template-rows:minmax(0,1fr);justify-items:center;gap:24px;width:100%;height:100%;padding:64px 24px 28px;text-align:center;touch-action:pan-y;cursor:pointer}
 #timer-card .timer-center{grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:center;gap:20px;width:100%;max-width:calc(100% - 2 * clamp(210px,20vw,300px) - 64px);min-height:0;min-width:0;touch-action:none}
@@ -499,6 +499,7 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 .app-bar .filter-bar input{flex:1 1 100px;width:100px;min-width:0;max-width:240px;margin:0;order:0}
 .app-bar .filter-bar>select{min-width:0;max-width:100%;font-size:14px}
 .app-bar .filter-bar>button{margin:0;font-size:13px}
+.app-bar #manual-entry{min-width:40px;min-height:40px;font-size:22px}
 .app-actions,.sync-attention{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;max-width:100%}
 .app-actions{margin-left:auto;flex-wrap:wrap}
 .sync-attention{flex:1 1 auto}
@@ -525,7 +526,10 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 }
 
 /* Brief motion supports changes of state; the live clock never animates digits. */
-:root{--motion-ease:cubic-bezier(.2,.7,.2,1)}
+/* Page slides stay inside the content; scrollbar changes never move the app chrome. */
+:root{--motion-ease:cubic-bezier(.2,.7,.2,1);scrollbar-gutter:stable}
+:root:has(body.focus-mode){scrollbar-gutter:auto}
+main{overflow-x:clip}
 button,input,textarea,select{transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease,opacity 150ms ease,translate 120ms var(--motion-ease)}
 button:not(:disabled):active{translate:0 1px}
 .sidebar nav .nav{transition:none;translate:none}
