@@ -78,6 +78,17 @@ test('clearing motion before timing prevents any delayed state change',async()=>
   await h.queued[0].commit();assert.equal(changed,false);
 });
 
+test('settling entrance animations after the old snapshot preserves the fullscreen callback',async()=>{
+  const h=transitionHarness(),element=h.element();let changed=false;
+  h.motion.reveal(element);
+  h.motion.swap('focus',()=>{h.motion.settle();changed=true;});
+  assert.equal(h.calls[0].animation.cancelled,false);
+  assert.equal(changed,false);
+  await h.queued[0].commit();
+  assert.equal(h.calls[0].animation.cancelled,true);
+  assert.equal(changed,true);
+});
+
 test('reduced motion cancels active and staggered animations immediately and prevents new ones',()=>{
   const h=harness(),el=h.element();
   h.motion.reveal(el,{delay:100});assert.equal(h.calls.length,1);

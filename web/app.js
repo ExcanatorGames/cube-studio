@@ -40,6 +40,12 @@ function setPage(p){
   const animated=motion.swap('page',()=>{
     $$('.page').forEach(el=>el.hidden=el.id!==p+'-page');
     render();window.scrollTo({top:0,behavior:'instant'});
+    // A long Insights snapshot must stay inside the space above the phone navigation.
+    const mobile=matchMedia('(max-width:740px)').matches,nav=$('.sidebar').getBoundingClientRect();
+    const root=document.documentElement.style;
+    root.setProperty('--page-clip-top',Math.max(0,$('.app-bar').getBoundingClientRect().bottom)+'px');
+    root.setProperty('--page-clip-left',(mobile?0:nav.right)+'px');
+    root.setProperty('--page-clip-bottom',(mobile?innerHeight-nav.top:0)+'px');
   },{direction});
   if(!animated)motion.play($('#'+p+'-page'),[{translate:`${direction*innerWidth}px 0`},{translate:'0 0'}],{duration:260});
 }
@@ -60,7 +66,7 @@ function renderSteps(){
     const detail=i<splitMarks.length&&feedback?.splits[i]?.name===name?feedback.splits[i]:null;
     const delta=detail?.delta??null,tone=detail?.tone?' solve-'+detail.tone:'';
     const comparison=delta===null?'':`${formatDifference(delta)} versus the median of ${detail.count} previous matching split solves`;
-    return `<div role="listitem" class="split-row ${i<splitMarks.length?'done':''} ${i===current?'current':''}" ${i===current?'aria-current="step"':''} ${detail?`aria-label="${esc(name)}, ${formatTime(detail.ms)}${comparison?', '+esc(comparison):''}${detail.isPB?', personal best':''}"`:''}><span class="split-number${detail?.isPB?' solve-gold':''}" aria-hidden="true">${detail?.isPB?'★':i<splitMarks.length?'✓':i+1}</span><span class="split-name">${esc(name)}</span><span class="split-value${tone}${delta!==null?' has-difference':''}">${splitMarks[i]?formatTime(splitMarks[i].ms-(splitMarks[i-1]?.ms||0)):i===current?formatTime(Math.max(0,elapsed-(splitMarks[i-1]?.ms||0))):'—'}${delta!==null?`<span class="split-difference${detail?.isPB?' solve-gold':delta<0?' solve-good':''}" title="${esc(comparison)}">${formatDifference(delta)}</span>`:''}</span></div>`;
+    return `<div role="listitem" style="--focus-part:focus-split-${i};--focus-number:focus-number-${i};--focus-label:focus-label-${i};--focus-value:focus-value-${i}" class="split-row ${i<splitMarks.length?'done':''} ${i===current?'current':''}" ${i===current?'aria-current="step"':''} ${detail?`aria-label="${esc(name)}, ${formatTime(detail.ms)}${comparison?', '+esc(comparison):''}${detail.isPB?', personal best':''}"`:''}><span class="split-number${detail?.isPB?' solve-gold':''}" aria-hidden="true">${detail?.isPB?'★':i<splitMarks.length?'✓':i+1}</span><span class="split-name">${esc(name)}</span><span class="split-value${tone}${delta!==null?' has-difference':''}">${splitMarks[i]?formatTime(splitMarks[i].ms-(splitMarks[i-1]?.ms||0)):i===current?formatTime(Math.max(0,elapsed-(splitMarks[i-1]?.ms||0))):'—'}${delta!==null?`<span class="split-difference${detail?.isPB?' solve-gold':delta<0?' solve-good':''}" title="${esc(comparison)}">${formatDifference(delta)}</span>`:''}</span></div>`;
   }).join('');
   if(html!==stepsHTML){$('#fullscreen-splits').innerHTML=html;stepsHTML=html;}
   $('#fullscreen-splits').hidden=!settings.track;
@@ -145,9 +151,10 @@ let automaticFocus=false,focusRequested=document.body.classList.contains('focus-
 function focusView(enabled,{immediate=false}={}){
   if(enabled===focusRequested&&enabled===document.body.classList.contains('focus-mode'))return;
   focusRequested=enabled;
-  motion.clear();
   // Fill the app viewport without invoking the browser's fullscreen notice.
   motion.swap('focus',()=>{
+    // Capture the current painted positions before settling entrance animations.
+    motion.settle();
     document.body.classList.toggle('focus-mode',enabled);
     $('#focus').setAttribute('aria-pressed',String(enabled));
     $('#focus').title=enabled?'Exit fullscreen':'Fullscreen';
@@ -184,7 +191,17 @@ function layoutScramble(){
   if(key===scrambleLayoutKey)return;scrambleLayoutKey=key;
   for(const {target,capacity} of layouts){
     const lines=scrambleLines(scramble,capacity);target.replaceChildren();
-    lines.forEach((line,i)=>{if(i)target.append(' ');const span=document.createElement('span');span.className='scramble-line';span.textContent=line;target.append(span);});
+    let moveIndex=0;
+    lines.forEach((line,i)=>{
+      if(i)target.append(' ');
+      const span=document.createElement('span');span.className='scramble-line';
+      line.split(' ').forEach((token,j)=>{
+        if(j)span.append(' ');
+        const move=document.createElement('span');move.className='scramble-move';
+        move.style.setProperty('--focus-move','focus-move-'+moveIndex++);move.textContent=token;span.append(move);
+      });
+      target.append(span);
+    });
   }
 }
 const scrambleObserver=new ResizeObserver(()=>requestAnimationFrame(layoutScramble));

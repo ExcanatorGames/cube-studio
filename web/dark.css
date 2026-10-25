@@ -442,7 +442,39 @@ button:not(:disabled):active{translate:0 1px}
 ::view-transition{pointer-events:none}
 html[data-motion="page"] .page:not([hidden]){view-transition-name:page-content}
 html[data-motion="page"] .page{pointer-events:none}
+html[data-motion="page"]::view-transition{clip-path:inset(var(--page-clip-top,0px) 0 var(--page-clip-bottom,0px) var(--page-clip-left,0px))}
 html[data-motion="focus"] #timer-card{view-transition-name:timer-surface}
+html[data-motion="focus"] #fullscreen-scramble{view-transition-name:focus-scramble}
+.scramble-move{display:inline-block}
+html[data-motion="focus"] .scramble-move{view-transition-name:var(--focus-move)}
+html[data-motion="focus"] #scramble-type:not(.sr-only){view-transition-name:focus-scramble-kind}
+html[data-motion="focus"] #cube-preview{view-transition-name:focus-cube}
+html[data-motion="focus"] #clock{view-transition-name:focus-clock}
+html[data-motion="focus"] #timer-hint{view-transition-name:focus-hint}
+html[data-motion="focus"] #timer-instruction{view-transition-name:focus-keyboard}
+html[data-motion="focus"] #touch-instruction{view-transition-name:focus-touch}
+html[data-motion="focus"] #new-scramble{view-transition-name:focus-refresh}
+html[data-motion="focus"] #manual-entry{view-transition-name:focus-manual}
+html[data-motion="focus"] #fullscreen-track{view-transition-name:focus-track}
+html[data-motion="focus"] #focus{view-transition-name:focus-toggle}
+html[data-motion="focus"] .split-row{view-transition-name:var(--focus-part)}
+html[data-motion="focus"] .split-row .split-number{view-transition-name:var(--focus-number)}
+html[data-motion="focus"] .split-row .split-name{view-transition-name:var(--focus-label)}
+html[data-motion="focus"] .split-row .split-value{view-transition-name:var(--focus-value)}
+html[data-motion="focus"] #solve-feedback{view-transition-name:focus-feedback}
+html[data-motion="focus"] #solve-ranking{view-transition-name:focus-ranking}
+html[data-motion="focus"] #ranking-count{view-transition-name:focus-rank-count}
+html[data-motion="focus"] .ranking-meta>span:last-child{view-transition-name:focus-rank-total}
+html[data-motion="focus"] #ranking-track{view-transition-name:focus-rank-track}
+html[data-motion="focus"] .ranking-ends>span:first-child{view-transition-name:focus-rank-fastest}
+html[data-motion="focus"] .ranking-ends>span:last-child{view-transition-name:focus-rank-slowest}
+#timer-card #clock,#timer-card #timer-instruction,#timer-card #touch-instruction,#timer-card #timer-hint,#timer-card .scramble-kind{width:fit-content;margin-inline:auto}
+#timer-card .split-name{width:fit-content;max-width:100%}
+#timer-card .split-value{width:fit-content;justify-self:end}
+#timer-card .solve-feedback:not([hidden]){width:max-content;max-width:100%}
+html[data-motion="focus"]::view-transition-group(*){animation-duration:320ms;animation-timing-function:var(--motion-ease)}
+html[data-motion="focus"]::view-transition-old(*){animation:none;opacity:0}
+html[data-motion="focus"]::view-transition-new(*){animation:none;opacity:1;mix-blend-mode:normal}
 ::view-transition-group(page-content){animation:none;overflow:clip}
 ::view-transition-image-pair(page-content){isolation:isolate;overflow:clip}
 ::view-transition-old(page-content),::view-transition-new(page-content){mix-blend-mode:normal;animation:260ms var(--motion-ease) both;height:auto}

@@ -3,14 +3,15 @@ export function createMotion(view=window){
   const reduced=view.matchMedia('(prefers-reduced-motion: reduce)'),active=new Map();
   const document=view.document;
   let transition=null,generation=0;
+  function settle(){for(const animation of active.values())animation.cancel();active.clear();}
   function clear(){
-    for(const animation of active.values())animation.cancel();active.clear();
+    settle();
     generation++;transition?.skipTransition();transition=null;
     if(document)delete document.documentElement.dataset.motion;
   }
   reduced.addEventListener?.('change',event=>{
     if(!event.matches)return;
-    for(const animation of active.values())animation.cancel();active.clear();
+    settle();
     // Let the latest requested page/fullscreen state commit even when motion is skipped.
     transition?.skipTransition();
   });
@@ -61,5 +62,5 @@ export function createMotion(view=window){
       }
     });
   }
-  return {play,reveal,layout,swap,clear};
+  return {play,reveal,layout,swap,clear,settle};
 }
