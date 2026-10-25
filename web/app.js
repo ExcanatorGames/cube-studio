@@ -115,7 +115,7 @@ $$('[data-page]').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
 $('.brand').onclick=e=>{e.preventDefault();setPage('timer');};
 function renderLessonCards(){
   $('#lesson-cards').innerHTML=LESSONS.map(lesson=>{
-    const preview=orientLessonCase(lesson.case,settings.lessonOrientation);
+    const preview=lesson.case;
     return `<button type="button" class="lesson-card" data-lesson="${lesson.id}"><span class="lesson-card-cube" aria-hidden="true">${lessonCubeSVG(preview.setup,preview)}</span><span class="lesson-card-copy"><strong>${esc(lesson.title)}</strong><small>Ready right · One pair, then a full solve</small></span><span class="lesson-card-arrow" aria-hidden="true">→</span></button>`;
   }).join('');
 }
@@ -368,7 +368,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state=
 function setTracking(enabled){if(busy()||timerContext.kind==='lesson')return;motion.layout([$('.timer-center')],()=>{settings.track=enabled;persist();splitMarks=[];timerVisual();});if(enabled)motion.reveal($('#fullscreen-splits'),{distance:5});}
 $('#fullscreen-track').onclick=()=>{setTracking(!tracking());$('#fullscreen-track').blur();};
 function refreshOrientation(){
-  renderLessonCards();
   if(timerContext.kind==='lesson'){
     const exercise=lessonExercise();
     if(exercise){scramble=exercise.scramble;scrambleKind=`Ready right · White on ${settings.lessonOrientation==='white-top'?'top':'bottom'}`;scrambleLayoutKey='';}

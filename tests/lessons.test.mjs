@@ -5,7 +5,7 @@ import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
 
-test('lesson card preview depicts the taught case in either saved orientation',()=>{
+test('lesson case depicts the taught algorithm in either orientation',()=>{
   for(const orientation of ['white-top','white-bottom']){
     const preview=orientLessonCase(LESSONS[0].case,orientation);
     assert.deepEqual(cubeFaces(preview.setup+' '+preview.solution),cubeFaces(''));

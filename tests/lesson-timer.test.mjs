@@ -1,6 +1,19 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './helpers/app-harness.mjs';
+import {LESSONS} from '../web/lessons.js';
+import {lessonCubeSVG} from '../web/lesson-cube.js';
+
+test('lesson card keeps the canonical teaching view across saved orientations and later preference changes',()=>{
+  const lesson=LESSONS[0],expected=lessonCubeSVG(lesson.case.setup,lesson.case);
+  for(const orientation of ['white-top','white-bottom']){
+    const h=harness({saved:{settings:{orientation,lessonOrientation:orientation}}});
+    assert.ok(h.element('#lesson-cards').innerHTML.includes(expected),'Thumbnail must show yellow up and the marked ready-right pair');
+    const initial=h.element('#lesson-cards').innerHTML;
+    h.run(`settings.orientation='${orientation==='white-top'?'white-bottom':'white-top'}';settings.lessonOrientation=settings.orientation;refreshOrientation()`);
+    assert.equal(h.element('#lesson-cards').innerHTML,initial,'Changing orientation must not change the lesson thumbnail');
+  }
+});
 
 test('returning from lessons repeatedly restores the timer before recent solves',()=>{
   const h=harness();
