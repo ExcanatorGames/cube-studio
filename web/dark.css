@@ -95,6 +95,7 @@ dialog::backdrop{background:#06090ebd}
 .keyboard-help span{display:flex;align-items:center;gap:6px}
 .filter-bar>select{font-size:11px}
 body.focus-mode .app-bar{display:none}
+@media(max-width:740px){.page,.sidebar nav{touch-action:pan-y pinch-zoom}}
 @media(max-width:950px){.sidebar nav{margin-top:42px}}
 @media(max-width:740px){
  .sidebar nav{margin-top:0}

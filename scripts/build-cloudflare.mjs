@@ -2,7 +2,7 @@ import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {generateIcons} from './icons.mjs';
 import {readPrivateSeed} from './private-seed.mjs';
-const out='dist/cloudflare',shell=['index.html','style.css','dark.css','app.js','core.js','cube.js','split-charts.js','solve-feedback.js','pwa.js','connect.js','manifest.webmanifest'];
+const out='dist/cloudflare',shell=['index.html','style.css','dark.css','app.js','mobile-navigation.js','core.js','cube.js','split-charts.js','solve-feedback.js','pwa.js','connect.js','manifest.webmanifest'];
 await mkdir(`${out}/public`,{recursive:true});
 for(const file of shell)await cp(`web/${file}`,`${out}/public/${file}`);
 await generateIcons(`${out}/public/icons`);

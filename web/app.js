@@ -4,6 +4,7 @@ import {cubeSVG,scrambleLines} from './cube.js';
 import {initSplitCharts} from './split-charts.js';
 import {initSolveFeedback,formatDifference} from './solve-feedback.js';
 import {initConnection,syncHeaders} from './connect.js';
+import {initMobileNavigation} from './mobile-navigation.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const STORE='cube-studio-v1';
@@ -185,6 +186,7 @@ $('#insight-scope').onchange=renderInsights;$('#insight-period').onchange=render
 $('#export').onclick=()=>{const blob=new Blob(['\uFEFF'+exportCSV(all())],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`cube-studio-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('CSV exported.');};
 $('#sync-mobile').onclick=()=>{sync();};window.addEventListener('online',sync);window.addEventListener('offline',()=>status(pending.size?`${pending.size} saved offline`:'Offline'));setInterval(()=>{if(!document.hidden&&state!=='running')sync();},60000);
 const busy=()=>['running','arming','armed'].includes(state);
+initMobileNavigation({pages:$$('.sidebar nav [data-page]').map(button=>button.dataset.page),getPage:()=>page,navigate:setPage,blocked:()=>busy()||document.body.classList.contains('focus-mode')||$$('dialog').some(dialog=>dialog.open)});
 const renderSplitProgress=initSplitCharts({openSolve});
 const feedbackView=initSolveFeedback();
 render();timerVisual();newScramble();initConnection({busy,sync,notify:toast});sync();initPWA({busy,notify:toast});if(storageReadFailed)toast('Could not read saved data. Please connect to sync or import a backup.');

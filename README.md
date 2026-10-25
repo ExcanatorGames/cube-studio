@@ -8,6 +8,7 @@ A personal 3×3 timer with phone and desktop layouts, two-finger start, keyboard
 
 - Hold two fingers on the timer, wait for green, then lift both to start. On a PC, hold and release Space, or hold and release the mouse on the timer.
 - Tap the timer or press Space to stop. With step tracking enabled, these actions mark the next step; the last step finishes the solve. Enter also marks steps. Escape cancels without recording.
+- On phones, swipe left or right between Timer, History and Insights, following the bottom tabs. Vertical drags scroll normally. Swiping is disabled during timing, in fullscreen, and while a dialog is open.
 - Enable step tracking with the Splits button. Choose the seven-stage beginner method, CFOP, or custom step names in Timer settings.
 - The timer page is one card with the scramble, cube preview, clock and optional splits. Wide desktop screens also show recent solves on the right. The recent list disappears below 1700px and in fullscreen. Fullscreen hides the app navigation and the card border while keeping the same timer layout and controls. History and progress charts have their own pages.
 - After a solve, fullscreen shows recent-median differences, gold personal bests, green improvements, and a 50-solve ranking strip with your all-time position. Prepare the next solve normally, or leave fullscreen with the corner button or Escape.

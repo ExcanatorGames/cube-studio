@@ -28,6 +28,8 @@ Open the app online and connect history first.
 
 The manifest specifies standalone display, 192px and 512px PNG icons, a maskable icon and an Apple touch icon. The installed app launches without browser navigation bars.
 
+On phones, single-finger horizontal swipes follow the bottom page tabs: left moves from Timer to History to Insights, and right goes back. The ends do not wrap around. Vertical scrolling, screen-edge gestures, form controls, and two-finger timer starts keep their normal behavior. Swiping is disabled during timing or arming, in fullscreen, and while a dialog is open. Settings stays available through its button.
+
 ## Offline behavior
 
 **Insights → Split progress** shows one graph for each step in the selected method. It uses individual step durations calculated from consecutive saved cumulative marks. Only completed, non-DNF solves with the full matching step sequence are included; original imports without split marks are not backfilled. The graphs share a seconds scale and follow the existing scope and date filters. **Mean 5** is an arithmetic mean of the latest five eligible solves; it begins only after five observations. Solve-level +2 penalties are not assigned to a step. Hover or focus a point for exact values, or tap/press Enter to open the original solve. The split charts work offline with history already stored on the device.
