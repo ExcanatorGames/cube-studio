@@ -437,6 +437,22 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
 :root{--motion-ease:cubic-bezier(.2,.7,.2,1)}
 button,input,textarea,select{transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease,opacity 150ms ease,translate 120ms var(--motion-ease)}
 button:not(:disabled):active{translate:0 1px}
+.sidebar nav .nav{transition:none;translate:none}
+:root{view-transition-name:none}
+::view-transition{pointer-events:none}
+html[data-motion="page"] .page:not([hidden]){view-transition-name:page-content}
+html[data-motion="page"] .page{pointer-events:none}
+html[data-motion="focus"] #timer-card{view-transition-name:timer-surface}
+::view-transition-group(page-content){animation:none;overflow:clip}
+::view-transition-image-pair(page-content){isolation:isolate;overflow:clip}
+::view-transition-old(page-content),::view-transition-new(page-content){mix-blend-mode:normal;animation:260ms var(--motion-ease) both;height:auto}
+::view-transition-old(page-content){animation-name:page-slide-out}
+::view-transition-new(page-content){animation-name:page-slide-in}
+@keyframes page-slide-out{to{transform:translateX(calc(-100% * var(--page-direction,1)))}}
+@keyframes page-slide-in{from{transform:translateX(calc(100% * var(--page-direction,1)))}}
+::view-transition-group(timer-surface){animation-duration:260ms;animation-timing-function:var(--motion-ease)}
+::view-transition-old(timer-surface),::view-transition-new(timer-surface){animation-duration:260ms;animation-timing-function:var(--motion-ease)}
+@media(max-width:740px){.sidebar nav{flex:1}}
 .split-row{transition:background-color 180ms ease,border-color 180ms ease,color 180ms ease}
 #timer-card .clock{transition:color 220ms ease}
 #timer-card.arming .clock,#timer-card.armed .clock{transition:none}
@@ -460,4 +476,5 @@ dialog[open]::backdrop{background:#06090ebd}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation:none!important;transition:none!important}
  dialog::backdrop{transition:none!important}
+ ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
