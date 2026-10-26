@@ -39,6 +39,22 @@ npm run build
 npm run validate
 ```
 
+### Browser integration tests
+
+```powershell
+npm ci
+npm run test:browser:install
+npm run test:browser
+```
+
+The Playwright suite runs the real UI in Chromium with real service workers, localStorage, keyboard input, and browser-generated multi-touch input. It checks persistence after reload, offline reopening in a new tab, applying a waiting PWA update between solves, automatic upload on reconnect, and retry after a failed upload. `npm test` remains the fast Node suite; run both when changing timing, PWA, or sync behavior.
+
+Each browser test gets a fresh browser context, an OS-assigned loopback port, and an in-memory SQLite database. The fixture serves the current `web/` files and generated icons, runs the real API handler and sync-code verification, and never reads private seeds, `.local`, or deployment configuration. External requests are blocked; scrambles exercise the app's labelled local practice fallback. No dev server or build is required. PWA updates change only the fixture's service-worker version, without editing source files. The fixture tests HTTP and SQL behavior, not Cloudflare's hosting or D1 runtime.
+
+Use `npm run test:browser -- --headed` to watch, `npm run test:browser -- --grep "offline"` to select tests, and `npx playwright show-report` to inspect failures. Screenshots and traces are retained on failure in ignored `test-results/` and `playwright-report/` directories. Linux CI may need `npx playwright install --with-deps chromium` before running.
+
+This suite targets Chromium. Multi-touch uses the Chromium DevTools Protocol and verifies trusted pointer events with distinct contact IDs; it is browser input emulation, not a physical touchscreen test. Safari/iOS, Android installation UI, OS eviction of offline storage, and reopening after the entire browser process exits still need device checks. The offline test closes and reopens a tab within the same isolated browser context. See Playwright's [service-worker guidance](https://playwright.dev/docs/service-workers) and [CDP session API](https://playwright.dev/docs/api/class-cdpsession).
+
 ## Importing history
 
 Import a timer CSV or TSV in the app to bring over your history. UTF-16 exports are supported. All solves count equally; missing split times are never inferred. Public checkouts start empty and tests use synthetic examples. Personal solve exports and the optional local `data/seed.json` import are excluded from Git.
@@ -50,6 +66,8 @@ Random-state scrambles use [cubing.js](https://js.cubing.net/cubing/scramble/). 
 Cloud sync is protected by a private sync code. D1 stores individual solve updates and deletion tombstones. Writes are idempotent, with newer timestamps winning for edits to the same solve. Independent solves from different devices are merged. Device clocks should be correct when editing the same solve from multiple devices.
 
 The browser keeps a local copy and pending writes in localStorage, retries on reconnection and every minute while visible and idle, and exposes a manual sync button. Storage failures are surfaced; export a backup before clearing browser data. Device settings stay local. The Cloudflare PWA also caches app files for offline reopening after the first online visit.
+
+If device storage fails, a persistent warning replaces any claim that data is saved locally. Keep the page open and use **Retry saving** or **Download recovery data**. Startup validation retains usable records from damaged data and backs up the original contents before replacing them. The recovery JSON includes current solves, lesson attempts, settings, and the exact damaged contents when available; keep it for recovery (it is not a CSV import). If a blocked read later succeeds, retry merges existing history with work recorded in the meantime.
 
 ## Hosting
 
