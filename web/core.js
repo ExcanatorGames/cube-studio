@@ -103,9 +103,11 @@ export function parseCSV(text){
     if(!Array.isArray(splits)||splits.length>20||!splits.every((x,i,a)=>typeof x.name==='string'&&x.name.length<100&&Number.isFinite(x.ms)&&x.ms>=0&&x.ms<=ms&&(i===0||x.ms>=a[i-1].ms)))throw Error('Invalid step times');
     const note=row[col('note')]||'';
     if(id.length>=500||scramble.length>=2000||note.length>=2000)throw Error('A field is too long');
-    return normalizeSolve({id,date,ms,scramble,penalty:truth(row[col('dnf')])?'dnf':truth(row[col('+2')])?'+2':'none',splits,note,source:'import',updatedAt:now});
+    const lessonId=row[col('lesson id')]||'',caseId=row[col('case id')]||'',completion=row[col('completion')]||'';
+    if ((lessonId||caseId||completion) && (![lessonId,caseId,completion].every(v=>v.trim()&&v.length<100))) throw Error('Invalid lesson metadata');
+    return normalizeSolve({...(lessonId?{lessonId,caseId,completion}:{}),id,date,ms,scramble,penalty:truth(row[col('dnf')])?'dnf':truth(row[col('+2')])?'+2':'none',splits,note,source:'import',updatedAt:now});
   }catch(e){throw Error(`Data row ${i+1}: ${e.message}`);}}).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
   return [...new Map(solves.map(s=>[s.id,s])).values()];
 }
-export function exportCSV(solves){const escape=s=>'"'+String(s??'').replaceAll('"','""')+'"';return [['Date','Time','DNF','+2','Scramble','Splits','Note','ID','Milliseconds'],...solves.map(s=>[s.date,formatTime(s.ms),s.penalty==='dnf'?'1':'',s.penalty==='+2'?'1':'',s.scramble,JSON.stringify(s.splits),s.note||'',s.id,s.ms])].map(row=>row.map(escape).join(',')).join('\r\n');}
+export function exportCSV(solves){const escape=s=>'"'+String(s??'').replaceAll('"','""')+'"';return [['Date','Time','DNF','+2','Scramble','Splits','Note','ID','Milliseconds','Lesson ID','Case ID','Completion'],...solves.map(s=>[s.date,formatTime(s.ms),s.penalty==='dnf'?'1':'',s.penalty==='+2'?'1':'',s.scramble,JSON.stringify(s.splits),s.note||'',s.id,s.ms,s.lessonId||'',s.caseId||'',s.completion||''])].map(row=>row.map(escape).join(',')).join('\r\n');}
 export function practiceScramble(){const faces=['U','D','R','L','F','B'],suffix=['',"'",'2'];let last=-1,previous=-1,moves=[];for(let i=0;i<25;i++){let f;do{f=crypto.getRandomValues(new Uint32Array(1))[0]%6;}while(f===last || Math.floor(f/2)===Math.floor(last/2)&&Math.floor(f/2)===Math.floor(previous/2));moves.push(faces[f]+suffix[crypto.getRandomValues(new Uint32Array(1))[0]%3]);previous=last;last=f;}return moves.join(' ');}

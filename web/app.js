@@ -22,8 +22,11 @@ import { $, $$, esc } from './dom.js';
 import { createSolveViews } from './solve-views.js';
 import { createSync } from './sync.js';
 import { createLessonPresentation, lessonTabs } from './lesson-presentation.js';
+import { createTimerSession } from './timer-session.js';
+import { createLessonSession } from './lesson-session.js';
 import { initTimerInput } from './timer-input.js';
 import { createDeviceStorage } from './device-storage.js';
+import { createCoordinatedStorage } from './coordinated-storage.js';
 import { initStorageFeedback } from './storage-feedback.js';
 const motion = createMotion();
 const deviceStorage = createDeviceStorage({ storage: () => localStorage });
@@ -45,6 +48,11 @@ let lessonAttempts = new Map(
     },
   ]),
 );
+let pendingLessons = new Map(
+  (saved.lessonSyncVersion === 1 ? saved.pendingLessons : saved.lessonAttempts).map(
+    (s) => [s.id, normalizeSolve(s)],
+  ),
+);
 let settings = {
   preset: 'beginner',
   custom: ['Cross', 'First pair', 'Remaining F2L', 'Last layer'],
@@ -65,21 +73,18 @@ let page = 'timer',
 const syncService = createSync({
   getRecords: () => records,
   getPending: () => pending,
+  getLessonAttempts: () => lessonAttempts,
+  getPendingLessons: () => pendingLessons,
   persist,
   onChange: render,
   onStatus: renderSyncStatus,
   syncHeaders,
 });
 const sync = syncService.run;
-let state = 'idle',
-  started = 0,
-  elapsed = 0,
-  splitMarks = [],
-  activeNames = [],
-  scramble = '',
+const timer = createTimerSession(),
+  timing = timer.view;
+let scramble = '',
   scrambleKind = '',
-  lastFinished = 0,
-  armTimeout,
   frame,
   wakeLock;
 let lastSolveId = null,
@@ -87,24 +92,23 @@ let lastSolveId = null,
 let scrambleRequest = 0;
 // normalScramble retains the generator's white-top frame; scramble is the
 // notation displayed and applied in the currently selected cube frame.
-let timerContext = { kind: 'normal' },
-  normalScramble = null,
-  activeAttempt = null,
+const lessonSession = createLessonSession({ getSettings: () => settings });
+let normalScramble = null,
   lessonDemo = null;
-const tracking = () => timerContext.kind !== 'lesson' && settings.track;
+const tracking = () =>
+  timing.state === 'running'
+    ? timing.activeAttempt.track
+    : lessonSession.context.kind !== 'lesson' && settings.track;
 const cubeOrientation = () =>
-  timerContext.kind === 'lesson'
+  lessonSession.context.kind === 'lesson'
     ? settings.lessonOrientation
     : settings.orientation;
-const lessonExercise = () =>
-  timerContext.exercise
-    ? orientLessonCase(timerContext.exercise, settings.lessonOrientation)
-    : null;
+const lessonExercise = () => lessonSession.exercise;
 const timerVisible = () =>
   page === 'timer' ||
   (page === 'lessons' &&
-    timerContext.kind === 'lesson' &&
-    timerContext.tab === 'practice');
+    lessonSession.context.kind === 'lesson' &&
+    lessonSession.context.tab === 'practice');
 const all = () =>
   [...records.values()]
     .filter((s) => !s.deleted)
@@ -113,7 +117,7 @@ const all = () =>
         Date.parse(a.date) - Date.parse(b.date) || a.id.localeCompare(b.id),
     );
 const names = () =>
-  timerContext.kind === 'lesson'
+  lessonSession.context.kind === 'lesson'
     ? []
     : settings.preset === 'custom'
       ? settings.custom
@@ -123,6 +127,8 @@ function deviceSnapshot() {
     solves: [...records.values()],
     pending: [...pending.values()],
     lessonAttempts: [...lessonAttempts.values()],
+    pendingLessons: [...pendingLessons.values()],
+    lessonSyncVersion: 1,
     settings,
   };
 }
@@ -133,42 +139,50 @@ const storageFeedback = initStorageFeedback({
   busy: () => busy(),
   notify: toast,
 });
+let orientationChanged = false;
+const coordinatedStorage = createCoordinatedStorage({
+  store: deviceStorage,
+  initial: saved,
+  locks: navigator.locks,
+  getSnapshot: deviceSnapshot,
+  apply(snapshot) {
+    records = new Map(snapshot.solves.map((s) => [s.id, s]));
+    pending = new Map(snapshot.pending.map((s) => [s.id, s]));
+    lessonAttempts = new Map(snapshot.lessonAttempts.map((s) => [s.id, s]));
+    pendingLessons = new Map(snapshot.pendingLessons.map((s) => [s.id, s]));
+    orientationChanged ||=
+      settings.orientation !== snapshot.settings.orientation ||
+      settings.lessonOrientation !== snapshot.settings.lessonOrientation;
+    settings = snapshot.settings;
+  },
+  onChange() {
+    storageFeedback.render();
+    renderSyncStatus();
+    if (!busy()) {
+      if (orientationChanged) {
+        orientationChanged = false;
+        refreshOrientation();
+      }
+      render();
+    }
+  },
+});
 function persist() {
-  const { ok } = deviceStorage.write(deviceSnapshot());
-  storageFeedback.render();
-  renderSyncStatus();
-  return ok;
+  return coordinatedStorage.save();
 }
 function retryStorage() {
-  if (deviceStorage.getState().error === 'read-failed') {
-    const result = deviceStorage.read();
-    if (result.state.error) {
-      storageFeedback.render();
-      return;
-    }
-    const merge = (target, values) => {
-      for (const value of values) {
-        const current = target.get(value.id);
-        if (!current || value.updatedAt > current.updatedAt)
-          target.set(value.id, value);
-      }
-    };
-    merge(records, result.snapshot.solves);
-    merge(pending, result.snapshot.pending);
-    merge(records, [...pending.values()]);
-    merge(lessonAttempts, result.snapshot.lessonAttempts);
-    const changedSettings = Object.fromEntries(
-      Object.entries(settings).filter(
-        ([key, value]) =>
-          JSON.stringify(value) !== JSON.stringify(saved.settings[key]),
-      ),
-    );
-    settings = { ...result.snapshot.settings, ...changedSettings };
-  }
   persist();
-  render();
   sync();
 }
+window.addEventListener('storage', (event) => {
+  if (event.key === 'cube-studio-v1' && !busy()) persist();
+});
+window.addEventListener('beforeunload', (event) => {
+  if (coordinatedStorage.busy || !deviceStorage.getState().persisted) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+});
 function toast(message, undo) {
   clearTimeout(toastTimeout);
   const t = $('#toast');
@@ -187,15 +201,16 @@ function toast(message, undo) {
 }
 function renderSyncStatus() {
   const syncState = syncService.state;
+  const pendingCount = pending.size + pendingLessons.size;
   const messages = {
-    healthy: pending.size ? `${pending.size} waiting to sync` : '',
-    offline: pending.size ? `${pending.size} saved offline` : 'Offline',
-    auth: pending.size
-      ? `${pending.size} saved · connect to sync`
+    healthy: pendingCount ? `${pendingCount} waiting to sync` : '',
+    offline: pendingCount ? `${pendingCount} saved offline` : 'Offline',
+    auth: pendingCount
+      ? `${pendingCount} saved · connect to sync`
       : 'Not connected',
     setup: 'Cloud sync setup needed',
-    error: pending.size
-      ? `${pending.size} saved on device · sync failed`
+    error: pendingCount
+      ? `${pendingCount} saved on device · sync failed`
       : 'Sync failed',
   };
   const text = deviceStorage.getState().persisted
@@ -230,33 +245,26 @@ function saveAttempt(s, attempt) {
     completion: exercise.completion,
   };
   lessonAttempts.set(s.id, practice);
+  pendingLessons.set(s.id, practice);
   persist();
   render();
+  sync();
   return practice;
 }
 function practiceTimes() {
-  return [...lessonAttempts.values()]
-    .filter(
-      (s) =>
-        !s.deleted &&
-        s.completion === currentLesson()?.case.completion &&
-        s.lessonId === timerContext.lessonId &&
-        timerContext.caseIds.includes(s.caseId),
-    )
-    .sort(
-      (a, b) =>
-        Date.parse(a.date) - Date.parse(b.date) || a.id.localeCompare(b.id),
-    );
+  return lessonSession.times(lessonAttempts.values());
 }
 function renderHeader() {
   const context =
-    page === 'lessons' && timerContext.kind === 'lesson' ? 'lesson' : page;
+    page === 'lessons' && lessonSession.context.kind === 'lesson'
+      ? 'lesson'
+      : page;
   $$('[data-header-context]').forEach(
     (group) => (group.hidden = group.dataset.headerContext !== context),
   );
 }
 function setPage(p) {
-  if (busy() || (p === page && timerContext.kind !== 'lesson')) return;
+  if (busy() || (p === page && lessonSession.context.kind !== 'lesson')) return;
   const previous = page;
   page = p;
   focusView(false, { immediate: true });
@@ -279,7 +287,7 @@ function setPage(p) {
     () => {
       lessonDemo?.destroy();
       lessonDemo = null;
-      if (timerContext.kind === 'lesson') leaveLesson();
+      if (lessonSession.context.kind === 'lesson') leaveLesson();
       $$('.page').forEach((el) => (el.hidden = el.id !== p + '-page'));
       render();
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -314,13 +322,17 @@ $('.brand').onclick = (e) => {
 const lessonPresentation = createLessonPresentation();
 lessonPresentation.renderCards();
 function renderLessonTabs() {
-  lessonPresentation.renderTabs(timerContext, busy());
+  lessonPresentation.renderTabs(lessonSession.context, busy());
 }
 function renderLessonCases() {
-  lessonPresentation.renderCases(currentLesson(), timerContext);
+  lessonPresentation.renderCases(currentLesson(), lessonSession.context);
 }
 function renderLessonAssistance() {
-  lessonPresentation.renderAssistance(timerContext, lessonExercise(), busy());
+  lessonPresentation.renderAssistance(
+    lessonSession.context,
+    lessonExercise(),
+    busy(),
+  );
 }
 $('#lesson-cards').onclick = (e) => {
   const button = e.target.closest('[data-lesson]');
@@ -349,52 +361,41 @@ for (const tab of lessonTabs) {
 function setLessonTab(tab) {
   if (
     busy() ||
-    timerContext.kind !== 'lesson' ||
+    lessonSession.context.kind !== 'lesson' ||
     !lessonTabs.includes(tab) ||
-    timerContext.tab === tab
+    lessonSession.context.tab === tab
   )
     return;
   lessonDemo?.reset();
   timerInput.reset();
-  timerContext.tab = tab;
+  lessonSession.setTab(tab);
   renderLessonTabs();
   updateTimerHeight();
   layoutScramble();
   requestAnimationFrame(() => feedbackView.fit());
 }
 function resetTimerContext() {
-  clearTimeout(armTimeout);
   timerInput.reset();
-  state = 'idle';
-  elapsed = 0;
-  splitMarks = [];
-  activeNames = [];
-  activeAttempt = null;
+  timer.reset();
   lastSolveId = null;
   $('#clock').textContent = '0.00';
 }
 function currentLesson() {
-  return LESSONS.find((item) => item.id === timerContext.lessonId);
+  return lessonSession.lesson;
 }
 function exerciseCase() {
-  return currentLesson()?.cases.find(
-    (item) => item.id === timerContext.exercise?.caseId,
-  );
+  return lessonSession.exerciseCase;
 }
 function setPracticeCases(caseIds) {
-  if (busy() || timerContext.kind !== 'lesson') return;
-  const valid = currentLesson()
-    .cases.filter((item) => caseIds.includes(item.id))
-    .map((item) => item.id);
-  if (!valid.length) {
+  if (busy() || lessonSession.context.kind !== 'lesson') return;
+  if (!lessonSession.selectCases(caseIds)) {
     renderLessonCases();
     toast('Keep at least one practice case selected.');
     return;
   }
-  timerContext.caseIds = valid;
   settings.lessonCaseSelections = {
     ...settings.lessonCaseSelections,
-    [timerContext.lessonId]: valid,
+    [lessonSession.context.lessonId]: lessonSession.context.caseIds,
   };
   persist();
   resetTimerContext();
@@ -404,23 +405,22 @@ function setPracticeCases(caseIds) {
   renderSteps();
 }
 $('#lesson-practice-case-list').onclick = (e) => {
-  if (busy() || timerContext.kind !== 'lesson') return;
+  if (busy() || lessonSession.context.kind !== 'lesson') return;
   const id = e.target.closest('[data-practice-case]')?.dataset.practiceCase;
   if (!currentLesson().cases.some((item) => item.id === id)) return;
   setPracticeCases(
-    timerContext.caseIds.includes(id)
-      ? timerContext.caseIds.filter((item) => item !== id)
-      : [...timerContext.caseIds, id],
+    lessonSession.context.caseIds.includes(id)
+      ? lessonSession.context.caseIds.filter((item) => item !== id)
+      : [...lessonSession.context.caseIds, id],
   );
 };
 $('#lesson-case-list').onclick = (e) => {
-  if (busy() || timerContext.kind !== 'lesson') return;
+  if (busy() || lessonSession.context.kind !== 'lesson') return;
   const id = e.target.closest('[data-lesson-case]')?.dataset.lessonCase;
   if (!currentLesson().cases.some((item) => item.id === id)) return;
   $('#lesson-case-dropdown').open = false;
   $('#lesson-case-dropdown summary').focus();
-  if (id === timerContext.demoCaseId) return;
-  timerContext.demoCaseId = id;
+  if (!lessonSession.selectDemo(id)) return;
   lessonDemo?.destroy();
   lessonDemo = null;
   $('#lesson-demo').innerHTML = '<p role="status">Preparing scramble…</p>';
@@ -450,22 +450,10 @@ $('#lesson-case-dropdown').onkeydown = (e) => {
 addEventListener('resize', fitLessonCaseDropdown);
 function openLesson(id) {
   if (busy()) return;
-  const lesson = LESSONS.find((item) => item.id === id);
-  if (!lesson) return;
+  if (!lessonSession.open(id)) return;
+  const lesson = currentLesson();
   ++scrambleRequest;
   resetTimerContext();
-  const selected = lesson.cases
-    .filter((item) => settings.lessonCaseSelections?.[id]?.includes(item.id))
-    .map((item) => item.id);
-  timerContext = {
-    kind: 'lesson',
-    lessonId: id,
-    tab: 'lesson',
-    exercise: null,
-    assistance: false,
-    demoCaseId: lesson.case.id,
-    caseIds: selected.length ? selected : lesson.cases.map((item) => item.id),
-  };
   $('#lesson-list').hidden = true;
   $('#lesson-detail').hidden = false;
   $('#lesson-title').textContent = lesson.title;
@@ -484,7 +472,7 @@ function openLesson(id) {
 function leaveLesson() {
   ++scrambleRequest;
   resetTimerContext();
-  timerContext = { kind: 'normal' };
+  lessonSession.leave();
   $('#timer-page').prepend($('#timer-card'));
   $('#lesson-detail').hidden = true;
   $('#lesson-list').hidden = false;
@@ -501,10 +489,14 @@ function leaveLesson() {
   timerVisual();
 }
 $('#lesson-help').onclick = () => {
-  if (busy() || timerContext.kind !== 'lesson' || !timerContext.exercise)
+  if (
+    busy() ||
+    lessonSession.context.kind !== 'lesson' ||
+    !lessonSession.context.exercise
+  )
     return;
-  timerContext.assistance = !timerContext.assistance;
-  if (!timerContext.assistance) lessonDemo?.reset();
+  lessonSession.toggleHints();
+  if (!lessonSession.context.assistance) lessonDemo?.reset();
   renderLessonAssistance();
   showScramble({ animate: false });
   $('#lesson-help').blur();
@@ -518,9 +510,9 @@ function render() {
   updateTimerHeight();
 }
 function renderSteps() {
-  const lesson = timerContext.kind === 'lesson';
+  const lesson = lessonSession.context.kind === 'lesson';
   const currentSolve =
-    state === 'stopped' && lastSolveId
+    timing.state === 'stopped' && lastSolveId
       ? (lesson ? lessonAttempts : records).get(lastSolveId)
       : null;
   const feedback = currentSolve
@@ -530,14 +522,16 @@ function renderSteps() {
   if (currentSolve && !currentSolve.deleted)
     $('#clock').textContent = formatTime(result(currentSolve));
   const labels =
-    state === 'running' || (state === 'stopped' && splitMarks.length)
-      ? activeNames
+    timing.state === 'running' ||
+    (timing.state === 'stopped' && timing.splitMarks.length)
+      ? timing.activeNames
       : names();
-  const current = state === 'running' && tracking() ? splitMarks.length : -1;
+  const current =
+    timing.state === 'running' && tracking() ? timing.splitMarks.length : -1;
   const html = labels
     .map((name, i) => {
       const detail =
-        i < splitMarks.length && feedback?.splits[i]?.name === name
+        i < timing.splitMarks.length && feedback?.splits[i]?.name === name
           ? feedback.splits[i]
           : null;
       const delta = detail?.delta ?? null,
@@ -546,7 +540,7 @@ function renderSteps() {
         delta === null
           ? ''
           : `${formatDifference(delta)} versus the median of ${detail.count} previous matching split solves`;
-      return `<div role="listitem" style="--focus-part:focus-split-${i};--focus-number:focus-number-${i};--focus-label:focus-label-${i};--focus-value:focus-value-${i}" class="split-row ${i < splitMarks.length ? 'done' : ''} ${i === current ? 'current' : ''}" ${i === current ? 'aria-current="step"' : ''} ${detail ? `aria-label="${esc(name)}, ${formatTime(detail.ms)}${comparison ? ', ' + esc(comparison) : ''}${detail.isPB ? ', personal best' : ''}"` : ''}><span class="split-number${detail?.isPB ? ' solve-gold' : ''}" aria-hidden="true">${detail?.isPB ? '★' : i < splitMarks.length ? '✓' : i + 1}</span><span class="split-name">${esc(name)}</span><span class="split-value${tone}${delta !== null ? ' has-difference' : ''}">${splitMarks[i] ? formatTime(splitMarks[i].ms - (splitMarks[i - 1]?.ms || 0)) : i === current ? formatTime(Math.max(0, elapsed - (splitMarks[i - 1]?.ms || 0))) : '—'}${delta !== null ? `<span class="split-difference${detail?.isPB ? ' solve-gold' : delta < 0 ? ' solve-good' : ''}" title="${esc(comparison)}">${formatDifference(delta)}</span>` : ''}</span></div>`;
+      return `<div role="listitem" style="--focus-part:focus-split-${i};--focus-number:focus-number-${i};--focus-label:focus-label-${i};--focus-value:focus-value-${i}" class="split-row ${i < timing.splitMarks.length ? 'done' : ''} ${i === current ? 'current' : ''}" ${i === current ? 'aria-current="step"' : ''} ${detail ? `aria-label="${esc(name)}, ${formatTime(detail.ms)}${comparison ? ', ' + esc(comparison) : ''}${detail.isPB ? ', personal best' : ''}"` : ''}><span class="split-number${detail?.isPB ? ' solve-gold' : ''}" aria-hidden="true">${detail?.isPB ? '★' : i < timing.splitMarks.length ? '✓' : i + 1}</span><span class="split-name">${esc(name)}</span><span class="split-value${tone}${delta !== null ? ' has-difference' : ''}">${timing.splitMarks[i] ? formatTime(timing.splitMarks[i].ms - (timing.splitMarks[i - 1]?.ms || 0)) : i === current ? formatTime(Math.max(0, timing.elapsed - (timing.splitMarks[i - 1]?.ms || 0))) : '—'}${delta !== null ? `<span class="split-difference${detail?.isPB ? ' solve-gold' : delta < 0 ? ' solve-good' : ''}" title="${esc(comparison)}">${formatDifference(delta)}</span>` : ''}</span></div>`;
     })
     .join('');
   if (html !== stepsHTML) {
@@ -561,7 +555,7 @@ function renderSteps() {
   $('#fullscreen-track').innerHTML =
     `<span aria-hidden="true">${tracking() ? '✓' : '✕'}</span> Splits`;
   $('#fullscreen-track').disabled = ['running', 'arming', 'armed'].includes(
-    state,
+    timing.state,
   );
   const bottom = cubeOrientation() === 'white-bottom';
   $('#cube-orientation').textContent = bottom ? 'White ↓' : 'White ↑';
@@ -572,35 +566,42 @@ function renderSteps() {
     `White on ${bottom ? 'bottom' : 'top'}. Switch to white on ${bottom ? 'top' : 'bottom'}.`,
   );
   $('#cube-orientation').disabled =
-    ['running', 'arming', 'armed'].includes(state) || !scramble;
+    ['running', 'arming', 'armed'].includes(timing.state) || !scramble;
 }
 function timerVisual() {
+  if (!busy() && orientationChanged) {
+    orientationChanged = false;
+    refreshOrientation();
+  }
   const c = $('#timer-card');
   c.classList.remove('arming', 'armed', 'running');
-  if (busy()) c.classList.add(state);
+  if (busy()) c.classList.add(timing.state);
   const hint =
-    state === 'running' && tracking() ? activeNames[splitMarks.length] : '';
+    timing.state === 'running' && tracking()
+      ? timing.activeNames[timing.splitMarks.length]
+      : '';
   $('#timer-hint').textContent = hint;
   $('#timer-hint').hidden = !hint;
   $('#timer-instruction').innerHTML =
-    state === 'armed'
+    timing.state === 'armed'
       ? '<span>Release</span>'
-      : state === 'arming'
+      : timing.state === 'arming'
         ? '<span>Hold…</span>'
-        : state === 'running'
+        : timing.state === 'running'
           ? `<kbd>space</kbd><span>${tracking() ? 'Split' : 'Stop'}</span>`
           : '<kbd>space</kbd><span>Hold · release</span>';
   $('#touch-instruction').textContent =
-    state === 'armed'
+    timing.state === 'armed'
       ? 'Release'
-      : state === 'arming'
+      : timing.state === 'arming'
         ? 'Hold…'
-        : state === 'running'
+        : timing.state === 'running'
           ? tracking()
             ? 'Tap to split'
             : 'Tap to stop'
           : 'Two fingers · hold · release';
-  const preparing = timerContext.kind === 'lesson' && !timerContext.exercise;
+  const preparing =
+    lessonSession.context.kind === 'lesson' && !lessonSession.context.exercise;
   $('#new-scramble').disabled = busy() || preparing;
   $('#manual-entry').disabled = busy() || preparing;
   $$('[data-page],#lesson-back,.brand').forEach((el) => {
@@ -609,7 +610,7 @@ function timerVisual() {
   });
   document.body.classList.toggle(
     'lesson-busy',
-    timerContext.kind === 'lesson' && busy(),
+    lessonSession.context.kind === 'lesson' && busy(),
   );
   $('#lesson-case-picker').disabled = busy();
   $('#lesson-practice-cases').disabled = busy();
@@ -618,31 +619,22 @@ function timerVisual() {
   renderSteps();
 }
 function arm() {
-  if (!timerVisible() || busy() || !scramble || Date.now() - lastFinished < 700)
-    return;
-  motion.clear();
-  clearTimeout(armTimeout);
-  elapsed = 0;
-  splitMarks = [];
-  lastSolveId = null;
-  lessonDemo?.reset();
-  state = 'arming';
-  $('#clock').textContent = '0.00';
-  timerVisual();
-  armTimeout = setTimeout(() => {
-    if (state === 'arming') {
-      state = 'armed';
+  if (!timerVisible() || !scramble) return;
+  if (
+    !timer.arm(settings.hold, () => {
       timerVisual();
       navigator.vibrate?.(20);
-    }
-  }, settings.hold);
+    })
+  )
+    return;
+  motion.clear();
+  lastSolveId = null;
+  lessonDemo?.reset();
+  $('#clock').textContent = '0.00';
+  timerVisual();
 }
 function disarm() {
-  clearTimeout(armTimeout);
-  if (state === 'arming' || state === 'armed') {
-    state = 'idle';
-    timerVisual();
-  }
+  if (timer.disarm()) timerVisual();
 }
 async function keepAwake() {
   try {
@@ -651,13 +643,13 @@ async function keepAwake() {
 }
 function snapshotAttempt() {
   const lesson =
-    timerContext.kind === 'lesson'
-      ? LESSONS.find((item) => item.id === timerContext.lessonId)
+    lessonSession.context.kind === 'lesson'
+      ? LESSONS.find((item) => item.id === lessonSession.context.lessonId)
       : null;
   return Object.freeze({
     scramble,
-    context: timerContext.kind,
-    exercise: lesson ? timerContext.exercise : null,
+    context: lessonSession.context.kind,
+    exercise: lesson ? lessonSession.context.exercise : null,
     note: lesson
       ? `${lesson.title} · ${exerciseCase()?.title || ''} · Pair inserted`
       : '',
@@ -666,14 +658,7 @@ function snapshotAttempt() {
   });
 }
 function start() {
-  if (state !== 'armed') return;
-  clearTimeout(armTimeout);
-  state = 'running';
-  started = performance.now();
-  elapsed = 0;
-  splitMarks = [];
-  activeAttempt = snapshotAttempt();
-  activeNames = activeAttempt.splitNames;
+  if (!timer.start(snapshotAttempt())) return;
   lessonDemo?.reset();
   automaticFocus = !document.body.classList.contains('focus-mode');
   focusView(true);
@@ -682,18 +667,17 @@ function start() {
   frame = requestAnimationFrame(tick);
 }
 function tick() {
-  if (state !== 'running') return;
-  elapsed = performance.now() - started;
-  $('#clock').textContent = formatTime(elapsed);
+  if (timing.state !== 'running') return;
+  $('#clock').textContent = formatTime(timing.elapsed);
   const activeSplit = $('#fullscreen-splits .current .split-value');
   if (activeSplit)
     activeSplit.textContent = formatTime(
-      Math.max(0, elapsed - (splitMarks.at(-1)?.ms || 0)),
+      Math.max(0, timing.elapsed - (timing.splitMarks.at(-1)?.ms || 0)),
     );
   frame = requestAnimationFrame(tick);
 }
 function makeSolve(ms, splits = [], manual = false) {
-  const attempt = manual ? snapshotAttempt() : activeAttempt;
+  const attempt = manual ? snapshotAttempt() : timing.activeAttempt;
   return normalizeSolve({
     id: crypto.randomUUID(),
     date: new Date().toISOString(),
@@ -707,17 +691,15 @@ function makeSolve(ms, splits = [], manual = false) {
   });
 }
 function stop() {
-  if (state !== 'running') return;
-  elapsed = Math.max(1, Math.round(performance.now() - started));
+  finishAttempt(timer.stop());
+}
+function finishAttempt(finished) {
+  if (!finished) return;
   cancelAnimationFrame(frame);
-  if (activeAttempt.track)
-    splitMarks.push({ name: activeNames[splitMarks.length], ms: elapsed });
-  state = 'stopped';
-  lastFinished = Date.now();
-  $('#clock').textContent = formatTime(elapsed);
-  const solve = makeSolve(elapsed, [...splitMarks]);
+  $('#clock').textContent = formatTime(finished.ms);
+  const solve = makeSolve(finished.ms, finished.splits);
   lastSolveId = solve.id;
-  saveAttempt(solve, activeAttempt);
+  saveAttempt(solve, finished.attempt);
   wakeLock?.release();
   automaticFocus = false;
   timerVisual();
@@ -725,23 +707,16 @@ function stop() {
   newScramble();
 }
 function mark() {
-  if (state !== 'running') return;
-  // Ignore a bounce or accidental second press just after the starting release.
-  if (!activeAttempt.track && performance.now() - started < 350) return;
-  if (!activeAttempt.track || splitMarks.length >= activeNames.length - 1) {
-    stop();
-    return;
+  const result = timer.mark();
+  if (result?.finished) finishAttempt(result.finished);
+  else if (result?.split) {
+    navigator.vibrate?.(10);
+    timerVisual();
+    motion.reveal($('#fullscreen-splits .current'), {
+      distance: 3,
+      duration: 150,
+    });
   }
-  splitMarks.push({
-    name: activeNames[splitMarks.length],
-    ms: Math.round(performance.now() - started),
-  });
-  navigator.vibrate?.(10);
-  timerVisual();
-  motion.reveal($('#fullscreen-splits .current'), {
-    distance: 3,
-    duration: 150,
-  });
 }
 function animateResult() {
   motion.reveal($('.timer-readout'), { distance: 4 });
@@ -750,7 +725,7 @@ function animateResult() {
   );
   motion.reveal($('.timer-recent .recent-solve'), { distance: 4 });
   requestAnimationFrame(() => {
-    if (state !== 'stopped') return;
+    if (timing.state !== 'stopped') return;
     feedbackView.fit();
     motion.reveal($('#solve-feedback'), { delay: 50, distance: 4 });
     motion.reveal($('#solve-ranking'), {
@@ -775,21 +750,19 @@ function cancel() {
     focusView(false);
     automaticFocus = false;
   }
-  if (state === 'running') {
+  const running = timing.state === 'running';
+  if (!timer.cancel()) return;
+  if (running) {
     cancelAnimationFrame(frame);
     wakeLock?.release();
-    state = 'idle';
-    splitMarks = [];
-    elapsed = 0;
     $('#clock').textContent = '0.00';
     toast('Cancelled.');
-    lastFinished = Date.now();
-    timerVisual();
-  } else disarm();
+  }
+  timerVisual();
 }
 const timerInput = initTimerInput({
   pad: $('#timer-pad'),
-  getState: () => state,
+  getState: () => timing.state,
   timerVisible,
   arm,
   disarm,
@@ -802,16 +775,16 @@ const timerInput = initTimerInput({
 });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
-    if (state === 'running') keepAwake();
+    if (timing.state === 'running') keepAwake();
     if (Date.now() - syncService.lastSuccess > 20000) sync();
   } else disarm();
 });
 function setTracking(enabled) {
-  if (busy() || timerContext.kind === 'lesson') return;
+  if (busy() || lessonSession.context.kind === 'lesson') return;
   motion.layout([$('.timer-center')], () => {
     settings.track = enabled;
     persist();
-    splitMarks = [];
+    timer.reset();
     timerVisual();
   });
   if (enabled) motion.reveal($('#fullscreen-splits'), { distance: 5 });
@@ -821,7 +794,7 @@ $('#fullscreen-track').onclick = () => {
   $('#fullscreen-track').blur();
 };
 function refreshOrientation() {
-  if (timerContext.kind === 'lesson') {
+  if (lessonSession.context.kind === 'lesson') {
     const exercise = lessonExercise();
     if (exercise) {
       scramble = exercise.scramble;
@@ -843,7 +816,9 @@ function refreshOrientation() {
 $('#cube-orientation').onclick = () => {
   if (busy() || !scramble) return;
   const key =
-    timerContext.kind === 'lesson' ? 'lessonOrientation' : 'orientation';
+    lessonSession.context.kind === 'lesson'
+      ? 'lessonOrientation'
+      : 'orientation';
   settings[key] =
     cubeOrientation() === 'white-top' ? 'white-bottom' : 'white-top';
   persist();
@@ -861,7 +836,9 @@ function focusView(enabled, { immediate = false } = {}) {
   focusRequested = enabled;
   const title = $('#fullscreen-lesson-title'),
     before =
-      timerContext.kind === 'lesson' ? title.getBoundingClientRect() : null;
+      lessonSession.context.kind === 'lesson'
+        ? title.getBoundingClientRect()
+        : null;
   // Fill the app viewport without invoking the browser's fullscreen notice.
   const animated = motion.swap(
     'focus',
@@ -877,7 +854,10 @@ function focusView(enabled, { immediate = false } = {}) {
       layoutScramble();
       requestAnimationFrame(() => feedbackView.fit());
     },
-    { immediate: immediate || ['running', 'arming', 'armed'].includes(state) },
+    {
+      immediate:
+        immediate || ['running', 'arming', 'armed'].includes(timing.state),
+    },
   );
   if (!animated && before) {
     const after = title.getBoundingClientRect();
@@ -908,7 +888,7 @@ function updateTimerHeight() {
   const navigation = bottomNavigation
     ? $('.sidebar').getBoundingClientRect().height
     : 0;
-  if (page === 'lessons' && timerContext.kind === 'lesson') {
+  if (page === 'lessons' && lessonSession.context.kind === 'lesson') {
     const detail = $('#lesson-detail');
     document.body.style.setProperty(
       '--lesson-navigation-height',
@@ -961,53 +941,36 @@ const chromeObserver = new ResizeObserver(() =>
 );
 [$('.app-bar'), $('.sidebar')].forEach((el) => chromeObserver.observe(el));
 addEventListener('resize', updateTimerHeight);
-let officialScrambler, lessonScrambler;
+let officialScrambler;
 $('#lesson-demo').onclick = (e) => {
   if (e.target.closest('[data-lesson-retry]')) newScramble();
 };
-function requestLessonScramble(request, previousScramble) {
-  const failed = () => {
-    if (request !== scrambleRequest || timerContext.kind !== 'lesson') return;
-    scramble = '';
-    scrambleKind = 'Scramble unavailable';
-    $('#fullscreen-scramble').textContent = 'Could not prepare a scramble.';
-    $('#scramble-type').textContent = scrambleKind;
-    $('#new-scramble').disabled = false;
-    if (!lessonDemo)
-      $('#lesson-demo').innerHTML =
-        '<p role="status">Could not prepare a scramble.</p><button type="button" class="small-button" data-lesson-retry>Try again</button>';
-  };
-  try {
-    lessonScrambler ||= new Worker('/lesson-scramble-worker.js', {
-      type: 'module',
-    });
-    lessonScrambler.onmessage = ({ data }) => {
-      if (data.request !== scrambleRequest || timerContext.kind !== 'lesson')
-        return;
-      if (data.error) {
-        failed();
-        return;
-      }
-      const exercise = data.exercise;
-      timerContext.exercise = Object.freeze({
-        ...exercise,
-        target: Object.freeze([...exercise.target]),
-      });
-      const oriented = lessonExercise();
-      scramble = oriented.scramble;
+function requestLessonScramble() {
+  lessonSession.prepare({
+    withDemo: !lessonDemo,
+    failed() {
+      scramble = '';
+      scrambleKind = 'Scramble unavailable';
+      $('#fullscreen-scramble').textContent = 'Could not prepare a scramble.';
+      $('#scramble-type').textContent = scrambleKind;
+      $('#new-scramble').disabled = false;
+      if (!lessonDemo)
+        $('#lesson-demo').innerHTML =
+          '<p role="status">Could not prepare a scramble.</p><button type="button" class="small-button" data-lesson-retry>Try again</button>';
+    },
+    ready(demoExercise) {
+      scramble = lessonExercise().scramble;
       scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
       scrambleLayoutKey = '';
       if (!lessonDemo) {
-        const lesson = LESSONS.find(
-          (item) => item.id === timerContext.lessonId,
-        );
+        const lesson = currentLesson();
         const selected = lesson.cases.find(
-          (item) => item.id === timerContext.demoCaseId,
+          (item) => item.id === lessonSession.context.demoCaseId,
         );
         lessonDemo = createLessonDemo($('#lesson-demo'), {
           ...lesson,
           case: orientLessonCase(
-            { ...selected, ...data.demoExercise },
+            { ...selected, ...demoExercise },
             settings.lessonOrientation,
           ),
         });
@@ -1017,31 +980,14 @@ function requestLessonScramble(request, previousScramble) {
       renderSteps();
       $('#new-scramble').disabled = false;
       $('#manual-entry').disabled = busy();
-    };
-    lessonScrambler.onerror = () => {
-      lessonScrambler?.terminate();
-      lessonScrambler = null;
-      failed();
-    };
-    lessonScrambler.postMessage({
-      request,
-      lessonId: timerContext.lessonId,
-      previousScramble,
-      withDemo: !lessonDemo,
-      caseIds: [...timerContext.caseIds],
-      demoCaseId: timerContext.demoCaseId,
-    });
-  } catch {
-    failed();
-  }
+    },
+  });
 }
 async function newScramble() {
   if (busy()) return;
   $('#cube-orientation').disabled = true;
   const req = ++scrambleRequest;
-  if (timerContext.kind === 'lesson') {
-    const previousScramble = timerContext.exercise?.scramble;
-    timerContext.exercise = null;
+  if (lessonSession.context.kind === 'lesson') {
     scramble = '';
     scrambleLayoutKey = '';
     $('#fullscreen-scramble').textContent = 'Preparing scramble…';
@@ -1049,8 +995,8 @@ async function newScramble() {
     $('#scramble-type').textContent = 'Preparing…';
     $('#new-scramble').disabled = true;
     $('#manual-entry').disabled = true;
+    requestLessonScramble();
     renderLessonAssistance();
-    requestLessonScramble(req, previousScramble);
     return;
   }
   normalScramble = null;
@@ -1165,18 +1111,20 @@ function showScramble({ animate = true } = {}) {
     scrambleKind === 'Random state',
   );
   try {
-    const exercise = timerContext.kind === 'lesson' ? lessonExercise() : null;
+    const exercise =
+      lessonSession.context.kind === 'lesson' ? lessonExercise() : null;
     $('#cube-preview').innerHTML = cubeSVG(
       exercise ? exercise.setup : scramble,
       {
         orientation: cubeOrientation(),
-        target: exercise && timerContext.assistance ? exercise.target : [],
+        target:
+          exercise && lessonSession.context.assistance ? exercise.target : [],
       },
     );
   } catch {
     $('#cube-preview').replaceChildren();
   }
-  if (animate && state !== 'running') {
+  if (animate && timing.state !== 'running') {
     motion.reveal($('#fullscreen-scramble'), { distance: 4 });
     motion.reveal($('#cube-preview'), {
       delay: 35,
@@ -1187,11 +1135,16 @@ function showScramble({ animate = true } = {}) {
 }
 $('#new-scramble').onclick = () => newScramble();
 function openDialog(id) {
-  if (state === 'running' || state === 'arming' || state === 'armed') return;
+  if (
+    timing.state === 'running' ||
+    timing.state === 'arming' ||
+    timing.state === 'armed'
+  )
+    return;
   $(id).showModal();
 }
 $('#open-settings').onclick = () => {
-  if (state === 'running') return;
+  if (timing.state === 'running') return;
   $('#preset').value = settings.preset;
   $('#custom-steps').value = settings.custom.join(', ');
   $('#custom-field').hidden = settings.preset !== 'custom';
@@ -1230,7 +1183,7 @@ $('#save-settings').onclick = () => {
         ? 'white-top'
         : 'white-bottom',
   };
-  splitMarks = [];
+  timer.reset();
   persist();
   $('#settings-dialog').close();
   refreshOrientation();
@@ -1252,9 +1205,11 @@ async function previewImport() {
     if (file.size > 5000000)
       throw Error('Please import a file smaller than 5 MB.');
     imported = parseCSV(decodeCSV(await file.arrayBuffer()));
-    const duplicates = imported.filter((s) => records.has(s.id)).length;
+    const duplicates = imported.filter(
+      (s) => records.has(s.id) || lessonAttempts.has(s.id),
+    ).length;
     $('#import-preview').textContent =
-      `${imported.length} solves found. ${duplicates} already in your history.`;
+      `${imported.length} solves and lesson attempts found. ${duplicates} already in your history.`;
     $('#import-preview').className = 'info-box';
     $('#confirm-import').disabled = imported.length === duplicates;
   } catch (e) {
@@ -1267,19 +1222,19 @@ $('#csv-file').onchange = previewImport;
 $('#confirm-import').onclick = () => {
   let count = 0;
   for (const s of imported)
-    if (!records.has(s.id)) {
-      records.set(s.id, s);
-      pending.set(s.id, s);
+    if (!(records.has(s.id) || lessonAttempts.has(s.id))) {
+      (s.lessonId ? lessonAttempts : records).set(s.id, s);
+      (s.lessonId ? pendingLessons : pending).set(s.id, s);
       count++;
     }
   persist();
   $('#import-dialog').close();
   render();
-  toast(`${count} solves imported. Duplicates skipped.`);
+  toast(`${count} solves and lesson attempts imported. Duplicates skipped.`);
   sync();
 };
 function openSolve(id) {
-  if (state === 'running') return;
+  if (timing.state === 'running') return;
   const s = records.get(id);
   if (!s || s.deleted) return;
   selected = { ...s, splits: s.splits.map((x) => ({ ...x })) };
@@ -1327,13 +1282,13 @@ document.addEventListener('click', (e) => {
   if (el) openSolve(el.dataset.id);
 });
 $('#manual-entry').onclick = () => {
-  if (timerContext.kind === 'lesson') return;
+  if (lessonSession.context.kind === 'lesson') return;
   $('#manual-time').value = '';
   $('#manual-error').textContent = '';
   openDialog('#manual-dialog');
 };
 $('#save-manual').onclick = () => {
-  if (timerContext.kind === 'lesson') return;
+  if (lessonSession.context.kind === 'lesson') return;
   try {
     const ms = parseTime($('#manual-time').value);
     saveAttempt(makeSolve(ms, [], true), snapshotAttempt());
@@ -1350,9 +1305,17 @@ $('#manual-time').onkeydown = (e) => {
   }
 };
 $('#export').onclick = () => {
-  const blob = new Blob(['\uFEFF' + exportCSV(all())], {
-      type: 'text/csv;charset=utf-8',
-    }),
+  const blob = new Blob(
+      [
+        '\uFEFF' +
+          exportCSV(
+            [...all(), ...lessonAttempts.values()].filter((s) => !s.deleted),
+          ),
+      ],
+      {
+        type: 'text/csv;charset=utf-8',
+      },
+    ),
     url = URL.createObjectURL(blob),
     a = document.createElement('a');
   a.href = url;
@@ -1367,9 +1330,9 @@ $('#sync-mobile').onclick = () => {
 window.addEventListener('online', sync);
 window.addEventListener('offline', () => syncService.offline());
 setInterval(() => {
-  if (!document.hidden && state !== 'running') sync();
+  if (!document.hidden && timing.state !== 'running') sync();
 }, 60000);
-const busy = () => ['running', 'arming', 'armed'].includes(state);
+const busy = () => timer.busy();
 initMobileNavigation({
   pages: $$('.sidebar nav [data-page]').map((button) => button.dataset.page),
   getPage: () => page,
@@ -1393,4 +1356,4 @@ newScramble();
 initConnection({ busy, sync, notify: toast });
 storageFeedback.render();
 sync();
-initPWA({ busy, notify: toast });
+initPWA({ busy: () => busy() || coordinatedStorage.busy, notify: toast });

@@ -4,6 +4,7 @@ test('keyboard timing saves one solve and restores it after reload', async ({pag
   await openApp(page, server);
   await startKeyboardSolve(page);
   await finishKeyboardSolve(page);
+  await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
   const {solves} = await storedState(page);
   expect(solves).toHaveLength(1);
   expect(solves[0].ms).toBeGreaterThanOrEqual(350);
@@ -57,7 +58,7 @@ test.describe('Chromium native touch input', () => {
     await touch('touchStart', [{id: 3, x: stopBox.x + stopBox.width / 2, y: stopBox.y + stopBox.height / 2}]);
     await touch('touchEnd', []);
     await expect(page.locator('#timer-card')).not.toHaveClass(/\brunning\b/);
-    expect((await storedState(page)).solves).toHaveLength(1);
+    await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
     const events = await page.evaluate(() => window.observedTouches);
     expect(events).toHaveLength(3);
     expect(events.every(event => event.trusted && event.type === 'touch')).toBe(true);

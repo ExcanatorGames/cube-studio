@@ -70,7 +70,9 @@ export function harness({
     demoDestroys = 0;
   const lessonRequests = [];
   const lessonMessages = [];
+  let latestLessonWorker;
   class Worker {
+    constructor() { latestLessonWorker = this; }
     postMessage(data) {
       lessonMessages.push(data);
       const caseId = data.caseIds[0],
@@ -215,7 +217,7 @@ export function harness({
     ...lessons,
     lessonCubeSVG,
     document,
-    navigator: { onLine: online },
+    navigator: { onLine: online, locks: { request: (_name, callback) => callback() } },
     fetch: fetchRequest,
     localStorage: {
       getItem: (k) => storage.get(k),
@@ -330,6 +332,7 @@ export function harness({
     intervals,
     lessonRequests,
     lessonMessages,
+    failLessonWorker: () => latestLessonWorker.onerror(),
     run: (code) => vm.runInContext(code, context),
     advance(ms) {
       now += ms;

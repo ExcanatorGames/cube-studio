@@ -1,1 +1,1 @@
-{"version":"7","dialect":"sqlite","entries":[{"idx":0,"version":"6","when":1792866000000,"tag":"0000_solves","breakpoints":true},{"idx":1,"version":"6","when":1792880548789,"tag":"0001_all_solves_equal","breakpoints":true}]}
+{"version": "7", "dialect": "sqlite", "entries": [{"idx": 0, "version": "6", "when": 1792866000000, "tag": "0000_solves", "breakpoints": true}, {"idx": 1, "version": "6", "when": 1792880548789, "tag": "0001_all_solves_equal", "breakpoints": true}, {"idx": 2, "version": "6", "when": 1793044800000, "tag": "0002_lesson_attempts", "breakpoints": true}]}
