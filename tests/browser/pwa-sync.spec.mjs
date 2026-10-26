@@ -1,0 +1,91 @@
+import {test, expect, openApp, startKeyboardSolve, finishKeyboardSolve, showHistory, storedState, connect} from './fixtures.mjs';
+
+test('a closed tab reopens offline from the service worker with its saved history', async ({page, context, server}) => {
+  await openApp(page, server);
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  const saved = (await storedState(page)).solves;
+  await page.close();
+  await context.setOffline(true);
+  const reopened = await context.newPage();
+  const response = await reopened.goto(server.url);
+  expect(response.fromServiceWorker()).toBe(true);
+  await expect(reopened.locator('#new-scramble')).toBeEnabled();
+  await showHistory(reopened);
+  await expect(reopened.locator('#history-body [data-id]')).toHaveCount(1);
+  expect((await storedState(reopened)).solves).toEqual(saved);
+  await reopened.getByRole('button', {name: 'Timer', exact: true}).click();
+  await startKeyboardSolve(reopened);
+  await finishKeyboardSolve(reopened);
+  expect((await storedState(reopened)).solves).toHaveLength(2);
+  await expect(reopened.locator('#mobile-sync')).toHaveText('2 saved offline');
+});
+
+test('a real waiting service worker updates only between solves and preserves the result', async ({page, server}) => {
+  await openApp(page, server);
+  server.deployUpdate();
+  await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+  await expect(page.locator('#update-app')).toBeVisible();
+  await page.locator('#timer-pad').focus();
+  await page.keyboard.down('Space');
+  await expect(page.locator('#timer-card')).toHaveClass(/\barmed\b/);
+  await page.locator('#update-app').click();
+  await expect(page.locator('#toast')).toHaveText('Finish or cancel your solve before updating.');
+  await page.keyboard.up('Space');
+  await expect(page.locator('#timer-card')).toHaveClass(/\brunning\b/);
+  await page.locator('#focus').click();
+  await page.locator('#update-app').click();
+  await expect(page.locator('#toast')).toHaveText('Finish or cancel your solve before updating.');
+  expect(await page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()).waiting)).toBe(true);
+  expect(await page.evaluate(() => caches.keys())).toContain('cube-studio-browser-1');
+  await page.locator('#timer-pad').focus();
+  await finishKeyboardSolve(page);
+  const saved = (await storedState(page)).solves;
+  await Promise.all([page.waitForEvent('load'), page.locator('#update-app').click()]);
+  await expect(page.locator('#new-scramble')).toBeEnabled();
+  await expect(page.locator('#update-app')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['cube-studio-browser-2']);
+  await showHistory(page);
+  await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
+  expect((await storedState(page)).solves).toEqual(saved);
+});
+
+test('offline pending solves survive reload and upload automatically on reconnect', async ({page, context, server}) => {
+  await openApp(page, server);
+  await connect(page);
+  await context.setOffline(true);
+  await expect(page.locator('#mobile-sync')).toHaveText('Offline');
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect(page.locator('#mobile-sync')).toHaveText('1 saved offline');
+  const saved = (await storedState(page)).solves;
+  expect(server.solves()).toHaveLength(0);
+  await page.reload();
+  expect((await storedState(page)).pending).toHaveLength(1);
+  await context.setOffline(false);
+  await expect.poll(() => server.solves()).toEqual(saved);
+  await expect.poll(async () => (await storedState(page)).pending).toEqual([]);
+  await expect(page.locator('#sync-attention')).toBeHidden();
+  expect(server.requests.some(request => request.method === 'POST' && request.status === 200)).toBe(true);
+  await page.reload();
+  await showHistory(page);
+  await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
+  expect(server.solves()).toHaveLength(1);
+});
+
+test('a rejected upload keeps its pending record until manual retry succeeds', async ({page, server}) => {
+  await openApp(page, server);
+  await connect(page);
+  server.rejectNextUploads();
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect(page.locator('#mobile-sync')).toHaveText('1 saved on device · sync failed');
+  expect((await storedState(page)).pending).toHaveLength(1);
+  expect(server.solves()).toHaveLength(0);
+  await page.locator('#focus').click();
+  await page.getByRole('button', {name: 'Retry sync'}).click();
+  await expect(page.locator('#sync-attention')).toBeHidden();
+  expect((await storedState(page)).pending).toEqual([]);
+  expect(server.solves()).toHaveLength(1);
+  expect(server.requests.filter(request => request.method === 'POST').map(request => request.status)).toEqual([503, 200]);
+});

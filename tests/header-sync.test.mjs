@@ -138,7 +138,7 @@ test('auth failures show Connect only, while setup and network failures expose r
     assert.equal(h.element('#mobile-sync').hidden,false);
     assert.equal(h.element('#connect-sync').hidden,!auth);
     assert.equal(h.element('#sync-mobile').hidden,auth);
-    fail=false;h.run('lastSync=0');h.listeners.get('document:visibilitychange')();await flush();assertHealthy(h);
+    fail=false;h.listeners.get('document:visibilitychange')();await flush();assertHealthy(h);
   }
 });
 
