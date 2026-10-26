@@ -24,6 +24,102 @@ function memory(raw) {
   };
 }
 
+test('recovery uses trustworthy same-version fields without rolling history backward', () => {
+  const cases = [
+    {
+      name: 'history note',
+      history: { note: {} },
+      queued: {},
+      note: 'Keep this',
+      pendingNote: 'Keep this',
+    },
+    {
+      name: 'queued note',
+      history: {},
+      queued: { note: {} },
+      note: 'Keep this',
+      pendingNote: 'Keep this',
+    },
+    {
+      name: 'both notes damaged',
+      history: { note: {} },
+      queued: { note: {} },
+      note: '',
+      pendingNote: '',
+    },
+    {
+      name: 'intentional empty note',
+      history: { note: '' },
+      queued: {},
+      note: '',
+      pendingNote: 'Keep this',
+    },
+    {
+      name: 'older pending',
+      history: { note: {}, updatedAt: 2 },
+      queued: {},
+      note: '',
+      pendingNote: 'Keep this',
+    },
+    {
+      name: 'newer pending',
+      history: { note: {} },
+      queued: { note: 'New note', updatedAt: 2, deleted: true },
+      note: 'New note',
+      pendingNote: 'New note',
+      deleted: true,
+    },
+    {
+      name: 'newer damaged pending',
+      history: {},
+      queued: { note: {}, updatedAt: 2 },
+      note: '',
+      pendingNote: '',
+    },
+    {
+      name: 'untrusted history version',
+      history: { note: {}, updatedAt: 'invalid' },
+      queued: { updatedAt: Date.parse(solve.date) },
+      note: '',
+      pendingNote: 'Keep this',
+    },
+    {
+      name: 'untrusted pending version',
+      history: { note: {}, updatedAt: Date.parse(solve.date) },
+      queued: { updatedAt: 'invalid' },
+      note: '',
+      pendingNote: 'Keep this',
+    },
+  ];
+  for (const c of cases) {
+    const input = {
+      solves: [{ ...solve, ...c.history }],
+      pending: [{ ...solve, ...c.queued }],
+    };
+    const raw = JSON.stringify(input);
+    const storage = memory(raw);
+    const device = createDeviceStorage({ storage });
+    const { snapshot, state } = device.read();
+    assert.equal(snapshot.solves[0].note, c.note, c.name);
+    assert.equal(snapshot.pending[0].note, c.pendingNote, c.name);
+    assert.equal(snapshot.solves[0].deleted, c.deleted, c.name);
+    assert.equal(snapshot.pending.length, 1, c.name);
+    assert.equal(storage.getItem(key), raw, c.name);
+    assert.deepEqual(device.read().snapshot, snapshot, c.name);
+    if (state.recovery) {
+      assert.equal(state.recovery.raw, raw, c.name);
+      assert.ok(state.recovery.issues.length, c.name);
+      assert.equal(device.write(input).ok, false, c.name);
+      assert.equal(device.write(snapshot).ok, true, c.name);
+      assert.equal(
+        storage.getItem(device.getState().recovery.backupKey),
+        raw,
+        c.name,
+      );
+    }
+  }
+});
+
 test('malformed JSON and root/collection shapes recover without overwriting the original', () => {
   for (const raw of [
     '{',
@@ -43,6 +139,24 @@ test('malformed JSON and root/collection shapes recover without overwriting the 
     assert.equal(state.persisted, false);
     assert.equal(state.recovery.raw, raw);
     assert.equal(storage.getItem(key), raw);
+  }
+});
+
+test('equal-version copies restore complementary damaged fields and retain deletion', () => {
+  const device = createDeviceStorage({
+    storage: memory(
+      JSON.stringify({
+        solves: [{ ...solve, note: {}, deleted: true }],
+        pending: [{ ...solve, splits: [null], deleted: 'damaged' }],
+      }),
+    ),
+  });
+  const { snapshot } = device.read();
+  for (const record of [snapshot.solves[0], snapshot.pending[0]]) {
+    assert.equal(record.note, solve.note);
+    assert.deepEqual(record.splits, solve.splits);
+    assert.equal(record.deleted, true);
+    assert.equal(record.updatedAt, solve.updatedAt);
   }
 });
 

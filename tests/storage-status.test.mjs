@@ -60,3 +60,43 @@ test('recovery retains valid history beside invalid records', () => {
   assert.match(h.element('#history-body').innerHTML, /12\.34/);
   assert.equal(h.element('#storage-warning').hidden, false);
 });
+
+test('an intact pending copy restores damaged history before a user edits it', () => {
+  const intact = { ...savedSolve, note: 'Preserve my practice note' };
+  const h = harness({
+    saved: {
+      solves: [{ ...intact, note: { damaged: true } }],
+      pending: [intact],
+    },
+  });
+  h.run(`openSolve(${JSON.stringify(intact.id)})`);
+  assert.equal(h.element('#solve-note').value, intact.note);
+  h.element('#save-solve').onclick();
+  const stored = JSON.parse(h.storage.get('cube-studio-v1'));
+  assert.equal(stored.solves[0].note, intact.note);
+  assert.equal(stored.pending[0].note, intact.note);
+});
+
+test('switching away from an invalid custom-step draft cannot poison later saves', () => {
+  const accepted = ['First phase', 'Second phase'];
+  for (const preset of ['beginner', 'cfop']) {
+    for (const draft of [
+      Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '),
+      'x'.repeat(51) + ', Finish',
+    ]) {
+      const h = harness({ saved: { settings: { custom: accepted } } });
+      h.element('#open-settings').onclick();
+      h.element('#preset').value = 'custom';
+      h.element('#preset').onchange();
+      h.element('#custom-steps').value = draft;
+      h.element('#preset').value = preset;
+      h.element('#preset').onchange();
+      h.element('#save-settings').onclick();
+      addTime(h);
+      assert.equal(h.element('#storage-warning').hidden, true);
+      const stored = JSON.parse(h.storage.get('cube-studio-v1'));
+      assert.equal(stored.solves.length, 1);
+      assert.deepEqual(stored.settings.custom, accepted);
+    }
+  }
+});

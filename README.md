@@ -69,6 +69,8 @@ The browser keeps a local copy and pending writes in localStorage, retries on re
 
 If device storage fails, a persistent warning replaces any claim that data is saved locally. Keep the page open and use **Retry saving** or **Download recovery data**. Startup validation retains usable records from damaged data and backs up the original contents before replacing them. The recovery JSON includes current solves, lesson attempts, settings, and the exact damaged contents when available; keep it for recovery (it is not a CSV import). If a blocked read later succeeds, retry merges existing history with work recorded in the meantime.
 
+Use one active tab per device. Local snapshots do not coordinate simultaneous writes across tabs, so one tab can overwrite another tab's unsynced changes.
+
 ## Hosting
 
 Copy `wrangler.example.jsonc` to ignored `wrangler.jsonc`, create a Cloudflare D1 database and enter its ID, then run `npm run deploy:cloudflare`. Run `npm run setup:sync -- --url https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev` to set up a private sync code for your deployment. See [CLOUDFLARE.md](CLOUDFLARE.md) for the full setup.

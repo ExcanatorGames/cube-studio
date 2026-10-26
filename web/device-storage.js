@@ -11,7 +11,7 @@ const defaults = () => ({
   lessonOrientation: 'white-bottom',
 });
 
-function record(value, path, issues, lesson) {
+function record(value, path, issues, lesson, checks) {
   if (
     !isObject(value) ||
     !nonempty(value.id) ||
@@ -28,9 +28,16 @@ function record(value, path, issues, lesson) {
     return null;
   }
   const result = { ...value, trust: 'confirmed', usedScramble: true };
+  const damagedFields = new Set(),
+    validFields = new Set();
   const field = (name, valid, fallback) => {
-    if (!valid(value[name])) {
-      if (value[name] !== undefined) issues.push(`${path}.${name}`);
+    if (valid(value[name])) {
+      validFields.add(name);
+    } else {
+      if (value[name] !== undefined) {
+        issues.push(`${path}.${name}`);
+        damagedFields.add(name);
+      }
       result[name] = fallback;
     }
   };
@@ -60,11 +67,17 @@ function record(value, path, issues, lesson) {
     [],
   );
   if (lesson) field('completion', nonempty, 'full-cube');
+  checks.set(result, {
+    damagedFields,
+    validFields,
+    originalVersion: validFields.has('updatedAt') ? value.updatedAt : null,
+  });
   return result;
 }
 
 function validate(value) {
   const issues = [];
+  const checks = new Map();
   if (!isObject(value)) {
     issues.push('root');
     value = {};
@@ -76,7 +89,13 @@ function validate(value) {
     snapshot[name] = Array.isArray(value[name])
       ? value[name]
           .map((item, i) =>
-            record(item, `${name}[${i}]`, issues, name === 'lessonAttempts'),
+            record(
+              item,
+              `${name}[${i}]`,
+              issues,
+              name === 'lessonAttempts',
+              checks,
+            ),
           )
           .filter(Boolean)
       : [];
@@ -121,7 +140,38 @@ function validate(value) {
       );
     }
   }
-  return { snapshot, issues };
+  return { snapshot, issues, checks };
+}
+
+function reconcileRecovery(snapshot, checks) {
+  const history = new Map(snapshot.solves.map((s) => [s.id, s]));
+  for (const pending of snapshot.pending) {
+    const saved = history.get(pending.id);
+    if (!saved) continue;
+    const a = checks.get(saved),
+      b = checks.get(pending);
+    if (!a.damagedFields.size && !b.damagedFields.size) continue;
+    if (a.originalVersion === null || b.originalVersion === null) continue;
+    if (b.originalVersion > a.originalVersion) {
+      history.set(pending.id, pending);
+    } else if (a.originalVersion === b.originalVersion) {
+      for (const [target, source, targetCheck, sourceCheck] of [
+        [saved, pending, a, b],
+        [pending, saved, b, a],
+      ]) {
+        for (const name of targetCheck.damagedFields) {
+          if (!sourceCheck.validFields.has(name)) continue;
+          if (
+            name === 'splits' &&
+            source[name].some((step) => step.ms > target.ms)
+          )
+            continue;
+          target[name] = source[name];
+        }
+      }
+    }
+  }
+  snapshot.solves = [...history.values()];
 }
 
 /**
@@ -184,7 +234,8 @@ export function createDeviceStorage({ storage, key = 'cube-studio-v1' } = {}) {
         parseFailed = true;
       }
     }
-    const { snapshot, issues } = validate(value);
+    const { snapshot, issues, checks } = validate(value);
+    if (issues.length) reconcileRecovery(snapshot, checks);
     if (parseFailed) issues.unshift('json');
     cached = snapshot;
     loaded = true;

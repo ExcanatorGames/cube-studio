@@ -7,6 +7,32 @@ import {
   showHistory,
 } from './fixtures.mjs';
 
+test('discarding an invalid custom-step draft allows the next solve to persist', async ({
+  page,
+  server,
+}) => {
+  await openApp(page, server);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page
+    .locator('#settings-dialog')
+    .getByLabel('Split method')
+    .selectOption('custom');
+  await page
+    .getByLabel('Splits, separated by commas')
+    .fill(Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '));
+  await page
+    .locator('#settings-dialog')
+    .getByLabel('Split method')
+    .selectOption('beginner');
+  await page.locator('#save-settings').click();
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect(page.locator('#storage-warning')).toBeHidden();
+  await page.reload();
+  await showHistory(page);
+  await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
+});
+
 test('failed local writes show an unsaved warning and retry preserves the solve after reopening', async ({
   page,
   server,

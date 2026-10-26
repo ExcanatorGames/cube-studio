@@ -1203,12 +1203,16 @@ $('#preset').onchange = () =>
   ($('#custom-field').hidden = $('#preset').value !== 'custom');
 $('#save-settings').onclick = () => {
   if (busy()) return;
-  const custom = $('#custom-steps')
-    .value.split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const preset = $('#preset').value;
+  const custom =
+    preset === 'custom'
+      ? $('#custom-steps')
+          .value.split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : settings.custom;
   if (
-    $('#preset').value === 'custom' &&
+    preset === 'custom' &&
     (custom.length < 2 ||
       custom.length > 12 ||
       custom.some((x) => x.length > 50))
@@ -1218,7 +1222,7 @@ $('#save-settings').onclick = () => {
   }
   settings = {
     ...settings,
-    preset: $('#preset').value,
+    preset,
     custom,
     hold: Number($('#hold-duration').value),
     lessonOrientation:
