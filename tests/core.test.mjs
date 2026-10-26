@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {parseTime,parseCSV,exportCSV,summary,average,decodeCSV,practiceScramble,formatTime} from '../web/core.js';
 import {validSolve} from '../worker/index.js';
 const seed=[45000,60000,75000].map((ms,i)=>({id:`fixture-${i}`,date:new Date(Date.UTC(2026,0,i+1)).toISOString(),ms,penalty:'none',scramble:'R U2',trust:'confirmed',usedScramble:true,splits:[],note:'',updatedAt:Date.UTC(2026,0,i+1)}));
+test('mixed CSV backups preserve lesson identity and reject incomplete lesson metadata', () => {
+  const lesson = { ...seed[0], id: 'practice', lessonId: '13', caseId: 'ready-right', completion: 'insertion', note: 'Practice, with a note' };
+  const restored = parseCSV(exportCSV([...seed, lesson]));
+  assert.equal(restored.length, 4);
+  const practice = restored.find(s => s.id === lesson.id);
+  for (const key of ['id', 'ms', 'scramble', 'note', 'lessonId', 'caseId', 'completion']) assert.equal(practice[key], lesson[key]);
+  assert.equal(restored.filter(s => !s.lessonId).length, 3);
+  assert.throws(() => parseCSV(exportCSV([{ ...lesson, caseId: '' }])), /Invalid lesson metadata/);
+});
 test('CSV imports preserve every example solve with equal standing',()=>{const imported=parseCSV(exportCSV(seed));assert.equal(imported.length,seed.length);assert.equal(new Set(imported.map(s=>s.id)).size,seed.length);assert.ok(imported.every(s=>s.trust==='confirmed'&&s.usedScramble===true));assert.ok(imported.every(validSolve));for(const s of imported){const original=seed.find(x=>x.id===s.id);assert.equal(s.ms,original.ms);assert.equal(s.date,original.date);}});
 test('time parsing and centisecond display across minute boundaries',()=>{assert.equal(parseTime('01:14.70'),74700);assert.equal(parseTime('59.18'),59180);assert.equal(parseTime('1:02:03.125'),3723125);assert.equal(formatTime(59999),'1:00.00');assert.equal(formatTime(65306.666),'1:05.31');assert.throws(()=>parseTime('1:99'));assert.throws(()=>parseTime('0'));assert.throws(()=>parseTime('abc'));});
 test('trimmed averages include penalties and handle DNF correctly',()=>{const s=(n,p='none')=>({ms:n*1000,penalty:p});assert.equal(average([s(10),s(11),s(12),s(13),s(14)],5),12000);assert.equal(average([s(10),s(11),s(12),s(13),s(14,'dnf')],5),12000);assert.equal(average([s(10),s(11),s(12),s(13,'dnf'),s(14,'dnf')],5),Infinity);assert.equal(average([s(10),s(11,'+2'),s(12),s(13),s(14)],5),12666.666666666666);assert.equal(average([],5),null);assert.equal(summary([s(1),s(2,'dnf'),s(3)]).mean,2000);});

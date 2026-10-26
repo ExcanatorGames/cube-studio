@@ -14,6 +14,7 @@ export async function startBrowserServer() {
   const directory = await mkdtemp(join(tmpdir(), 'cube-browser-'));
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE solves (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)');
+db.exec('CREATE TABLE IF NOT EXISTS lesson_attempts (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);');
   const env = {
     SYNC_CODE_HASH: await hashSyncCode(SYNC_CODE),
     DB: {
@@ -105,6 +106,7 @@ export async function startBrowserServer() {
     deployUpdate() { version++; },
     rejectNextUploads(count = 1) { rejectedUploads = count; },
     solves() { return db.prepare('SELECT data FROM solves').all().map(row => JSON.parse(row.data)); },
+    lessonAttempts() { return db.prepare('SELECT data FROM lesson_attempts').all().map(row => JSON.parse(row.data)); },
     async close() {
       const closed = new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
       server.closeAllConnections();

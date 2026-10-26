@@ -83,7 +83,12 @@ function validate(value) {
     value = {};
   }
   const snapshot = { ...value };
-  for (const name of ['solves', 'pending', 'lessonAttempts']) {
+  for (const name of [
+    'solves',
+    'pending',
+    'lessonAttempts',
+    'pendingLessons',
+  ]) {
     if (value[name] !== undefined && !Array.isArray(value[name]))
       issues.push(name);
     snapshot[name] = Array.isArray(value[name])
@@ -93,7 +98,7 @@ function validate(value) {
               item,
               `${name}[${i}]`,
               issues,
-              name === 'lessonAttempts',
+              name === 'lessonAttempts' || name === 'pendingLessons',
               checks,
             ),
           )
@@ -144,34 +149,39 @@ function validate(value) {
 }
 
 function reconcileRecovery(snapshot, checks) {
-  const history = new Map(snapshot.solves.map((s) => [s.id, s]));
-  for (const pending of snapshot.pending) {
-    const saved = history.get(pending.id);
-    if (!saved) continue;
-    const a = checks.get(saved),
-      b = checks.get(pending);
-    if (!a.damagedFields.size && !b.damagedFields.size) continue;
-    if (a.originalVersion === null || b.originalVersion === null) continue;
-    if (b.originalVersion > a.originalVersion) {
-      history.set(pending.id, pending);
-    } else if (a.originalVersion === b.originalVersion) {
-      for (const [target, source, targetCheck, sourceCheck] of [
-        [saved, pending, a, b],
-        [pending, saved, b, a],
-      ]) {
-        for (const name of targetCheck.damagedFields) {
-          if (!sourceCheck.validFields.has(name)) continue;
-          if (
-            name === 'splits' &&
-            source[name].some((step) => step.ms > target.ms)
-          )
-            continue;
-          target[name] = source[name];
+  for (const [collection, queue] of [
+    ['solves', 'pending'],
+    ['lessonAttempts', 'pendingLessons'],
+  ]) {
+    const history = new Map(snapshot[collection].map((s) => [s.id, s]));
+    for (const pending of snapshot[queue]) {
+      const saved = history.get(pending.id);
+      if (!saved) continue;
+      const a = checks.get(saved),
+        b = checks.get(pending);
+      if (!a.damagedFields.size && !b.damagedFields.size) continue;
+      if (a.originalVersion === null || b.originalVersion === null) continue;
+      if (b.originalVersion > a.originalVersion) {
+        history.set(pending.id, pending);
+      } else if (a.originalVersion === b.originalVersion) {
+        for (const [target, source, targetCheck, sourceCheck] of [
+          [saved, pending, a, b],
+          [pending, saved, b, a],
+        ]) {
+          for (const name of targetCheck.damagedFields) {
+            if (!sourceCheck.validFields.has(name)) continue;
+            if (
+              name === 'splits' &&
+              source[name].some((step) => step.ms > target.ms)
+            )
+              continue;
+            target[name] = source[name];
+          }
         }
       }
     }
+    snapshot[collection] = [...history.values()];
   }
-  snapshot.solves = [...history.values()];
 }
 
 /**
@@ -211,8 +221,9 @@ export function createDeviceStorage({ storage, key = 'cube-studio-v1' } = {}) {
       ? { ...state.recovery, issues: [...state.recovery.issues] }
       : null,
   });
-  function read() {
-    if (loaded) return { snapshot: structuredClone(cached), state: getState() };
+  function read({ fresh = false } = {}) {
+    if (loaded && !fresh)
+      return { snapshot: structuredClone(cached), state: getState() };
     let raw;
     try {
       raw = getStorage().getItem(key);
@@ -240,12 +251,12 @@ export function createDeviceStorage({ storage, key = 'cube-studio-v1' } = {}) {
     cached = snapshot;
     loaded = true;
     state = {
-      status: issues.length ? 'recovered' : 'ready',
+      status: issues.length || state.recovery ? 'recovered' : 'ready',
       persisted: !issues.length,
       error: null,
       recovery: issues.length
         ? { raw, issues, backupKey: null, backedUp: false }
-        : null,
+        : state.recovery,
     };
     return { snapshot: structuredClone(cached), state: getState() };
   }
@@ -308,5 +319,13 @@ export function createDeviceStorage({ storage, key = 'cube-studio-v1' } = {}) {
     };
     return { ok: true, state: getState() };
   }
-  return { read, write, getState };
+  return {
+    read,
+    write,
+    getState,
+    fail,
+    unsaved() {
+      state.persisted = false;
+    },
+  };
 }

@@ -20,7 +20,7 @@ A personal 3×3 timer with phone and desktop layouts, two-finger start, keyboard
 - Time and split charts use chronological solve numbers on the x-axis, with dates available in point details. The header shows Update only when an app update is ready; it reloads after applying the update between solves.
 - Filtered charts use earlier hidden solves to calculate ao12 from the first visible point whenever enough history exists. Split means begin at the first recorded point and average up to five matching recordings, including earlier hidden history. Distribution groups the selected solves into five-second buckets.
 - Split progress cards compare mean step durations across the same groups as the main stats, showing percentage and seconds gained or lost when a valid baseline exists. The large time remains the latest recorded split.
-- Export includes IDs, exact milliseconds, penalties, step splits, and notes. Reimporting the export skips duplicate IDs.
+- Export includes normal solves and lesson attempts, with IDs, exact milliseconds, penalties, step splits, notes, and lesson/case/completion metadata. Reimporting restores lesson attempts to practice history and skips duplicate IDs. Older CSV files without lesson columns still import as normal solves.
 
 ## Run locally
 
@@ -63,13 +63,15 @@ Random-state scrambles use [cubing.js](https://js.cubing.net/cubing/scramble/). 
 
 ## Data and sync
 
-Cloud sync is protected by a private sync code. D1 stores individual solve updates and deletion tombstones. Writes are idempotent, with newer timestamps winning for edits to the same solve. Independent solves from different devices are merged. Device clocks should be correct when editing the same solve from multiple devices.
+Cloud sync is protected by a private sync code. D1 stores individual solve updates and deletion tombstones. Lesson attempts sync through a separate collection and never enter normal solve statistics. Existing local lesson history is queued for upload automatically. Writes are idempotent, with newer timestamps winning for edits to the same solve. Independent solves from different devices are merged. Device clocks should be correct when editing the same solve from multiple devices.
 
 The browser keeps a local copy and pending writes in localStorage, retries on reconnection and every minute while visible and idle, and exposes a manual sync button. Storage failures are surfaced; export a backup before clearing browser data. Device settings stay local. The Cloudflare PWA also caches app files for offline reopening after the first online visit.
 
 If device storage fails, a persistent warning replaces any claim that data is saved locally. Keep the page open and use **Retry saving** or **Download recovery data**. Startup validation retains usable records from damaged data and backs up the original contents before replacing them. The recovery JSON includes current solves, lesson attempts, settings, and the exact damaged contents when available; keep it for recovery (it is not a CSV import). If a blocked read later succeeds, retry merges existing history with work recorded in the meantime.
 
-Use one active tab per device. Local snapshots do not coordinate simultaneous writes across tabs, so one tab can overwrite another tab's unsynced changes.
+Tabs coordinate snapshot writes with a shared Web Lock (or an IndexedDB transaction when Web Locks are unavailable). Each save rereads storage and merges records, deletion tombstones, pending upload acknowledgements, and changed settings before writing. Idle tabs refresh when another tab saves. Keep a page open if a storage warning is visible; closing while a save is queued asks the browser to warn you. Tabs running an older app version must be updated before using multiple tabs together.
+
+The timer state machine lives in `web/timer-session.js`; lesson selection, practice filtering, and scramble-worker lifetime live in `web/lesson-session.js`. `app.js` connects those modules to the UI. Cloud deployments apply `0002_lesson_attempts.sql` through the existing deployment command before deploying the new worker.
 
 ## Hosting
 

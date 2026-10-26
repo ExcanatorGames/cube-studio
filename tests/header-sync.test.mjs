@@ -80,10 +80,10 @@ test('swipe navigation includes restored lessons and preserves the shared timer 
 test('startup and healthy periodic background refreshes never show sync status or retry',async()=>{
   let next=deferred(),calls=0;
   const h=harness({online:true,fetch:()=>{calls++;return next.promise;}});
-  assert.equal(calls,1);assertHealthy(h);
+  await flush();assert.equal(calls,1);assertHealthy(h);
   next.resolve(response());await flush();assertHealthy(h);
   next=deferred();h.intervals.find(i=>i.ms===60000).fn();
-  assert.equal(calls,2);assertHealthy(h);
+  await flush();assert.equal(calls,3);assertHealthy(h);
   next.resolve(response());await flush();assertHealthy(h);
 });
 
@@ -154,7 +154,7 @@ test('saves and edits during an upload drain automatically without parallel requ
       return response();
     }finally{active--;}
   }});
-  await flush();saveManual(h);
+  await flush();saveManual(h);await flush();
   const first=uploads[0][0];h.run(`openSolve(${JSON.stringify(first.id)})`);
   h.element('#solve-note').value='Changed during upload';h.element('#save-solve').onclick();
   saveManual(h,'15.67');assert.equal(uploads.length,1);
@@ -171,8 +171,8 @@ test('a connection change during a failing request gets one queued retry and rep
     const first=deferred();let calls=0;
     const h=harness({online:true,fetch:async()=>++calls===1?first.promise:response(recovered?200:500)});
     h.listeners.get('window:online')();h.listeners.get('window:online')();
-    assert.equal(calls,1);
-    first.resolve(response(401));await flush();assert.equal(calls,2);
+    await flush();assert.equal(calls,1);
+    first.resolve(response(401));await flush();assert.equal(calls,recovered?3:2);
     if(recovered)assertHealthy(h);
     else{assert.equal(h.element('#sync-mobile').hidden,false);assert.equal(h.element('#sync-mobile').disabled,false);}
   }

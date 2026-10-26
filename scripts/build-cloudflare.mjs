@@ -2,7 +2,7 @@ import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {generateIcons} from './icons.mjs';
 import {readPrivateSeed} from './private-seed.mjs';
-const out='dist/cloudflare',shell=['index.html','style.css','dark.css','app.js','dom.js','device-storage.js','storage-feedback.js','sync.js','solve-views.js','lesson-presentation.js','timer-input.js','motion.js','mobile-navigation.js','core.js','cube.js','lessons.js','lesson-view.js','lesson-cube.js','lesson-scrambler.js','lesson-scramble-worker.js','cube-solver.js','lessons.css','split-charts.js','solve-feedback.js','pwa.js','connect.js','manifest.webmanifest'];
+const out='dist/cloudflare',shell=['index.html','style.css','dark.css','coordinated-storage.js','timer-session.js','lesson-session.js','app.js','dom.js','device-storage.js','storage-feedback.js','sync.js','solve-views.js','lesson-presentation.js','timer-input.js','motion.js','mobile-navigation.js','core.js','cube.js','lessons.js','lesson-view.js','lesson-cube.js','lesson-scrambler.js','lesson-scramble-worker.js','cube-solver.js','lessons.css','split-charts.js','solve-feedback.js','pwa.js','connect.js','manifest.webmanifest'];
 await mkdir(`${out}/public`,{recursive:true});
 for(const file of shell)await cp(`web/${file}`,`${out}/public/${file}`);
 await generateIcons(`${out}/public/icons`);

@@ -22,10 +22,10 @@ test('timer orientation updates the preview, persists, and stays separate from l
   h.element('#cube-orientation').onclick();
   assert.equal(h.run('settings.lessonOrientation'),'white-top');
   assert.equal(h.run('settings.orientation'),'white-bottom');
-  assert.equal(h.run('scramble'),h.run('timerContext.exercise.scramble'));
+  assert.equal(h.run('scramble'),h.run('lessonSession.context.exercise.scramble'));
   h.element('#lesson-help').onclick();
-  assert.equal(h.element('#lesson-solution strong').textContent,orientAlgorithm(h.run('timerContext.exercise.solution'),'white-bottom','white-top'));
-  assert.ok(h.run('timerContext.exercise.solution').length);
+  assert.equal(h.element('#lesson-solution strong').textContent,orientAlgorithm(h.run('lessonSession.context.exercise.solution'),'white-bottom','white-top'));
+  assert.ok(h.run('lessonSession.context.exercise.solution').length);
   assert.match(h.element('#cube-preview').innerHTML,/white on top and green in front/);
   h.run("setPage('timer')");
   assert.equal(h.element('#cube-orientation').textContent,'White ↓');
@@ -48,12 +48,12 @@ test('new timer scrambles use the selected frame once and survive visits to less
 
 test('lesson scrambles and previews use the same U/F/R frame in both orientations',()=>{
   const h=harness();h.run("setPage('lessons');openLesson('13')");
-  const original=h.run('timerContext.exercise');
+  const original=h.run('lessonSession.context.exercise');
   for(const orientation of ['white-bottom','white-top','white-bottom']){
     if(h.run('cubeOrientation()')!==orientation)h.element('#cube-orientation').onclick();
     const displayed=h.run('scramble');
     assert.equal(h.element('#cube-preview').innerHTML,cubeSVG(displayed,{orientation}));
-    assert.equal(h.run('timerContext.exercise'),original);
+    assert.equal(h.run('lessonSession.context.exercise'),original);
     assert.equal(displayed,orientation==='white-bottom'?original.setup:original.scramble);
   }
 });
@@ -61,12 +61,12 @@ test('lesson scrambles and previews use the same U/F/R frame in both orientation
 test('lesson preference in Settings applies to the current exercise and persists independently',()=>{
   const h=harness();
   h.run("setPage('lessons');openLesson('13')");
-  const canonical=h.run('timerContext.exercise');
+  const canonical=h.run('lessonSession.context.exercise');
   h.element('#open-settings').onclick();
   assert.equal(h.element('#lesson-orientation').value,'white-bottom');
   h.element('#lesson-orientation').value='white-top';
   h.element('#save-settings').onclick();
-  assert.equal(h.run('timerContext.exercise'),canonical);
+  assert.equal(h.run('lessonSession.context.exercise'),canonical);
   assert.equal(h.run('scramble'),canonical.scramble);
   assert.equal(h.run('settings.orientation'),'white-top');
   assert.equal(h.element('#cube-orientation').textContent,'White ↑');
@@ -85,7 +85,7 @@ test('orientation is locked while arming and timing, including lesson practice',
     h.arm();h.run('start()');
     h.element('#cube-orientation').onclick();
     assert.equal(h.run('cubeOrientation()'),original);
-    assert.equal(h.run('activeAttempt.scramble'),scramble);
+    assert.equal(h.run('timing.activeAttempt.scramble'),scramble);
     assert.equal(h.element('#cube-orientation').disabled,true);
     h.run('cancel()');
     assert.equal(h.element('#cube-orientation').disabled,false);
@@ -101,6 +101,6 @@ test('pending lesson requests use the latest preference and cannot be toggled ea
   assert.equal(h.run('scramble'),'');
   h.lessonRequests[0]();
   assert.equal(h.element('#cube-orientation').disabled,false);
-  assert.equal(h.run('scramble'),h.run('timerContext.exercise.scramble'));
+  assert.equal(h.run('scramble'),h.run('lessonSession.context.exercise.scramble'));
   assert.match(h.element('#cube-preview').innerHTML,/white on top and green in front/);
 });

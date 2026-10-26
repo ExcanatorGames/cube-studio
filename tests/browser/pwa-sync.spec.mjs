@@ -4,6 +4,7 @@ test('a closed tab reopens offline from the service worker with its saved histor
   await openApp(page, server);
   await startKeyboardSolve(page);
   await finishKeyboardSolve(page);
+  await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
   const saved = (await storedState(page)).solves;
   await page.close();
   await context.setOffline(true);
@@ -17,7 +18,7 @@ test('a closed tab reopens offline from the service worker with its saved histor
   await reopened.getByRole('button', {name: 'Timer', exact: true}).click();
   await startKeyboardSolve(reopened);
   await finishKeyboardSolve(reopened);
-  expect((await storedState(reopened)).solves).toHaveLength(2);
+  await expect.poll(async () => (await storedState(reopened)).solves.length).toBe(2);
   await expect(reopened.locator('#mobile-sync')).toHaveText('2 saved offline');
 });
 
@@ -40,6 +41,7 @@ test('a real waiting service worker updates only between solves and preserves th
   expect(await page.evaluate(() => caches.keys())).toContain('cube-studio-browser-1');
   await page.locator('#timer-pad').focus();
   await finishKeyboardSolve(page);
+  await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
   const saved = (await storedState(page)).solves;
   await Promise.all([page.waitForEvent('load'), page.locator('#update-app').click()]);
   await expect(page.locator('#new-scramble')).toBeEnabled();

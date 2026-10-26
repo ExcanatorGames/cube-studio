@@ -11,7 +11,7 @@ test('both lessons expose their demos and persist practice subsets independently
   assert.match(h.element('#lesson-case-list').innerHTML,/Ready right/);assert.match(h.element('#lesson-case-list').innerHTML,/Ready left/);
   h.element('#lesson-case-list').onclick({target:{closest:()=>({dataset:{lessonCase:'ready-left'}})}});
   assert.equal(h.element('#lesson-case-dropdown').open,false);
-  assert.equal(h.run('timerContext.demoCaseId'),'ready-left');
+  assert.equal(h.run('lessonSession.context.demoCaseId'),'ready-left');
   assert.equal(h.element('#lesson-case-ready-left').getAttribute('aria-pressed'),'true');
   assert.equal(h.element('#lesson-case-ready-right').getAttribute('aria-pressed'),'false');
   assert.equal(h.element('#lesson-case-title').textContent,'Ready left');
@@ -19,56 +19,56 @@ test('both lessons expose their demos and persist practice subsets independently
   h.element('#lesson-case-dropdown').onkeydown({key:'Escape'});
   assert.equal(h.element('#lesson-case-dropdown').open,false);
   h.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});
-  assert.equal(h.run('timerContext.caseIds.join()'),'ready-left');
-  assert.equal(h.run('timerContext.exercise.caseId'),'ready-left');
+  assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
+  assert.equal(h.run('lessonSession.context.exercise.caseId'),'ready-left');
   assert.equal(h.lessonMessages.at(-1).caseIds.join(),'ready-left');
   h.run("openLesson('14')");
-  assert.equal(h.run('timerContext.caseIds.length'),22);
+  assert.equal(h.run('lessonSession.context.caseIds.length'),22);
   assert.equal((h.element('#lesson-practice-case-list').innerHTML.match(/data-practice-case=/g)||[]).length,22);
   assert.match(h.element('#lesson-practice-case-list').innerHTML,/lesson-case-thumbnail/);
   const cases=LESSONS[1].cases;
   h.run(`setPracticeCases(${JSON.stringify(cases.slice(2,4).map(item=>item.id))})`);
-  assert.equal(h.run('timerContext.caseIds.length'),2);
+  assert.equal(h.run('lessonSession.context.caseIds.length'),2);
   for(const item of cases)assert.equal(h.element('#practice-case-'+item.id).getAttribute('aria-pressed'),String(cases.slice(2,4).includes(item)));
-  h.run('setPracticeCases([])');assert.equal(h.run('timerContext.caseIds.length'),2);
+  h.run('setPracticeCases([])');assert.equal(h.run('lessonSession.context.caseIds.length'),2);
   const reloaded=harness({saved:JSON.parse(h.storage.get('cube-studio-v1'))});
   reloaded.run("setPage('lessons');openLesson('14')");
-  assert.equal(reloaded.run('timerContext.caseIds.join()'),cases.slice(2,4).map(item=>item.id).join());
-  reloaded.run("openLesson('13')");assert.equal(reloaded.run('timerContext.caseIds.join()'),'ready-left');
-  reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});assert.equal(reloaded.run('timerContext.caseIds.length'),2);
+  assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),cases.slice(2,4).map(item=>item.id).join());
+  reloaded.run("openLesson('13')");assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-left');
+  reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});assert.equal(reloaded.run('lessonSession.context.caseIds.length'),2);
   reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-left'}})}});
-  assert.equal(reloaded.run('timerContext.caseIds.join()'),'ready-right');
+  assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-right');
   reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});
-  assert.equal(reloaded.run('timerContext.caseIds.join()'),'ready-right','the final selected case cannot be toggled off');
+  assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-right','the final selected case cannot be toggled off');
 });
 
 test('changing selected cases or lessons ignores every superseded worker result',()=>{
   const h=harness({deferLessonScrambles:true});
   h.run("setPage('lessons');openLesson('13');setPracticeCases(['ready-left'])");
-  h.lessonRequests[0]();assert.equal(h.run('timerContext.exercise'),null);
-  h.lessonRequests[1]();assert.equal(h.run('timerContext.exercise.caseId'),'ready-left');
+  h.lessonRequests[0]();assert.equal(h.run('lessonSession.context.exercise'),null);
+  h.lessonRequests[1]();assert.equal(h.run('lessonSession.context.exercise.caseId'),'ready-left');
   h.run("openLesson('14')");
   const selected=LESSONS[1].cases[3].id;
   h.element('#lesson-case-list').onclick({target:{closest:()=>({dataset:{lessonCase:selected}})}});
   assert.equal(h.lessonMessages.at(-1).demoCaseId,selected);
-  h.lessonRequests[2]();assert.equal(h.run('timerContext.exercise'),null);
-  h.lessonRequests[3]();assert.equal(h.run('timerContext.exercise.lessonId'),'14');
+  h.lessonRequests[2]();assert.equal(h.run('lessonSession.context.exercise'),null);
+  h.lessonRequests[3]();assert.equal(h.run('lessonSession.context.exercise.lessonId'),'14');
 });
 
 test('selected case metadata is saved, locked during timing, and used to filter practice comparisons',()=>{
   const h=harness();h.run("setPage('lessons');openLesson('14');setLessonTab('practice')");
-  h.run('setPracticeCases([timerContext.demoCaseId])');
-  const id=h.run('timerContext.exercise.caseId');
+  h.run('setPracticeCases([lessonSession.context.demoCaseId])');
+  const id=h.run('lessonSession.context.exercise.caseId');
   h.run('arm()');h.arm();h.run('start()');
   assert.equal(h.element('#lesson-practice-cases').disabled,true);assert.equal(h.element('#lesson-case-picker').disabled,true);
   h.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:id}})}});
-  assert.equal(h.run('timerContext.caseIds.join()'),id,'case tile clicks are locked during an attempt');
-  h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('timerContext.caseIds.length'),1);
+  assert.equal(h.run('lessonSession.context.caseIds.join()'),id,'case tile clicks are locked during an attempt');
+  h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('lessonSession.context.caseIds.length'),1);
   h.advance(7100);h.run('stop()');
   assert.equal(h.run('practiceTimes()[0].caseId'),id);
   assert.match(h.run('practiceTimes()[0].note'),/^Build an F2L pair.*Pair inserted$/);
   assert.equal(h.run('practiceTimes()[0].completion'),'insertion');
-  assert.equal(h.run('records.size'),0);assert.equal(h.run('pending.size'),0);
+  assert.equal(h.run('records.size'),0);assert.equal(h.run('pending.size'),0);assert.equal(h.run('pendingLessons.size'),1);
   h.run(`setPracticeCases(['${LESSONS[1].cases[1].id}'])`);assert.equal(h.run('practiceTimes().length'),0);
   h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('practiceTimes().length'),1);
 });
@@ -129,14 +129,14 @@ test('busy lesson attempts lock context and finish on the first stop, with no sp
   h.run("setTracking(true);setPage('lessons');openLesson('13');setLessonTab('practice');setTracking(true)");
   const initial=h.run('scramble');
   h.run('arm()');h.arm();h.run('start()');
-  assert.equal(h.run('state'),'running');
-  assert.ok(h.run('Object.isFrozen(activeAttempt)&&Object.isFrozen(activeAttempt.exercise)&&Object.isFrozen(activeAttempt.splitNames)'));
+  assert.equal(h.run('timing.state'),'running');
+  assert.ok(h.run('Object.isFrozen(timing.activeAttempt)&&Object.isFrozen(timing.activeAttempt.exercise)&&Object.isFrozen(timing.activeAttempt.splitNames)'));
   assert.equal(h.element('#lesson-help').disabled,true);
   h.run("setPage('timer');newScramble();setTracking(false);openLesson('13')");
   assert.equal(h.run('scramble'),initial);
   assert.equal(h.run('page'),'lessons');
-  assert.equal(h.run('activeAttempt.track'),false);
-  assert.equal(h.run('activeAttempt.splitNames.length'),0);
+  assert.equal(h.run('timing.activeAttempt.track'),false);
+  assert.equal(h.run('timing.activeAttempt.splitNames.length'),0);
   h.advance(6000);h.run('mark()');
   const stored=JSON.parse(h.storage.get('cube-studio-v1')),saved=stored.lessonAttempts[0];
   assert.equal(stored.solves.length,0);
@@ -151,23 +151,23 @@ test('busy lesson attempts lock context and finish on the first stop, with no sp
   assert.equal(saved.completion,'insertion');
   assert.notEqual(h.run('scramble'),initial);
   assert.equal(saved.source,'timer');
-  assert.equal(h.run('state'),'stopped');
+  assert.equal(h.run('timing.state'),'stopped');
 });
 
 test('Space only arms a visible timer and Escape cancels a lesson without a saved solve',()=>{
   const h=harness(),keydown=h.listeners.get('window:keydown'),keyup=h.listeners.get('window:keyup');
   const event=code=>({code,target:{tagName:'DIV'},preventDefault(){}});
   h.run("setPage('lessons')");keydown(event('Space'));keyup(event('Space'));
-  assert.equal(h.run('state'),'idle');
+  assert.equal(h.run('timing.state'),'idle');
   h.run("openLesson('13')");keydown(event('Space'));keyup(event('Space'));
-  assert.equal(h.run('state'),'idle');
+  assert.equal(h.run('timing.state'),'idle');
   h.run('arm()');
-  assert.equal(h.run('state'),'idle');
+  assert.equal(h.run('timing.state'),'idle');
   h.element('#lesson-tab-practice').onclick();
   keydown(event('Space'));h.arm();keyup(event('Space'));
-  assert.equal(h.run('state'),'running');
+  assert.equal(h.run('timing.state'),'running');
   keydown(event('Escape'));
-  assert.equal(h.run('state'),'idle');
+  assert.equal(h.run('timing.state'),'idle');
   assert.equal(h.run('records.size'),0);
   assert.equal(h.element('body').classList.contains('focus-mode'),false);
 });
@@ -215,12 +215,12 @@ test('two-finger hold and release starts the shared lesson timer and a later tap
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
   const down=h.listeners.get('#timer-pad:pointerdown'),up=h.listeners.get('#timer-pad:pointerup');
   const touch=id=>({pointerType:'touch',pointerId:id,target:{closest:()=>null},preventDefault(){}});
-  down(touch(1));assert.equal(h.run('state'),'idle');
-  down(touch(2));assert.equal(h.run('state'),'arming');
-  h.arm();up(touch(1));assert.equal(h.run('state'),'armed');
-  up(touch(2));assert.equal(h.run('state'),'running');
+  down(touch(1));assert.equal(h.run('timing.state'),'idle');
+  down(touch(2));assert.equal(h.run('timing.state'),'arming');
+  h.arm();up(touch(1));assert.equal(h.run('timing.state'),'armed');
+  up(touch(2));assert.equal(h.run('timing.state'),'running');
   h.advance(5000);down(touch(3));up(touch(3));
-  assert.equal(h.run('state'),'stopped');
+  assert.equal(h.run('timing.state'),'stopped');
   assert.equal(h.run('records.size'),0);
   assert.equal(h.run('lessonAttempts.size'),1);
 });
@@ -228,7 +228,7 @@ test('two-finger hold and release starts the shared lesson timer and a later tap
 test('lesson tabs preserve the generated exercise and hints while keeping splits unavailable',()=>{
   const h=harness();
   h.run("setPage('lessons');openLesson('13')");
-  const exercise=h.run('timerContext.exercise'),scramble=h.run('scramble'),card=h.element('#timer-card');
+  const exercise=h.run('lessonSession.context.exercise'),scramble=h.run('scramble'),card=h.element('#timer-card');
   const resets=h.demoResets;
   h.element('#lesson-tab-practice').onclick();
   assert.equal(h.demoResets,resets+1);
@@ -239,7 +239,7 @@ test('lesson tabs preserve the generated exercise and hints while keeping splits
   assert.equal(h.element('#lesson-panel-practice').hidden,true);
   assert.equal(h.element('#lesson-panel-lesson').hidden,false);
   h.element('#lesson-tab-practice').onclick();
-  assert.equal(h.run('timerContext.exercise'),exercise);
+  assert.equal(h.run('lessonSession.context.exercise'),exercise);
   assert.equal(h.run('scramble'),scramble);
   assert.equal(h.element('#timer-card'),card);
   assert.equal(card.parentElement.id,'lesson-practice-mount');
@@ -275,7 +275,7 @@ test('arming, armed and running attempts lock tab clicks and keyboard navigation
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");
   const scramble=h.run('scramble');
   function locked(expected){
-    assert.equal(h.run('state'),expected);
+    assert.equal(h.run('timing.state'),expected);
     assert.equal(h.element('#lesson-tab-lesson').disabled,true);
     assert.equal(h.element('#lesson-tab-practice').disabled,true);
     h.element('#lesson-tab-lesson').onclick();
@@ -283,7 +283,7 @@ test('arming, armed and running attempts lock tab clicks and keyboard navigation
     assert.equal(h.element('#lesson-panel-practice').hidden,false);
     assert.equal(h.element('#lesson-panel-lesson').hidden,true);
     assert.equal(h.run('scramble'),scramble);
-    assert.equal(h.run('state'),expected);
+    assert.equal(h.run('timing.state'),expected);
   }
   locked('arming');h.arm();locked('armed');h.run('start()');locked('running');
   h.run('cancel()');
@@ -294,13 +294,13 @@ test('arming, armed and running attempts lock tab clicks and keyboard navigation
   assert.equal(h.run('records.size'),0);
 });
 
-test('practice times survive reload and stay out of history, exports, sync and normal comparisons',()=>{
+test('practice times survive reload, queue for lesson sync and stay out of normal comparisons',()=>{
   const h=harness();
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");h.arm();h.run('start()');
   h.advance(4321);h.run('stop()');
   assert.equal(h.run('lessonAttempts.size'),1);
   assert.equal(h.run('all().length'),0);
-  assert.equal(h.run('pending.size'),0);
+  assert.equal(h.run('pending.size'),0);assert.equal(h.run('pendingLessons.size'),1);
   assert.equal(h.run('practiceTimes()[0].ms'),4321);
   const stored=JSON.parse(h.storage.get('cube-studio-v1'));
   const reloaded=harness({saved:stored});
@@ -342,7 +342,7 @@ test('practice keeps hints but removes manual entry and split timing, restoring 
   h.element('#manual-time').value='12.34';h.element('#save-manual').onclick();
   assert.equal(h.run('lessonAttempts.size'),0);
   assert.equal(h.run('records.size'),0);
-  assert.equal(h.run('pending.size'),0);
+  assert.equal(h.run('pending.size'),0);assert.equal(h.run('pendingLessons.size'),0);
   h.run("setPage('timer')");
   assert.equal(h.element('#fullscreen-track').hidden,false);
   assert.equal(h.element('#manual-entry').hidden,false);
@@ -371,14 +371,14 @@ test('toggling hints updates markers immediately without fading the cube or scra
 test('pending lesson scrambles cannot start or save a timer, and leaving ignores the worker result',()=>{
   const h=harness({deferLessonScrambles:true}),normal=h.run('scramble');
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");
-  assert.equal(h.run('state'),'idle');assert.equal(h.run('scramble'),'');
+  assert.equal(h.run('timing.state'),'idle');assert.equal(h.run('scramble'),'');
   assert.equal(h.element('#new-scramble').disabled,true);
   assert.equal(h.element('#manual-entry').disabled,true);
   assert.equal(h.element('#lesson-help').disabled,true);
   assert.equal(h.run('lessonDemo'),null);
   h.run("setPage('timer')");h.lessonRequests[0]();
   assert.equal(h.run('scramble'),normal);
-  assert.equal(h.run('timerContext.kind'),'normal');
+  assert.equal(h.run('lessonSession.context.kind'),'normal');
   assert.equal(h.run('lessonDemo'),null);
 });
 
@@ -390,8 +390,8 @@ test('only the newest lesson request can install a case, including after a worke
   assert.ok(h.run('scramble.length')>0);
   assert.equal(h.element('#new-scramble').disabled,false);
   assert.equal(h.element('#manual-entry').disabled,false);
-  assert.ok(h.run('Object.isFrozen(timerContext.exercise.target)'));
-  h.run('newScramble();lessonScrambler.onerror()');
+  assert.ok(h.run('Object.isFrozen(lessonSession.context.exercise.target)'));
+  h.run('newScramble()');h.failLessonWorker();
   assert.equal(h.run('scramble'),'');
   assert.equal(h.element('#new-scramble').disabled,false);
   assert.equal(h.element('#manual-entry').disabled,true);
