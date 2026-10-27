@@ -24,7 +24,7 @@ export {expect};
 export async function openApp(page, server) {
   await page.goto(server.url);
   await expect(page.locator('#new-scramble')).toBeEnabled();
-  await expect(page.locator('#scramble-type')).toHaveText('25-move practice');
+  await expect(page.locator('#scramble-type')).toHaveText('Random state', {timeout: 20000});
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
 }
 
@@ -51,7 +51,23 @@ export async function showHistory(page) {
 }
 
 export function storedState(page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('cube-studio-v1') || '{}'));
+  return page.evaluate(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('cube-studio-history', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const names = ['solves', 'pending', 'lessonAttempts', 'pendingLessons'];
+      const tx = db.transaction([...names, 'meta'], 'readonly');
+      const read = request => new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const values = await Promise.all([...names.map(name => read(tx.objectStore(name).getAll())), read(tx.objectStore('meta').get('state'))]);
+      return {...values[4], ...Object.fromEntries(names.map((name, i) => [name, values[i]]))};
+    } finally { db.close(); }
+  });
 }
 
 export async function connect(page) {

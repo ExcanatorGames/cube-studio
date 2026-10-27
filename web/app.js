@@ -1,17 +1,16 @@
+import { createScrambleLayout } from './scramble-layout.js';
+import { initSettingsDialog } from './settings-dialog.js';
+import { initHistoryDialogs } from './history-dialogs.js';
 import {
   PRESETS,
   formatTime,
   result,
-  parseCSV,
-  parseTime,
-  exportCSV,
   practiceScramble,
-  decodeCSV,
   solveFeedback,
   normalizeSolve,
 } from './core.js';
 import { initPWA } from './pwa.js';
-import { cubeSVG, scrambleLines, cubeFrame, orientAlgorithm } from './cube.js';
+import { cubeSVG, cubeFrame, orientAlgorithm } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
 import { LESSONS, orientLessonCase } from './lessons.js';
@@ -25,12 +24,13 @@ import { createLessonPresentation, lessonTabs } from './lesson-presentation.js';
 import { createTimerSession } from './timer-session.js';
 import { createLessonSession } from './lesson-session.js';
 import { initTimerInput } from './timer-input.js';
-import { createDeviceStorage } from './device-storage.js';
+import { createScrambler } from './scrambler.js';
+import { createIndexedStorage } from './indexed-storage.js';
 import { createCoordinatedStorage } from './coordinated-storage.js';
 import { initStorageFeedback } from './storage-feedback.js';
 const motion = createMotion();
-const deviceStorage = createDeviceStorage({ storage: () => localStorage });
-const { snapshot: saved } = deviceStorage.read();
+const deviceStorage = createIndexedStorage();
+const { snapshot: saved } = await deviceStorage.read();
 let records = new Map(
     (saved.solves || []).map((s) => [s.id, normalizeSolve(s)]),
   ),
@@ -49,9 +49,10 @@ let lessonAttempts = new Map(
   ]),
 );
 let pendingLessons = new Map(
-  (saved.lessonSyncVersion === 1 ? saved.pendingLessons : saved.lessonAttempts).map(
-    (s) => [s.id, normalizeSolve(s)],
-  ),
+  (saved.lessonSyncVersion === 1
+    ? saved.pendingLessons
+    : saved.lessonAttempts
+  ).map((s) => [s.id, normalizeSolve(s)]),
 );
 let settings = {
   preset: 'beginner',
@@ -67,8 +68,6 @@ settings.orientation =
 settings.lessonOrientation =
   settings.lessonOrientation === 'white-top' ? 'white-top' : 'white-bottom';
 let page = 'timer',
-  selected = null,
-  imported = [],
   toastTimeout;
 const syncService = createSync({
   getRecords: () => records,
@@ -176,6 +175,18 @@ function retryStorage() {
 }
 window.addEventListener('storage', (event) => {
   if (event.key === 'cube-studio-v1' && !busy()) persist();
+});
+const storageChannel =
+  typeof BroadcastChannel === 'function'
+    ? new BroadcastChannel('cube-studio-history')
+    : null;
+deviceStorage.broadcast = () => storageChannel?.postMessage('changed');
+if (storageChannel)
+  storageChannel.onmessage = () => {
+    if (!busy()) persist();
+  };
+window.addEventListener('focus', () => {
+  if (!busy()) persist();
 });
 window.addEventListener('beforeunload', (event) => {
   if (coordinatedStorage.busy || !deviceStorage.getState().persisted) {
@@ -799,7 +810,6 @@ function refreshOrientation() {
     if (exercise) {
       scramble = exercise.scramble;
       scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
-      scrambleLayoutKey = '';
     }
     lessonDemo?.setOrientation(settings.lessonOrientation);
     renderLessonAssistance();
@@ -941,7 +951,7 @@ const chromeObserver = new ResizeObserver(() =>
 );
 [$('.app-bar'), $('.sidebar')].forEach((el) => chromeObserver.observe(el));
 addEventListener('resize', updateTimerHeight);
-let officialScrambler;
+let officialScrambler = createScrambler();
 $('#lesson-demo').onclick = (e) => {
   if (e.target.closest('[data-lesson-retry]')) newScramble();
 };
@@ -961,7 +971,6 @@ function requestLessonScramble() {
     ready(demoExercise) {
       scramble = lessonExercise().scramble;
       scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
-      scrambleLayoutKey = '';
       if (!lessonDemo) {
         const lesson = currentLesson();
         const selected = lesson.cases.find(
@@ -989,7 +998,6 @@ async function newScramble() {
   const req = ++scrambleRequest;
   if (lessonSession.context.kind === 'lesson') {
     scramble = '';
-    scrambleLayoutKey = '';
     $('#fullscreen-scramble').textContent = 'Preparing scramble…';
     $('#cube-preview').replaceChildren();
     $('#scramble-type').textContent = 'Preparing…';
@@ -1002,24 +1010,11 @@ async function newScramble() {
   normalScramble = null;
   $('#new-scramble').disabled = true;
   scramble = '';
-  scrambleLayoutKey = '';
   $('#fullscreen-scramble').textContent = '…';
   $('#cube-preview').replaceChildren();
   $('#scramble-type').textContent = 'Preparing…';
-  let timeout;
   try {
-    if (!navigator.onLine) throw Error('Offline practice');
-    officialScrambler ||=
-      import('https://cdn.cubing.net/v0/js/cubing/scramble');
-    const generated = officialScrambler.then((lib) =>
-      lib.randomScrambleForEvent('333'),
-    );
-    const alg = await Promise.race([
-      generated,
-      new Promise((_, reject) => {
-        timeout = setTimeout(() => reject(Error('Scrambler timed out')), 6000);
-      }),
-    ]);
+    const alg = await officialScrambler.next();
     if (req !== scrambleRequest) return;
     scramble = alg.toString();
     scrambleKind = 'Random state';
@@ -1027,9 +1022,7 @@ async function newScramble() {
     if (req !== scrambleRequest) return;
     scramble = practiceScramble();
     scrambleKind = '25-move practice';
-    officialScrambler = null;
   } finally {
-    clearTimeout(timeout);
     if (req === scrambleRequest) {
       normalScramble = { scramble, kind: scrambleKind };
       scramble = orientAlgorithm(
@@ -1042,63 +1035,7 @@ async function newScramble() {
     }
   }
 }
-const scrambleMeasure = document.createElement('canvas').getContext('2d');
-let scrambleLayoutKey = '';
-function layoutScramble() {
-  if (!scramble) return;
-  const targets = [$('#fullscreen-scramble')].filter(
-    (target) => target.clientWidth,
-  );
-  const layouts = targets.map((target) => {
-    const style = getComputedStyle(target);
-    let capacity = Infinity;
-    if (
-      target.id === 'fullscreen-scramble' ||
-      matchMedia('(max-width:740px)').matches
-    ) {
-      if (scrambleMeasure)
-        scrambleMeasure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const charWidth =
-        scrambleMeasure?.measureText('M').width ||
-        parseFloat(style.fontSize) * 0.62;
-      capacity = Math.max(
-        3,
-        Math.floor(
-          (target.clientWidth - 2) /
-            (charWidth + (parseFloat(style.letterSpacing) || 0)),
-        ),
-      );
-    }
-    return { target, capacity };
-  });
-  const key = `${scramble}|${layouts.map(({ target, capacity }) => target.id + ':' + capacity).join('|')}`;
-  if (key === scrambleLayoutKey) return;
-  scrambleLayoutKey = key;
-  for (const { target, capacity } of layouts) {
-    const lines = scrambleLines(scramble, capacity);
-    target.replaceChildren();
-    let moveIndex = 0;
-    lines.forEach((line, i) => {
-      if (i) target.append(' ');
-      const span = document.createElement('span');
-      span.className = 'scramble-line';
-      line.split(' ').forEach((token, j) => {
-        if (j) span.append(' ');
-        const move = document.createElement('span');
-        move.className = 'scramble-move';
-        move.style.setProperty('--focus-move', 'focus-move-' + moveIndex++);
-        move.textContent = token;
-        span.append(move);
-      });
-      target.append(span);
-    });
-  }
-}
-const scrambleObserver = new ResizeObserver(() =>
-  requestAnimationFrame(layoutScramble),
-);
-scrambleObserver.observe($('#fullscreen-scramble'));
-document.fonts?.ready.then(layoutScramble);
+const layoutScramble = createScrambleLayout(() => scramble);
 function showScramble({ animate = true } = {}) {
   layoutScramble();
   const instruction = `Scramble with ${cubeFrame(cubeOrientation()).label}. Moves follow the cube's U, F and R faces.`;
@@ -1143,187 +1080,41 @@ function openDialog(id) {
     return;
   $(id).showModal();
 }
-$('#open-settings').onclick = () => {
-  if (timing.state === 'running') return;
-  $('#preset').value = settings.preset;
-  $('#custom-steps').value = settings.custom.join(', ');
-  $('#custom-field').hidden = settings.preset !== 'custom';
-  $('#hold-duration').value = settings.hold;
-  $('#lesson-orientation').value = settings.lessonOrientation;
-  openDialog('#settings-dialog');
-};
-$('#preset').onchange = () =>
-  ($('#custom-field').hidden = $('#preset').value !== 'custom');
-$('#save-settings').onclick = () => {
-  if (busy()) return;
-  const preset = $('#preset').value;
-  const custom =
-    preset === 'custom'
-      ? $('#custom-steps')
-          .value.split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : settings.custom;
-  if (
-    preset === 'custom' &&
-    (custom.length < 2 ||
-      custom.length > 12 ||
-      custom.some((x) => x.length > 50))
-  ) {
-    toast('Use 2–12 steps, with names under 50 characters.');
-    return;
-  }
-  settings = {
-    ...settings,
-    preset,
-    custom,
-    hold: Number($('#hold-duration').value),
-    lessonOrientation:
-      $('#lesson-orientation').value === 'white-top'
-        ? 'white-top'
-        : 'white-bottom',
-  };
-  timer.reset();
-  persist();
-  $('#settings-dialog').close();
-  refreshOrientation();
-};
-function openImport() {
-  $('#settings-dialog').close();
-  imported = [];
-  $('#import-preview').textContent = '';
-  $('#confirm-import').disabled = true;
-  $('#csv-file').value = '';
-  openDialog('#import-dialog');
-}
-$('#open-import').onclick = openImport;
-$('#history-import').onclick = openImport;
-async function previewImport() {
-  try {
-    const file = $('#csv-file').files[0];
-    if (!file) return;
-    if (file.size > 5000000)
-      throw Error('Please import a file smaller than 5 MB.');
-    imported = parseCSV(decodeCSV(await file.arrayBuffer()));
-    const duplicates = imported.filter(
-      (s) => records.has(s.id) || lessonAttempts.has(s.id),
-    ).length;
-    $('#import-preview').textContent =
-      `${imported.length} solves and lesson attempts found. ${duplicates} already in your history.`;
-    $('#import-preview').className = 'info-box';
-    $('#confirm-import').disabled = imported.length === duplicates;
-  } catch (e) {
-    imported = [];
-    $('#import-preview').textContent = e.message;
-    $('#confirm-import').disabled = true;
-  }
-}
-$('#csv-file').onchange = previewImport;
-$('#confirm-import').onclick = () => {
-  let count = 0;
-  for (const s of imported)
-    if (!(records.has(s.id) || lessonAttempts.has(s.id))) {
-      (s.lessonId ? lessonAttempts : records).set(s.id, s);
-      (s.lessonId ? pendingLessons : pending).set(s.id, s);
+initSettingsDialog({
+  getSettings: () => settings,
+  busy: () => busy(),
+  openDialog,
+  toast,
+  save(next) {
+    settings = next;
+    timer.reset();
+    persist();
+    refreshOrientation();
+  },
+});
+const { openSolve } = initHistoryDialogs({
+  getRecords: () => records,
+  getLessons: () => lessonAttempts,
+  busy: () => busy(),
+  openDialog,
+  toast,
+  updateSolve,
+  allowManual: () => lessonSession.context.kind !== 'lesson',
+  addManual: (ms) => saveAttempt(makeSolve(ms, [], true), snapshotAttempt()),
+  importRecords(imported) {
+    let count = 0;
+    for (const solve of imported) {
+      if (records.has(solve.id) || lessonAttempts.has(solve.id)) continue;
+      (solve.lessonId ? lessonAttempts : records).set(solve.id, solve);
+      (solve.lessonId ? pendingLessons : pending).set(solve.id, solve);
       count++;
     }
-  persist();
-  $('#import-dialog').close();
-  render();
-  toast(`${count} solves and lesson attempts imported. Duplicates skipped.`);
-  sync();
-};
-function openSolve(id) {
-  if (timing.state === 'running') return;
-  const s = records.get(id);
-  if (!s || s.deleted) return;
-  selected = { ...s, splits: s.splits.map((x) => ({ ...x })) };
-  $('#solve-title').textContent = 'Solve';
-  $('#solve-note').value = s.note || '';
-  renderSolveDetails();
-  openDialog('#solve-dialog');
-}
-function renderSolveDetails() {
-  const s = selected;
-  $('#solve-details').innerHTML =
-    `<div class="detail-time">${formatTime(result(s))}</div><div class="detail-date">${esc(new Date(s.date).toLocaleString())} ${s.penalty === '+2' ? '· raw time ' + formatTime(s.ms) : ''}</div><div class="detail-scramble">${esc(s.scramble || 'No scramble recorded')}</div>` +
-    s.splits
-      .map(
-        (x, i) =>
-          `<div class="detail-split"><span>${esc(x.name)}</span><span>${formatTime(x.ms - (s.splits[i - 1]?.ms || 0))}</span></div>`,
-      )
-      .join('');
-  $$('[data-penalty]').forEach((b) =>
-    b.classList.toggle('active', b.dataset.penalty === s.penalty),
-  );
-}
-$$('[data-penalty]').forEach(
-  (b) =>
-    (b.onclick = () => {
-      selected.penalty = b.dataset.penalty;
-      renderSolveDetails();
-    }),
-);
-$('#save-solve').onclick = () => {
-  if (!selected) return;
-  updateSolve({ ...selected, note: $('#solve-note').value });
-  $('#solve-dialog').close();
-  toast('Solve updated.');
-};
-$('#delete-solve').onclick = () => {
-  if (!selected) return;
-  const old = { ...selected };
-  updateSolve({ ...selected, deleted: true });
-  $('#solve-dialog').close();
-  toast('Solve deleted.', () => updateSolve({ ...old, deleted: false }));
-};
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-id]');
-  if (el) openSolve(el.dataset.id);
+    persist();
+    render();
+    sync();
+    return count;
+  },
 });
-$('#manual-entry').onclick = () => {
-  if (lessonSession.context.kind === 'lesson') return;
-  $('#manual-time').value = '';
-  $('#manual-error').textContent = '';
-  openDialog('#manual-dialog');
-};
-$('#save-manual').onclick = () => {
-  if (lessonSession.context.kind === 'lesson') return;
-  try {
-    const ms = parseTime($('#manual-time').value);
-    saveAttempt(makeSolve(ms, [], true), snapshotAttempt());
-    $('#manual-dialog').close();
-    toast('Solve added.');
-  } catch (e) {
-    $('#manual-error').textContent = e.message;
-  }
-};
-$('#manual-time').onkeydown = (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    $('#save-manual').click();
-  }
-};
-$('#export').onclick = () => {
-  const blob = new Blob(
-      [
-        '\uFEFF' +
-          exportCSV(
-            [...all(), ...lessonAttempts.values()].filter((s) => !s.deleted),
-          ),
-      ],
-      {
-        type: 'text/csv;charset=utf-8',
-      },
-    ),
-    url = URL.createObjectURL(blob),
-    a = document.createElement('a');
-  a.href = url;
-  a.download = `cube-studio-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-  toast('CSV exported.');
-};
 $('#sync-mobile').onclick = () => {
   sync();
 };

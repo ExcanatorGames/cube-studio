@@ -75,7 +75,7 @@ function record(value, path, issues, lesson, checks) {
   return result;
 }
 
-function validate(value) {
+export function validateSnapshot(value) {
   const issues = [];
   const checks = new Map();
   if (!isObject(value)) {
@@ -147,6 +147,8 @@ function validate(value) {
   }
   return { snapshot, issues, checks };
 }
+
+const validate = validateSnapshot;
 
 function reconcileRecovery(snapshot, checks) {
   for (const [collection, queue] of [

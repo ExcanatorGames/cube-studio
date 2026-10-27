@@ -5,7 +5,91 @@ import {
   startKeyboardSolve,
   finishKeyboardSolve,
   showHistory,
+  storedState,
 } from './fixtures.mjs';
+
+test('migration preserves history, tombstones, pending lessons and settings; later saves write only changed records', async ({
+  page,
+  server,
+}) => {
+  const solves = Array.from({ length: 1000 }, (_, i) => ({
+    id: `legacy-${i}`,
+    date: '2026-01-01T12:00:00Z',
+    ms: 12340 + i,
+    scramble: 'R U',
+    penalty: 'none',
+    splits: [],
+    updatedAt: i + 1,
+    ...(i === 0 ? { deleted: true } : {}),
+  }));
+  const lesson = {
+    ...solves[1],
+    id: 'lesson',
+    lessonId: '13',
+    caseId: 'ready-right',
+    completion: 'insertion',
+  };
+  const raw = JSON.stringify({
+    solves,
+    pending: [solves[0]],
+    lessonAttempts: [lesson],
+    pendingLessons: [lesson],
+    lessonSyncVersion: 1,
+    settings: { hold: 1000, orientation: 'white-bottom' },
+  });
+  await page.addInitScript((raw) => {
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('cube-studio-v1', raw);
+      sessionStorage.setItem('seeded', 'true');
+    }
+  }, raw);
+  await openApp(page, server);
+  const migrated = await storedState(page);
+  expect(migrated.solves).toHaveLength(1000);
+  expect(migrated.solves.find((s) => s.id === 'legacy-0').deleted).toBe(true);
+  expect(migrated.pending).toHaveLength(1);
+  expect(migrated.pendingLessons[0].caseId).toBe('ready-right');
+  expect(migrated.settings.hold).toBe(1000);
+  expect(migrated.settings.orientation).toBe('white-bottom');
+  await page.evaluate(() => {
+    window.recordWrites = [];
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (this.name === 'solves') window.recordWrites.push(value.id);
+      return put.call(this, value, key);
+    };
+  });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Hold to start').selectOption('300');
+  await page.locator('#save-settings').click();
+  await expect
+    .poll(async () => (await storedState(page)).settings.hold)
+    .toBe(300);
+  expect(await page.evaluate(() => window.recordWrites)).toEqual([]);
+  await showHistory(page);
+  await page.locator('#history-body [data-id]').first().click();
+  await page.locator('#solve-note').fill('Only this record changes');
+  await page.locator('#save-solve').click();
+  await expect
+    .poll(
+      async () =>
+        (await storedState(page)).solves.filter(
+          (s) => s.note === 'Only this record changes',
+        ).length,
+    )
+    .toBe(1);
+  expect(await page.evaluate(() => window.recordWrites.length)).toBe(1);
+  expect(
+    await page.evaluate(() => localStorage.getItem('cube-studio-v1')),
+  ).toBe(raw);
+  await page.reload();
+  await expect(page.locator('#new-scramble')).toBeEnabled();
+  const reopened = await storedState(page);
+  expect(reopened.settings.hold).toBe(300);
+  expect(
+    reopened.solves.filter((s) => s.note === 'Only this record changes'),
+  ).toHaveLength(1);
+});
 
 test('discarding an invalid custom-step draft allows the next solve to persist', async ({
   page,
@@ -39,11 +123,11 @@ test('failed local writes show an unsaved warning and retry preserves the solve 
 }) => {
   await openApp(page, server);
   await page.evaluate(() => {
-    window.restoreStorage = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key, value) {
-      if (key === 'cube-studio-v1')
+    window.restoreStorage = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (this.name === 'solves')
         throw new DOMException('Synthetic quota failure', 'QuotaExceededError');
-      return window.restoreStorage.call(this, key, value);
+      return window.restoreStorage.call(this, value, key);
     };
   });
   await startKeyboardSolve(page);
@@ -56,7 +140,7 @@ test('failed local writes show an unsaved warning and retry preserves the solve 
     /saved offline|saved on device|saved ·/,
   );
   await page.evaluate(() => {
-    Storage.prototype.setItem = window.restoreStorage;
+    IDBObjectStore.prototype.put = window.restoreStorage;
   });
   await page.locator('#retry-storage').click();
   await expect(page.locator('#storage-warning')).toBeHidden();

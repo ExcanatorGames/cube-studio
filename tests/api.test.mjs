@@ -1,13 +1,41 @@
+import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import worker from '../worker/index.js';
 const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE solves(id TEXT PRIMARY KEY,data TEXT,updated_at INTEGER,deleted INTEGER)');
 db.exec('CREATE TABLE IF NOT EXISTS lesson_attempts (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);');
+db.exec(readFileSync(new URL('../drizzle/0003_incremental_sync.sql', import.meta.url), 'utf8'));
 const env={DB:{prepare(sql){let values=[];return {bind(...v){values=v;return this;},async all(){return {results:db.prepare(sql).all(...values)};},async run(){return db.prepare(sql).run(...values);}};},async batch(a){return Promise.all(a.map(x=>x.run()));}}};
 const solve={id:'test-solve',date:'2026-10-24T18:00:00Z',ms:45000,penalty:'none',scramble:'R U2',trust:'confirmed',usedScramble:true,splits:[],updatedAt:Date.now()-10000};
 const get=()=>worker.fetch(new Request('http://localhost/api/solves'),env);
 const post=solves=>worker.fetch(new Request('http://localhost/api/solves',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({solves})}),env);
+
+test('change cursors page history, replay late clock-skewed edits and tombstones, and exclude unchanged rows', async () => {
+  const load = async cursor => (await (await worker.fetch(new Request(`http://localhost/api/solves?cursor=${cursor}`), env)).json());
+  const batch = Array.from({length: 370}, (_, i) => ({...solve, id:`page-${i}`, updatedAt:1000}));
+  await post(batch);
+  const first = await load(0);
+  assert.equal(first.solves.length, 350);
+  assert.equal(first.hasMore, true);
+  const second = await load(first.cursor);
+  assert.equal(second.hasMore, false);
+  assert.equal(new Set([...first.solves, ...second.solves].map(s => s.id)).size, 370);
+  const empty = await load(second.cursor);
+  assert.deepEqual(empty.solves, []);
+  assert.equal(empty.cursor, second.cursor);
+  await post([{...batch[0], updatedAt:1001, deleted:true}]);
+  const deletion = await load(second.cursor);
+  assert.equal(deletion.solves.length, 1);
+  assert.equal(deletion.solves[0].deleted, true);
+  await post([batch[0]]); // A rejected stale write must not create a change.
+  assert.deepEqual((await load(deletion.cursor)).solves, []);
+  await post([{...batch[0], updatedAt:1002, deleted:false}]);
+  assert.equal((await load(deletion.cursor)).solves[0].deleted, false);
+  assert.equal((await worker.fetch(new Request('http://localhost/api/solves?cursor=-1'),env)).status,400);
+  // Keep the legacy API tests independent of this generated history.
+  db.exec("DELETE FROM solves WHERE id LIKE 'page-%'; DELETE FROM sync_changes WHERE id LIKE 'page-%'");
+});
 
 test('lesson sync validates metadata, remains separate from normal solves and preserves newer versions', async () => {
   const lesson = { ...solve, id: 'lesson-test', lessonId: '13', caseId: 'ready-right', completion: 'insertion' };

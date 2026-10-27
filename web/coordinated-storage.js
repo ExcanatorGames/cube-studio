@@ -1,4 +1,4 @@
-const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const equal = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
 const index = (values = []) =>
   new Map(values.map((value) => [value.id, value]));
 
@@ -106,6 +106,30 @@ export function createCoordinatedStorage({
   function save() {
     outstanding++;
     store.unsaved();
+    if (store.commit) {
+      let captured;
+      return store
+        .commit((remote) => {
+          captured = getSnapshot();
+          // Record versions are immutable, but settings can be edited in place
+          // while the asynchronous transaction is completing.
+          captured = { ...captured, settings: structuredClone(captured.settings) };
+          return mergeSnapshots(base, captured, remote);
+        })
+        .then((result) => {
+          outstanding--;
+          if (result.ok) {
+            base = result.snapshot;
+            // Timing and edits may continue while IndexedDB commits. Preserve
+            // work performed after the transaction captured the local snapshot.
+            apply(mergeSnapshots(captured, getSnapshot(), base));
+            if (result.changed) store.broadcast?.();
+          }
+          if (outstanding) store.unsaved();
+          onChange();
+          return result.ok;
+        });
+    }
     const transaction = () => {
       const { snapshot: remote, state } = store.read({ fresh: true });
       if (state.error) return false;

@@ -36,7 +36,7 @@ test('timer orientation updates the preview, persists, and stays separate from l
 
 test('new timer scrambles use the selected frame once and survive visits to lessons',async()=>{
   const h=harness({saved:{settings:{orientation:'white-bottom'}}});
-  h.run(`navigator.onLine=true;officialScrambler=Promise.resolve({randomScrambleForEvent:async()=>"R U F' D2 L' B"})`);
+  h.run(`navigator.onLine=true;officialScrambler=({next:async()=>"R U F' D2 L' B"})`);
   await h.run('newScramble()');
   assert.equal(h.run('normalScramble.scramble'),"R U F' D2 L' B");
   assert.equal(h.run('scramble'),"L D F' U2 R' B");

@@ -1,3 +1,4 @@
+import {createDeviceStorage} from '../../web/device-storage.js';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as core from '../../web/core.js';
@@ -8,6 +9,8 @@ import { createExercise } from '../../web/lesson-scrambler.js';
 import { createMotion } from '../../web/motion.js';
 
 const boundaryModules = new Set([
+  'indexed-storage.js',
+  'scrambler.js',
   'core.js',
   'cube.js',
   'lessons.js',
@@ -287,6 +290,8 @@ export function harness({
   };
   const context = vm.createContext(sandbox);
   const modules = new Map([
+    ['indexed-storage.js', {createIndexedStorage: () => createDeviceStorage({storage: sandbox.localStorage})}],
+    ['scrambler.js', {createScrambler: () => ({next() { throw Error('Synthetic scrambler failure'); }})}],
     ['core.js', core],
     ['cube.js', cube],
     ['lessons.js', lessons],
@@ -322,7 +327,7 @@ export function harness({
     modules.set(name, module);
     return module;
   };
-  vm.runInContext(linkNamedImports(moduleSources.get('app.js')), context, {
+  vm.runInContext(linkNamedImports(moduleSources.get('app.js')).replace('await deviceStorage.read()', 'deviceStorage.read()'), context, {
     filename: 'app.js',
   });
   return {

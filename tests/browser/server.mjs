@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
 import {mkdtemp, readFile, readdir, rm} from 'node:fs/promises';
@@ -15,6 +16,7 @@ export async function startBrowserServer() {
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE solves (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)');
 db.exec('CREATE TABLE IF NOT EXISTS lesson_attempts (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);');
+db.exec(readFileSync(new URL('../../drizzle/0003_incremental_sync.sql', import.meta.url), 'utf8'));
   const env = {
     SYNC_CODE_HASH: await hashSyncCode(SYNC_CODE),
     DB: {
@@ -78,7 +80,7 @@ db.exec('CREATE TABLE IF NOT EXISTS lesson_attempts (id TEXT PRIMARY KEY NOT NUL
           rejectedUploads--;
           response = Response.json({error: 'Synthetic upload outage'}, {status: 503});
         } else response = await api.fetch(request, env);
-        requests.push({method: req.method, path: url.pathname, status: response.status});
+        requests.push({method: req.method, path: url.pathname, query: url.search, status: response.status});
         res.writeHead(response.status, Object.fromEntries(response.headers));
         res.end(Buffer.from(await response.arrayBuffer()));
         return;

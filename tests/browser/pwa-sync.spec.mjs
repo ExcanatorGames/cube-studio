@@ -12,6 +12,7 @@ test('a closed tab reopens offline from the service worker with its saved histor
   const response = await reopened.goto(server.url);
   expect(response.fromServiceWorker()).toBe(true);
   await expect(reopened.locator('#new-scramble')).toBeEnabled();
+  await expect(reopened.locator('#scramble-type')).toHaveText('Random state', {timeout: 20000});
   await showHistory(reopened);
   await expect(reopened.locator('#history-body [data-id]')).toHaveCount(1);
   expect((await storedState(reopened)).solves).toEqual(saved);
