@@ -28,6 +28,37 @@ const empty = () => ({
   settings: {},
 });
 
+test('edits made while an asynchronous commit finishes survive its apply and the following save', async () => {
+  const initial = empty();
+  let local = structuredClone(initial), disk = structuredClone(initial), release;
+  const store = {
+    unsaved() {},
+    commit(transform) {
+      const next = transform(disk);
+      return new Promise(resolve => {
+        release = () => { disk = next; resolve({ok:true, snapshot:next, changed:true}); };
+      });
+    },
+  };
+  const coordinator = createCoordinatedStorage({store, initial, getSnapshot:() => ({...local, solves:[...local.solves], pending:[...local.pending]}), apply:value => {local=value;}, onChange() {}});
+  local.solves.push(solve('first'));
+  local.pending.push(solve('first'));
+  const saving = coordinator.save();
+  local.solves.push(solve('second'));
+  local.pending.push(solve('second'));
+  local.settings.hold = 1000;
+  release();
+  await saving;
+  assert.deepEqual(local.solves.map(s => s.id), ['first', 'second']);
+  assert.equal(local.settings.hold, 1000);
+  const next = coordinator.save();
+  release();
+  await next;
+  assert.deepEqual(disk.solves.map(s => s.id), ['first', 'second']);
+  assert.equal(disk.pending.length, 2);
+  assert.equal(disk.settings.hold, 1000);
+});
+
 test('retry after an unreadable startup recovers queued records and migrates old lesson history', () => {
   const queued = solve('queued-only');
   const practice = solve('old-practice', 1, { lessonId: '13', caseId: 'ready-right', completion: 'insertion' });

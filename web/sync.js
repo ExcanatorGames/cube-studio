@@ -11,11 +11,17 @@ export function createSync({
   syncHeaders,
 }) {
   const collections = [
-    { path: '/api/solves', records: getRecords, pending: getPending },
+    {
+      path: '/api/solves',
+      records: getRecords,
+      pending: getPending,
+      cursor: 0,
+    },
     {
       path: '/api/lesson-attempts',
       records: getLessonAttempts,
       pending: getPendingLessons,
+      cursor: 0,
     },
   ];
   let syncBusy = false,
@@ -67,31 +73,50 @@ export function createSync({
                   collection.pending().delete(s.id);
               await persist();
             }
-            const r = await fetch(collection.path, {
-              headers: syncHeaders(),
-              redirect: 'manual',
-              signal: AbortSignal.timeout(15000),
-            });
-            if (!r.ok) {
-              if (
-                r.status === 401 ||
-                r.status === 403 ||
-                r.type === 'opaqueredirect'
-              )
-                throw Error('sign-in');
-              if (r.status === 503) {
-                const data = await r.json().catch(() => ({}));
-                if (data.setupRequired) throw Error('setup');
+            let hasMore;
+            do {
+              const r = await fetch(
+                `${collection.path}?cursor=${collection.cursor}`,
+                {
+                  headers: syncHeaders(),
+                  redirect: 'manual',
+                  signal: AbortSignal.timeout(15000),
+                },
+              );
+              if (!r.ok) {
+                if (
+                  r.status === 401 ||
+                  r.status === 403 ||
+                  r.type === 'opaqueredirect'
+                )
+                  throw Error('sign-in');
+                if (r.status === 503) {
+                  const data = await r.json().catch(() => ({}));
+                  if (data.setupRequired) throw Error('setup');
+                }
+                throw Error('Unable to load shared storage');
               }
-              throw Error('Unable to load shared storage');
-            }
-            const data = await r.json();
-            for (const s of data.solves) {
-              const local = collection.records().get(s.id);
-              if (!local || s.updatedAt > local.updatedAt)
-                collection.records().set(s.id, normalizeSolve(s));
-            }
-            await persist();
+              const data = await r.json();
+              for (const s of data.solves) {
+                const local = collection.records().get(s.id);
+                if (!local || s.updatedAt > local.updatedAt)
+                  collection.records().set(s.id, normalizeSolve(s));
+              }
+              const durable = await persist();
+              // Advance only after the downloaded data is safe. A failed save or
+              // interrupted page is replayed; edits and tombstones are idempotent.
+              if (durable === false)
+                throw Error('Unable to save downloaded history');
+              if (
+                Number.isSafeInteger(data.cursor) &&
+                data.cursor >= collection.cursor
+              ) {
+                if (data.hasMore && data.cursor === collection.cursor)
+                  throw Error('Sync cursor did not advance');
+                collection.cursor = data.cursor;
+                hasMore = data.hasMore === true;
+              } else hasMore = false; // Older servers still return a full snapshot.
+            } while (hasMore);
           }
           lastSync = Date.now();
           syncState = navigator.onLine ? 'healthy' : 'offline';

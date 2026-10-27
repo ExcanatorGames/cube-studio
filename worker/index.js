@@ -19,6 +19,16 @@ export default {
         const supported = lesson || url.pathname === '/api/solves';
         const table = lesson ? 'lesson_attempts' : 'solves';
         if (supported && request.method==='GET') {
+          if (url.searchParams.has('cursor')) {
+            const raw = url.searchParams.get('cursor');
+            const cursor = Number(raw);
+            if (!/^\d+$/.test(raw) || !Number.isSafeInteger(cursor)) return json({error:'Invalid sync cursor'},400);
+            const {results} = await env.DB.prepare(`SELECT c.sequence, r.data FROM sync_changes c JOIN ${table} r ON r.id = c.id WHERE c.collection = ? AND c.sequence > ? ORDER BY c.sequence LIMIT 351`).bind(table, cursor).all();
+            const page = results.slice(0, 350);
+            const records = new Map((!lesson && cursor === 0 ? seed : []).map(s => [s.id, s]));
+            for (const row of page) { const s = JSON.parse(row.data); records.set(s.id, s); }
+            return json({solves:[...records.values()].map(s=>({...s,trust:'confirmed',usedScramble:true})),cursor:page.at(-1)?.sequence ?? cursor,hasMore:results.length > 350});
+          }
           const { results } = await env.DB.prepare(`SELECT data FROM ${table}`).all();
           const records = new Map((lesson ? [] : seed).map(s=>[s.id,s]));
           for (const row of results) {const s=JSON.parse(row.data); records.set(s.id,s);}

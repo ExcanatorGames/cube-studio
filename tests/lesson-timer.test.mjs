@@ -175,7 +175,7 @@ test('Space only arms a visible timer and Escape cancels a lesson without a save
 test('a delayed normal scramble cannot replace an exercise after opening a lesson',async()=>{
   const h=harness();
   h.run('navigator.onLine=true');
-  h.run('officialScrambler=Promise.resolve({randomScrambleForEvent:()=>new Promise(resolve=>globalThis.completeScramble=resolve)})');
+  h.run('officialScrambler=({next:()=>new Promise(resolve=>globalThis.completeScramble=resolve)})');
   const pending=h.run('newScramble()');
   await Promise.resolve();
   const complete=h.run('completeScramble');
@@ -189,7 +189,7 @@ test('a delayed normal scramble cannot replace an exercise after opening a lesso
 test('leaving a lesson regenerates an interrupted replacement scramble without reusing the finished solve',async()=>{
   const h=harness(),used=h.run('scramble');
   h.run('arm()');h.arm();h.run('start()');h.advance(5000);
-  h.run('navigator.onLine=true;globalThis.scrambleCompletions=[];officialScrambler=Promise.resolve({randomScrambleForEvent:()=>new Promise(resolve=>scrambleCompletions.push(resolve))})');
+  h.run('navigator.onLine=true;globalThis.scrambleCompletions=[];officialScrambler=({next:()=>new Promise(resolve=>scrambleCompletions.push(resolve))})');
   h.run('stop()');
   await new Promise(setImmediate);
   assert.equal(JSON.parse(h.storage.get('cube-studio-v1')).solves[0].scramble,used);
