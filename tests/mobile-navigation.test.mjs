@@ -6,7 +6,7 @@ function harness(){
   const handlers={},calls=[];let page='timer',busy=false,mobile=true,time=1000;
   const root={addEventListener(name,fn){handlers[name]=fn;}},view={innerWidth:390,performance:{now:()=>time},matchMedia:()=>({matches:mobile}),addEventListener(){}};
   initMobileNavigation({root,view,pages:['timer','history','insights'],getPage:()=>page,navigate:p=>{calls.push(p);page=p;},blocked:()=>busy});
-  const target=kind=>({closest(selector){if(selector==='.sidebar nav')return kind==='nav'?{}:null;if(selector==='.page:not([hidden])')return kind==='outside'||kind==='nav'?null:{};if(selector==='button')return kind==='button'||kind==='nav'?{}:null;return ['input','select','textarea'].includes(kind)?{}:null;}});
+  const target=kind=>({closest(selector){if(selector==='.sidebar nav')return kind==='nav'?{}:null;if(selector==='.page:not([hidden])')return kind==='outside'||kind==='nav'?null:{};if(selector==='button,a')return ['button','link','nav'].includes(kind)?{}:null;return ['input','select','textarea'].includes(kind)?{}:null;}});
   const event=(name,x,y,{id=1,kind='page',type='touch',detail=1}={})=>{const e={pointerType:type,pointerId:id,clientX:x,clientY:y,target:target(kind),cancelable:true,detail,preventDefault(){this.prevented=true;},stopImmediatePropagation(){this.stopped=true;}};handlers[name](e);return e;};
   const swipe=(dx,dy=0,opts={})=>{event('pointerdown',190,200,opts);event('pointermove',190+dx/2,200+dy/2,opts);time+=150;return event('pointerup',190+dx,200+dy,opts);};
   return {calls,event,swipe,setBusy:v=>busy=v,setMobile:v=>mobile=v,advance:ms=>time+=ms,getPage:()=>page};
@@ -30,7 +30,7 @@ test('two-finger timer gestures, active/fullscreen/modal states, mouse input and
   assert.deepEqual(h.calls,[]);
 });
 test('editing controls and screen-edge gestures are ignored; bottom tabs accept swipes',()=>{
-  const h=harness();for(const kind of ['input','select','textarea','button','outside'])h.swipe(-100,0,{kind});
+  const h=harness();for(const kind of ['input','select','textarea','button','link','outside'])h.swipe(-100,0,{kind});
   h.event('pointerdown',10,200);h.event('pointerup',110,200);
   assert.deepEqual(h.calls,[]);h.swipe(-100,0,{kind:'nav'});assert.deepEqual(h.calls,['history']);
 });

@@ -30,6 +30,7 @@ import { createScrambler } from './scrambler.js';
 import { createIndexedStorage } from './indexed-storage.js';
 import { createCoordinatedStorage } from './coordinated-storage.js';
 import { initStorageFeedback } from './storage-feedback.js';
+import { createRouter, routePath, routeClick } from './routes.js';
 const motion = createMotion();
 const deviceStorage = createIndexedStorage();
 const { snapshot: saved } = await deviceStorage.read();
@@ -72,6 +73,23 @@ settings.lessonOrientation =
   settings.lessonOrientation === 'white-top' ? 'white-top' : 'white-bottom';
 let page = 'timer',
   toastTimeout;
+let router, applyingRoute = false;
+function currentRoute() {
+  const context = lessonSession.context;
+  return { page, ...(context.kind === 'lesson' ? {
+    lessonId: context.lessonId, tab: context.tab, title: context.title,
+    scopeCaseIds: context.scopeCaseIds, demoCaseId: context.demoCaseId,
+    caseIds: context.caseIds,
+  } : {}) };
+}
+function recordRoute(options) {
+  $('#open-settings').setAttribute('href', routePath({ ...currentRoute(), settings: true }));
+  document.title = `${$('#settings-dialog').open ? 'Settings' :
+    lessonSession.context.kind === 'lesson' ? lessonSession.context.title + ' · ' +
+      (lessonSession.context.tab === 'practice' ? 'Practice' : 'Lesson') :
+    { timer: 'Timer', insights: 'Analysis', history: 'Solves', lessons: 'Lessons', practice: 'Practice', splits: 'Splits', 'not-found': 'Page not found' }[page]} · Cube Studio`;
+  if (!applyingRoute) router?.commit({ ...currentRoute(), settings: !!$('#settings-dialog').open }, options);
+}
 const syncService = createSync({
   getRecords: () => records,
   getPending: () => pending,
@@ -298,7 +316,7 @@ function renderHeader() {
     (group) => (group.hidden = group.dataset.headerContext !== context),
   );
 }
-function setPage(p, { showList = false } = {}) {
+function setPage(p, { showList = false, immediate = false } = {}) {
   if (busy()) return;
   closeControls();
   if (p === page && !showList) return;
@@ -312,6 +330,7 @@ function setPage(p, { showList = false } = {}) {
     lessons: 'Lessons',
     practice: 'Practice',
     splits: 'Splits',
+    'not-found': 'Page not found',
   }[p];
   // Selection is immediate and stays outside the moving page snapshots.
   $$('.sidebar [data-page]').forEach((b) => {
@@ -332,6 +351,7 @@ function setPage(p, { showList = false } = {}) {
       $$('.page').forEach((el) => (el.hidden = '#' + el.id !== pageElement(p)));
       if (p === 'practice') renderPracticeList();
       render();
+      recordRoute();
       window.scrollTo({ top: 0, behavior: 'instant' });
       // A long Insights snapshot must stay inside the space above the phone navigation.
       const nav = $('.sidebar').getBoundingClientRect(),
@@ -347,27 +367,29 @@ function setPage(p, { showList = false } = {}) {
         (mobile ? innerHeight - nav.top : 0) + 'px',
       );
     },
-    { direction },
+    { direction, immediate },
   );
-  if (!animated)
+  if (!animated && !immediate)
     motion.play(
       $(pageElement(p)),
       [{ translate: `${direction * innerWidth}px 0` }, { translate: '0 0' }],
       { duration: 260 },
     );
 }
-$$('[data-page]').forEach((b) => (b.onclick = () => {
+$$('[data-page]').forEach((b) => (b.onclick = (event) => {
+  if (!routeClick(event)) return;
   if (b.dataset.page === navigationPage(page)) return;
   setPage(b.dataset.page);
 }));
 for (const name of analysisTabs) {
   const tab = $('#analysis-tab-' + name);
-  tab.onclick = () => setPage(name);
+  tab.onclick = event => { if (routeClick(event)) setPage(name); };
   tab.onkeydown = (event) => {
     let index = analysisTabs.indexOf(name);
     if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') index = 1 - index;
     else if (event.key === 'Home') index = 0;
     else if (event.key === 'End') index = analysisTabs.length - 1;
+    else if (event.key === ' ') index = analysisTabs.indexOf(name);
     else return;
     event.preventDefault();
     if (busy()) return;
@@ -376,7 +398,7 @@ for (const name of analysisTabs) {
   };
 }
 $('.brand').onclick = (e) => {
-  e.preventDefault();
+  if (!routeClick(e)) return;
   setPage('timer');
 };
 const lessonPresentation = createLessonPresentation();
@@ -423,6 +445,7 @@ $('#practice-cards').onclick = (event) => {
   const button = event.target.closest('[data-practice-open]');
   const option = practiceOptions.find(item => item.id === button?.dataset.practiceOpen);
   if (!option) return;
+  if (!routeClick(event)) return;
   const selected = practiceSelectionVisible() ? settings.lessonCaseSelections?.mixed : null;
   const ids = selected?.length ? selected : option.cases.map(item => item.id);
   const scope = practiceOptions.filter(item => item.cases.some(c => ids.includes(c.id)))
@@ -432,6 +455,9 @@ $('#practice-cards').onclick = (event) => {
 };
 function renderLessonTabs() {
   lessonPresentation.renderTabs(lessonSession.context, busy());
+  if (lessonSession.context.kind === 'lesson') for (const tab of lessonTabs) {
+    $('#lesson-tab-' + tab).setAttribute('href', routePath({ ...currentRoute(), tab }));
+  }
   $('.lesson-tabs').hidden = page === 'practice';
 }
 function renderLessonCases() {
@@ -447,14 +473,15 @@ function renderLessonAssistance() {
 $('#lesson-cards').onclick = (e) => {
   const button = e.target.closest('[data-lesson]');
   if (!button) return;
+  if (!routeClick(e)) return;
   const option = practiceOptions.find(item => item.id === button.dataset.lessonGroup);
   openLesson(button.dataset.lesson, option ? {
     scopeCaseIds: option.cases.map(item => item.id),
     title: option.fullTitle,
   } : undefined);
 };
-$('#lesson-back').onclick = () => setPage('lessons', { showList: true });
-$('#practice-back').onclick = () => setPage('practice', { showList: true });
+$('#lesson-back').onclick = event => { if (routeClick(event)) setPage('lessons', { showList: true }); };
+$('#practice-back').onclick = event => { if (routeClick(event)) setPage('practice', { showList: true }); };
 $('#lesson-group').onchange = (event) => {
   if (busy()) return;
   const selected = currentLesson()?.cases.find(item => item.group === event.target.value);
@@ -462,7 +489,7 @@ $('#lesson-group').onchange = (event) => {
 };
 for (const tab of lessonTabs) {
   const button = $('#lesson-tab-' + tab);
-  button.onclick = () => setLessonTab(tab);
+  button.onclick = event => { if (routeClick(event)) setLessonTab(tab); };
   button.onkeydown = (event) => {
     if (busy()) return;
     const index = lessonTabs.indexOf(tab);
@@ -472,6 +499,7 @@ for (const tab of lessonTabs) {
         lessonTabs[(index + lessonTabs.length - 1) % lessonTabs.length],
       Home: 'lesson',
       End: 'practice',
+      ' ': tab,
     }[event.key];
     if (!next) return;
     event.preventDefault();
@@ -494,6 +522,7 @@ function setLessonTab(tab) {
   updateTimerHeight();
   layoutScramble();
   requestAnimationFrame(() => feedbackView.fit());
+  recordRoute();
 }
 function resetTimerContext() {
   timerInput.reset();
@@ -524,10 +553,12 @@ function setPracticeCases(caseIds) {
   newScramble();
   timerVisual();
   renderSteps();
+  recordRoute({ replace: true });
 }
 $('#lesson-case-list').onclick = (e) => {
   if (busy() || lessonSession.context.kind !== 'lesson') return;
   const id = e.target.closest('[data-lesson-case]')?.dataset.lessonCase;
+  if (!id || !routeClick(e)) return;
   selectDemoCase(id);
 };
 $('#practice-case-list').onclick = (event) => {
@@ -538,6 +569,7 @@ $('#practice-case-list').onclick = (event) => {
   setPracticeCases(ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
 };
 function selectDemoCase(id) {
+  if (busy()) return;
   if (!currentLesson().cases.some((item) => item.id === id)) return;
   if (!lessonSession.selectDemo(id)) return;
   lessonDemo?.destroy();
@@ -545,10 +577,12 @@ function selectDemoCase(id) {
   $('#lesson-demo').innerHTML = '<p role="status">Preparing scramble…</p>';
   renderLessonCases();
   newScramble();
+  recordRoute();
 }
 function openLesson(id, options) {
   if (busy()) return;
   if (!lessonSession.open(id, options)) return;
+  if (options?.demoCaseId) lessonSession.selectDemo(options.demoCaseId);
   if (page === 'practice') lessonSession.setTab('practice');
   const lesson = currentLesson();
   ++scrambleRequest;
@@ -568,6 +602,7 @@ function openLesson(id, options) {
   timerVisual();
   updateTimerHeight();
   window.scrollTo({ top: 0, behavior: 'instant' });
+  recordRoute();
 }
 function leaveLesson() {
   ++scrambleRequest;
@@ -1171,11 +1206,12 @@ function openDialog(id) {
     return;
   $(id).showModal();
 }
-initSettingsDialog({
+const settingsDialog = initSettingsDialog({
   getSettings: () => settings,
   busy: () => busy(),
   openDialog,
   toast,
+  onOpen: () => recordRoute({ overlay: true }),
   save(next) {
     settings = next;
     timer.reset();
@@ -1252,6 +1288,45 @@ render();
 timerVisual();
 newScramble();
 initConnection({ busy, sync, notify: toast });
+router = createRouter({
+  blocked: busy,
+  apply(route) {
+    applyingRoute = true;
+    try {
+      closeControls();
+      const background = { ...route, settings: false };
+      const changingBackground = route.page === 'not-found' || routePath(background) !== routePath(currentRoute());
+      for (const dialog of $$('dialog')) {
+        if (dialog.open && (dialog.id === 'settings-dialog' ? !route.settings : changingBackground)) dialog.close();
+      }
+      if (changingBackground) {
+        setPage(route.page, { showList: true, immediate: true });
+        if (route.lessonId) {
+          const source = getLesson(route.lessonId);
+          openLesson(route.lessonId, { ...route, caseIds: route.caseIds ||
+            source.cases.filter(item => !route.scopeCaseIds || route.scopeCaseIds.includes(item.id)).map(item => item.id) });
+          setLessonTab(route.tab);
+        }
+      }
+      if (route.settings && !$('#settings-dialog').open) settingsDialog.open();
+      recordRoute();
+    } finally {
+      applyingRoute = false;
+    }
+  },
+});
+$('#settings-dialog').addEventListener('close', () => {
+  // A history navigation can close the dialog before its close event is delivered.
+  if (window.location.pathname.replace(/\/+$/, '') === '/settings' && !$('#settings-dialog').open) {
+    router.closeOverlay(currentRoute());
+    recordRouteTitle();
+  }
+});
+function recordRouteTitle() {
+  applyingRoute = true;
+  try { recordRoute(); } finally { applyingRoute = false; }
+}
+router.start();
 storageFeedback.render();
 sync();
 initPWA({ busy: () => busy() || coordinatedStorage.busy, notify: toast });

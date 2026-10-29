@@ -1,18 +1,10 @@
 import { LESSON_CATALOG, getLesson } from './lessons.js';
 import { lessonCubeSVG } from './lesson-cube.js';
 import { $, esc } from './dom.js';
+import { lessonGroups, routePath } from './routes.js';
 
 export const lessonTabs = ['lesson', 'practice'];
-export const practiceOptions = LESSON_CATALOG.flatMap(lesson =>
-  [...new Set(lesson.cases.map(item => item.group))].map((group, index) => ({
-    id: `${lesson.id}-${index}`,
-    title: group,
-    fullTitle: `${lesson.title} · ${group}`,
-    lessonId: lesson.id,
-    lessonTitle: lesson.title,
-    cases: lesson.cases.filter(item => item.group === group),
-  })),
-);
+export const practiceOptions = lessonGroups;
 
 export function initPracticeSelection({ root, onHold, view = window }) {
   let pending = null, suppressClick = null;
@@ -83,10 +75,10 @@ export function createLessonPresentation() {
           const checked = option.cases.every(item => selected.has(item.id));
           return `<article class="lesson-card practice-card">
             <label class="practice-select" data-practice-selection-control="${option.id}" hidden><input type="checkbox" data-practice-select="${option.id}" aria-label="Include ${esc(option.fullTitle)}" ${checked ? 'checked' : ''}></label>
-            <button type="button" class="practice-card-open" data-practice-open="${option.id}" aria-label="Practice ${esc(option.fullTitle)}" aria-keyshortcuts="Shift+F10">
+            <a href="/practice/${option.lessonId}/${option.slug}" class="practice-card-open" data-practice-open="${option.id}" aria-label="Practice ${esc(option.fullTitle)}" aria-keyshortcuts="Shift+F10">
               <span class="lesson-card-copy"><strong>${esc(option.fullTitle)}</strong><small>${option.cases.length} cases</small></span>
               ${casePreviews(option.cases)}
-            </button>
+            </a>
           </article>`;
         }).join('')}
       </section>`).join('');
@@ -96,11 +88,14 @@ export function createLessonPresentation() {
       $(`[data-practice-selection-control="${option.id}"]`).hidden = !selecting;
       $(`[data-practice-select="${option.id}"]`).checked = count === option.cases.length;
       $(`[data-practice-select="${option.id}"]`).indeterminate = count > 0 && count < option.cases.length;
+      const ids = selecting && caseIds.length ? caseIds : option.cases.map(item => item.id);
+      const scopeCaseIds = practiceOptions.filter(item => item.cases.some(c => ids.includes(c.id))).flatMap(item => item.cases.map(c => c.id));
+      $(`[data-practice-open="${option.id}"]`).setAttribute('href', routePath({ page: 'practice', lessonId: 'mixed', tab: 'practice', caseIds: ids, scopeCaseIds }));
     }
   }
   function renderLessonCards() {
     $('#lesson-cards').innerHTML = practiceOptions.map(option =>
-      `<button type="button" class="lesson-card catalog-lesson-card" data-lesson="${option.lessonId}" data-lesson-group="${option.id}"><span class="lesson-card-copy"><strong>${esc(option.fullTitle)}</strong><small>${option.cases.length} cases</small></span>${casePreviews(option.cases)}</button>`,
+      `<a href="/lessons/${option.lessonId}/${option.slug}/lesson" class="lesson-card catalog-lesson-card" data-lesson="${option.lessonId}" data-lesson-group="${option.id}"><span class="lesson-card-copy"><strong>${esc(option.fullTitle)}</strong><small>${option.cases.length} cases</small></span>${casePreviews(option.cases)}</a>`,
     ).join('');
   }
 
@@ -112,6 +107,7 @@ export function createLessonPresentation() {
       button.setAttribute('aria-selected', String(selected));
       button.tabIndex = selected ? 0 : -1;
       button.disabled = locked;
+      button.setAttribute('aria-disabled', String(locked));
       $('#lesson-panel-' + tab).hidden = !selected;
     }
   }
@@ -132,16 +128,17 @@ export function createLessonPresentation() {
           if (!lessonCasePreviews.has(item.id))
             lessonCasePreviews.set(item.id, lessonCubeSVG(item.setup, item));
           const label = lesson.id === '13' ? item.title : `Case ${index + 1}`;
-          return `<button type="button" id="lesson-case-${item.id}" class="lesson-case-tile" data-lesson-case="${item.id}" aria-label="${esc(item.title)}" aria-pressed="false" title="${esc(item.group + ' · ' + item.title)}"><span class="lesson-case-thumbnail" aria-hidden="true">${lessonCasePreviews.get(item.id)}</span><span>${esc(label)}</span></button>`;
+          return `<a href="${esc(routePath({ ...timerContext, page: 'lessons', demoCaseId: item.id }))}" id="lesson-case-${item.id}" class="lesson-case-tile" data-lesson-case="${item.id}" aria-label="${esc(item.title)}" aria-current="false" title="${esc(item.group + ' · ' + item.title)}"><span class="lesson-case-thumbnail" aria-hidden="true">${lessonCasePreviews.get(item.id)}</span><span>${esc(label)}</span></a>`;
         })
         .join('');
       list.dataset.lessonId = caseListKey;
     }
     for (const item of lesson.cases) {
       $('#lesson-case-' + item.id).setAttribute(
-        'aria-pressed',
+        'aria-current',
         String(item.id === timerContext.demoCaseId),
       );
+      $('#lesson-case-' + item.id).setAttribute('href', routePath({ ...timerContext, page: 'lessons', demoCaseId: item.id }));
       $('#lesson-case-' + item.id).hidden = grouped && item.group !== selected.group;
     }
     $('#lesson-case-title').textContent = selected.title;

@@ -50,14 +50,14 @@ export async function openControls(page) {
 
 export async function pageControl(page, name) {
   await openControls(page);
-  await page.getByRole('button', {name}).click();
+  await page.getByRole(/All (lessons|practices)/.test(String(name)) ? 'link' : 'button', {name}).click();
 }
 
 export async function showHistory(page) {
   if (await page.locator('body').evaluate(body => body.classList.contains('focus-mode'))) {
     await page.getByRole('button', {name: 'Toggle fullscreen timer'}).click();
   }
-  await page.getByRole('button', {name: 'Analysis', exact: true}).click();
+  await page.getByRole('link', {name: 'Analysis', exact: true}).click();
   await page.getByRole('tab', {name: 'Solves', exact: true}).click();
 }
 

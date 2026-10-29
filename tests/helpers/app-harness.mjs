@@ -230,6 +230,13 @@ export function harness({
     },
     window: {
       document,
+      location: new URL('https://cube.example/timer'),
+      history: {
+        state: null,
+        replaceState(state, _, path) { this.state = state; sandbox.window.location = new URL(path, sandbox.window.location); },
+        pushState(state, _, path) { this.replaceState(state, _, path); },
+        back() {}, go() {},
+      },
       matchMedia: () => ({ matches: false }),
       addEventListener: (name, fn) => listeners.set('window:' + name, fn),
       scrollTo() {},
@@ -265,6 +272,8 @@ export function harness({
     structuredClone,
     console,
     AbortSignal,
+    URL,
+    URLSearchParams,
     Worker,
     initPWA() {},
     initConnection() {},

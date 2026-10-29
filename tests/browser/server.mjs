@@ -85,11 +85,12 @@ db.exec(readFileSync(new URL('../../drizzle/0003_incremental_sync.sql', import.m
         res.end(Buffer.from(await response.arrayBuffer()));
         return;
       }
-      let content = assets.get(url.pathname);
+      const appRoute = (req.method === 'GET' || req.method === 'HEAD') && !url.pathname.split('/').pop().includes('.');
+      let content = assets.get(url.pathname) || (appRoute ? assets.get('/') : null);
       if (!content) { res.writeHead(404); res.end('Not found'); return; }
       if (url.pathname === '/sw.js') content = content.toString().replace('__VERSION__', `browser-${version}`);
       res.writeHead(200, {
-        'content-type': types[url.pathname === '/' ? 'html' : url.pathname.split('.').pop()] || 'application/octet-stream',
+        'content-type': types[appRoute ? 'html' : url.pathname.split('.').pop()] || 'application/octet-stream',
         'cache-control': 'no-store',
         'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'",
       });

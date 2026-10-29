@@ -16,7 +16,7 @@ test('a closed tab reopens offline from the service worker with its saved histor
   await showHistory(reopened);
   await expect(reopened.locator('#history-body [data-id]')).toHaveCount(1);
   expect((await storedState(reopened)).solves).toEqual(saved);
-  await reopened.getByRole('button', {name: 'Timer', exact: true}).click();
+  await reopened.getByRole('link', {name: 'Timer', exact: true}).click();
   await startKeyboardSolve(reopened);
   await finishKeyboardSolve(reopened);
   await expect.poll(async () => (await storedState(reopened)).solves.length).toBe(2);

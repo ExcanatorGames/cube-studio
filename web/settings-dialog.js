@@ -1,4 +1,5 @@
 import { $ } from './dom.js';
+import { routeClick } from './routes.js';
 import { CUBE_COLORS, cubeOrientationId, orientationColors, validOrientation, cubeSVG } from './cube.js';
 
 export function initSettingsDialog({
@@ -7,6 +8,7 @@ export function initSettingsDialog({
   busy,
   openDialog,
   toast,
+  onOpen,
 }) {
   const colorOptions = selected => Object.keys(CUBE_COLORS).map(color => `<option value="${color}" ${color === selected ? 'selected' : ''}>${color[0].toUpperCase() + color.slice(1)}</option>`).join('');
   function preview() {
@@ -15,7 +17,7 @@ export function initSettingsDialog({
     if (!validOrientation(top, front)) $('#cube-front').value = Object.keys(CUBE_COLORS).find(color => validOrientation(top, color));
     $('#settings-cube-preview').innerHTML = cubeSVG('', { orientation: cubeOrientationId(top, $('#cube-front').value) });
   }
-  $('#open-settings').onclick = () => {
+  function open() {
     if (busy()) return;
     const {top, front} = orientationColors(getSettings().orientation);
     $('#cube-top').innerHTML = colorOptions(top);
@@ -27,7 +29,9 @@ export function initSettingsDialog({
     $('#lesson-orientation').value = getSettings().lessonOrientation;
     $('#solve-colors').value = getSettings().solveColors || 'white';
     openDialog('#settings-dialog');
-  };
+    onOpen?.();
+  }
+  $('#open-settings').onclick = event => { if (routeClick(event)) open(); };
   $('#cube-top').onchange = preview;
   $('#cube-front').onchange = preview;
   $('#save-settings').onclick = () => {
@@ -49,4 +53,5 @@ export function initSettingsDialog({
     save(next);
     $('#settings-dialog').close();
   };
+  return { open };
 }

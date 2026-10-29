@@ -59,7 +59,7 @@ test('migration preserves history, tombstones, pending lessons and settings; lat
       return put.call(this, value, key);
     };
   });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Hold to start').selectOption('300');
   await page.locator('#save-settings').click();
   await expect
@@ -103,7 +103,7 @@ test('discarding an invalid split-list draft allows the next solve to persist', 
   await page.getByRole('button', { name: 'Save split list', exact: true }).click();
   await expect(page.locator('#split-editor-error')).toContainText('12 steps');
   await page.getByRole('button', { name: 'Close split editor', exact: true }).click();
-  await page.getByRole('button', { name: 'Timer', exact: true }).click();
+  await page.getByRole('link', { name: 'Timer', exact: true }).click();
   await expect(page.locator('#timer-page')).toBeVisible();
   await startKeyboardSolve(page);
   await finishKeyboardSolve(page);

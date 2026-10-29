@@ -53,8 +53,8 @@ test('legacy lessons expose their demos and restore practice subsets independent
   assert.match(h.element('#lesson-case-list').innerHTML,/Ready right/);assert.match(h.element('#lesson-case-list').innerHTML,/Ready left/);
   h.element('#lesson-case-list').onclick({target:{closest:()=>({dataset:{lessonCase:'ready-left'}})}});
   assert.equal(h.run('lessonSession.context.demoCaseId'),'ready-left');
-  assert.equal(h.element('#lesson-case-ready-left').getAttribute('aria-pressed'),'true');
-  assert.equal(h.element('#lesson-case-ready-right').getAttribute('aria-pressed'),'false');
+  assert.equal(h.element('#lesson-case-ready-left').getAttribute('aria-current'),'true');
+  assert.equal(h.element('#lesson-case-ready-right').getAttribute('aria-current'),'false');
   assert.equal(h.element('#lesson-case-title').textContent,'Ready left');
   h.run("setPracticeCases(['ready-left'])");
   assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
