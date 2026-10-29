@@ -7,7 +7,7 @@ const flush=()=>new Promise(setImmediate);
 const response=(status=200,data={solves:[]})=>({ok:status>=200&&status<300,status,json:async()=>data});
 function deferred(){let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};}
 function assertHealthy(h){
-  for(const id of ['mobile-sync','sync-mobile','connect-sync','sync-attention'])assert.equal(h.element('#'+id).hidden,true,id);
+  for(const id of ['mobile-sync','sync-mobile','connect-sync','sync-attention','settings-sync-dot'])assert.equal(h.element('#'+id).hidden,true,id);
 }
 function saveManual(h,time='12.34'){
   h.element('#manual-time').value=time;h.element('#save-manual').onclick();
@@ -17,21 +17,19 @@ function assertContext(h,active){
   for(const name of ['history','insights','lesson'])assert.equal(h.element(`[data-header-context="${name}"]`).hidden,name!==active,name);
 }
 
-test('page controls live once above Settings and lessons retain only their detail heading',async()=>{
+test('filters belong to their pages, while sync and import belong to Settings',async()=>{
   const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
-  const controls=html.match(/<section id="app-controls"[^>]*>([\s\S]*?)<\/section>/)[1];
-  assert.doesNotMatch(html,/class="app-bar"/);
-  assert.ok(html.indexOf('id="app-controls"')<html.indexOf('id="open-settings"'));
-  for(const id of ['history-scope','search','history-import','insight-period','lesson-back','mobile-sync','sync-mobile','connect-sync','update-app']){
-    assert.ok(controls.includes(`id="${id}"`),id);
+  const settings=html.match(/<dialog id="settings-dialog"[\s\S]*?<\/dialog>/)[0];
+  for(const id of ['mobile-sync','sync-mobile','connect-sync','open-import','export','install-app','update-app']){
+    assert.ok(settings.includes(`id="${id}"`),id);
     assert.equal(html.split(`id="${id}"`).length-1,1,id);
   }
-  for(const id of ['open-import','export','install-app'])assert.equal(html.split(`id="${id}"`).length-1,1,id);
-  assert.match(html.match(/<aside class="sidebar">([\s\S]*?)<\/aside>/)[1],/id="open-settings"/);
-  assert.doesNotMatch(controls,/id="open-settings"/);
-  assert.equal(html.split('id="open-settings"').length-1,1);
-  assert.doesNotMatch(html,/puzzle-label|class="lesson-intro"|<h2[^>]*>Lessons<\/h2>/);
-  assert.match(html,/<header class="lesson-heading"><h2 id="lesson-title"/);
+  const history=html.slice(html.indexOf('<section id="history-page"'),html.indexOf('<section id="insights-page"'));
+  for(const id of ['history-scope','search','manual-entry'])assert.ok(history.includes(`id="${id}"`),id);
+  assert.match(html.slice(html.indexOf('<section id="insights-page"')),/id="insight-period"/);
+  assert.doesNotMatch(html,/id="history-import"|id="app-controls"|id="open-controls"/);
+  const heading=html.match(/<header class="lesson-heading">[\s\S]*?<\/header>/)[0];
+  for(const id of ['lesson-back','practice-back'])assert.ok(heading.includes(`id="${id}"`));
 });
 
 test('navigation, opening and leaving lessons show only the matching header group and preserve filter values',()=>{
@@ -39,7 +37,7 @@ test('navigation, opening and leaving lessons show only the matching header grou
   h.element('#analysis-tab-history').onclick();assertContext(h,'history');
   h.element('#history-scope').value='today';h.element('#history-scope').onchange();
   h.element('#search').value='old note';h.element('#search').oninput();
-  h.element('#history-import').onclick();assert.equal(h.element('#import-dialog').open,true);
+  h.element('#open-import').onclick();assert.equal(h.element('#import-dialog').open,true);
   h.element('#analysis-tab-insights').onclick();assertContext(h,'insights');
   h.element('#insight-period').value='7';h.element('#insight-period').onchange();
   h.element('nav-lessons').onclick();assertContext(h,null);
@@ -118,6 +116,7 @@ test('a failed background refresh exposes retry and the next automatic refresh h
   next=response(500);h.intervals[0].fn();await flush();
   assert.equal(h.element('#mobile-sync').hidden,false);
   assert.equal(h.element('#mobile-sync').textContent,'Sync failed');
+  assert.equal(h.element('#settings-sync-dot').hidden,false);
   assert.equal(h.element('#sync-mobile').hidden,false);
   assert.equal(h.element('#sync-mobile').disabled,false);
   assert.equal(h.element('#connect-sync').hidden,true);
@@ -201,4 +200,26 @@ test('a connection change during a failing request gets one queued retry and rep
     if(recovered)assertHealthy(h);
     else{assert.equal(h.element('#sync-mobile').hidden,false);assert.equal(h.element('#sync-mobile').disabled,false);}
   }
+});
+
+test('hold time uses editable seconds and rejects values outside zero to one',()=>{
+  const h=harness();
+  h.element('#open-settings').onclick();assert.equal(h.element('#hold-duration').value,0.5);
+  h.element('#hold-duration').value='0.72';h.element('#save-settings').onclick();
+  assert.equal(h.run('settings.hold'),720);
+  for(const value of ['','-0.1','1.01','invalid']){
+    h.element('#open-settings').onclick();h.element('#hold-duration').value=value;h.element('#save-settings').onclick();
+    assert.equal(h.element('#settings-dialog').open,true);assert.equal(h.run('settings.hold'),720);
+  }
+  h.element('#hold-duration').value='1';h.element('#save-settings').onclick();assert.equal(h.run('settings.hold'),1000);
+  h.element('#open-settings').onclick();h.element('#hold-duration').value='0';h.element('#save-settings').onclick();assert.equal(h.run('settings.hold'),0);
+});
+
+test('the Settings dot remains visible for an update after sync recovers',async()=>{
+  const h=harness({online:true,fetch:async()=>response()});await flush();assertHealthy(h);
+  h.element('#update-app').hidden=false;h.run('renderSettingsAttention()');
+  assert.equal(h.element('#settings-sync-dot').hidden,false);
+  assert.equal(h.element('#settings-notice').textContent,'Update available');
+  h.run('renderSyncStatus()');assert.equal(h.element('#settings-sync-dot').hidden,false);
+  h.element('#update-app').hidden=true;h.run('renderSettingsAttention()');assertHealthy(h);
 });

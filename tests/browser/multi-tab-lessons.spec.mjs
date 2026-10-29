@@ -142,7 +142,8 @@ test('lesson attempts survive offline reload, sync to another device, and round-
         expect(restored[key]).toEqual(original[key]);
       expect((await storedState(imported)).solves).toEqual([]);
       await showHistory(imported);
-      await imported.locator('#history-import').click();
+      await imported.getByRole('link',{name:'Settings',exact:true}).click();
+      await imported.locator('#open-import').click();
       await imported
         .locator('#csv-file')
         .setInputFiles({

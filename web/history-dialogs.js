@@ -30,7 +30,6 @@ export function initHistoryDialogs({
     openDialog('#import-dialog');
   }
   $('#open-import').onclick = openImport;
-  $('#history-import').onclick = openImport;
   async function previewImport() {
     try {
       const file = $('#csv-file').files[0];

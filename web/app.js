@@ -60,7 +60,7 @@ let pendingLessons = new Map(
 let settings = {
   preset: 'beginner',
   custom: ['Cross', 'First pair', 'Remaining F2L', 'Last layer'],
-  hold: 550,
+  hold: 500,
   track: false,
   orientation: 'white-top',
   lessonOrientation: 'white-bottom',
@@ -252,6 +252,13 @@ function renderSyncStatus() {
   $('#sync-mobile').hidden = syncState === 'healthy' || syncState === 'auth';
   $('#sync-mobile').disabled = syncService.busy;
   $('#sync-attention').hidden = !text;
+  renderSettingsAttention();
+}
+function renderSettingsAttention() {
+  const text = [$('#mobile-sync').textContent, $('#update-app').hidden ? '' : 'Update available'].filter(Boolean).join(' · ');
+  $('#settings-sync-dot').hidden = !text;
+  $('#settings-sync-dot').title = text;
+  $('#settings-notice').textContent = text;
 }
 function updateSolve(s) {
   s = normalizeSolve({
@@ -284,17 +291,6 @@ function saveAttempt(s, attempt) {
 function practiceTimes() {
   return lessonSession.times(lessonAttempts.values());
 }
-const compactControls = matchMedia('(max-width:740px), (orientation:landscape) and (max-height:500px) and (max-width:1100px)');
-function closeControls() {
-  if ($$('#app-controls:popover-open').length) $('#app-controls').hidePopover();
-}
-function layoutControls() {
-  closeControls();
-  if (compactControls.matches) $('#app-controls').setAttribute('popover', 'auto');
-  else $('#app-controls').removeAttribute('popover');
-}
-layoutControls();
-compactControls.addEventListener?.('change', layoutControls);
 const analysisTabs = ['insights', 'history'];
 const navigationPage = (value) => value === 'history' ? 'insights' : value;
 const pageElement = (value) => '#' + (analysisTabs.includes(value) ? 'analysis' : value) + '-page';
@@ -318,7 +314,6 @@ function renderHeader() {
 }
 function setPage(p, { showList = false, immediate = false } = {}) {
   if (busy()) return;
-  closeControls();
   if (p === page && !showList) return;
   const previous = page;
   page = p;
@@ -964,7 +959,6 @@ function refreshOrientation() {
 let automaticFocus = false,
   focusRequested = document.body.classList.contains('focus-mode');
 function focusView(enabled, { immediate = false } = {}) {
-  if (enabled) closeControls();
   if (
     enabled === focusRequested &&
     enabled === document.body.classList.contains('focus-mode')
@@ -1197,7 +1191,6 @@ function showScramble({ animate = true } = {}) {
 }
 $('#new-scramble').onclick = () => newScramble();
 function openDialog(id) {
-  closeControls();
   if (
     timing.state === 'running' ||
     timing.state === 'arming' ||
@@ -1272,8 +1265,7 @@ initMobileNavigation({
   blocked: () =>
     busy() ||
     document.body.classList.contains('focus-mode') ||
-    $$('dialog').some((dialog) => dialog.open) ||
-    $$('#app-controls:popover-open').length > 0,
+    $$('dialog').some((dialog) => dialog.open),
 });
 const { renderRecent, renderHistory, renderInsights } = createSolveViews({
   getSolves: all,
@@ -1293,7 +1285,6 @@ router = createRouter({
   apply(route) {
     applyingRoute = true;
     try {
-      closeControls();
       const background = { ...route, settings: false };
       const changingBackground = route.page === 'not-found' || routePath(background) !== routePath(currentRoute());
       for (const dialog of $$('dialog')) {
@@ -1329,4 +1320,4 @@ function recordRouteTitle() {
 router.start();
 storageFeedback.render();
 sync();
-initPWA({ busy: () => busy() || coordinatedStorage.busy, notify: toast });
+initPWA({ busy: () => busy() || coordinatedStorage.busy, notify: toast, onUpdateStatus: renderSettingsAttention });

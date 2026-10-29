@@ -1,4 +1,4 @@
-import {test,expect,openApp,openControls,startKeyboardSolve,finishKeyboardSolve} from './fixtures.mjs';
+import {test,expect,openApp} from './fixtures.mjs';
 
 for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
   test(`combined analysis page and navigation settings work at ${viewport.width}px`,async({page,server})=>{
@@ -18,18 +18,15 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     await expect(solves).toBeFocused();
     await expect(page.locator('#history-page')).toBeVisible();
     await expect(nav.getByRole('link',{name:'Analysis',exact:true})).toHaveAttribute('aria-current','page');
-    await openControls(page);
-    await page.getByRole('button',{name:'Add time',exact:true}).click();
+      await page.getByRole('button',{name:'Add time',exact:true}).click();
     await page.locator('#manual-time').fill('12.34');
     await page.locator('#save-manual').click();
     await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
-    await openControls(page);
     await page.getByRole('searchbox',{name:'Search solves'}).fill('unmatched');
     await expect(page.locator('#history-body [data-id]')).toHaveCount(0);
     await page.getByRole('tab',{name:'Analysis',exact:true}).click();
     await expect(page.locator('#insight-stats')).toContainText('12.34');
     await solves.click();
-    await openControls(page);
     await expect(page.getByRole('searchbox',{name:'Search solves'})).toHaveValue('unmatched');
     await page.getByRole('searchbox',{name:'Search solves'}).fill('');
     await nav.getByRole('link',{name:'Analysis',exact:true}).click();
@@ -56,63 +53,35 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     await nav.getByRole('link',{name:'Analysis',exact:true}).click();
     await expect(page.getByRole('tab',{name:'Analysis',exact:true})).toHaveAttribute('aria-selected','true');
     await page.waitForFunction(()=>!document.documentElement.dataset.motion);
-    await openControls(page);
-    const controls=await page.locator('#app-controls').boundingBox();
-    if(viewport.width>740){
-      const settings=await page.locator('#open-settings').boundingBox();
-      expect(controls.y+controls.height).toBeLessThanOrEqual(settings.y+1);
-    }else{
-      expect(controls.x).toBeGreaterThan(20);
-      expect(controls.y).toBeLessThan(80);
-      await page.screenshot({path:'test-results/phone-controls-popup.png'});
-      await page.keyboard.press('Escape');
-      await expect(page.locator('#app-controls')).toBeHidden();
-      await openControls(page);
-      await page.getByRole('tab',{name:'Solves',exact:true}).click();
-      await expect(page.locator('#app-controls')).toBeHidden();
-      await page.getByRole('tab',{name:'Analysis',exact:true}).click();
-      await page.waitForFunction(()=>!document.documentElement.dataset.motion);
-    }
+    const filter=await page.getByRole('combobox',{name:'Solve count',exact:true}).boundingBox();
+    expect(filter.y).toBeLessThan(140);
+    expect(filter.x+filter.width).toBeLessThanOrEqual(viewport.width);
     await page.screenshot({path:`test-results/combined-analysis-${viewport.width}.png`});
   });
 }
 
-test('controls follow the viewport without resetting filters, including a rotated phone',async({page,server})=>{
+test('inline filters stay visible and preserve selections when a phone rotates',async({page,server})=>{
   await openApp(page,server);
   await page.getByRole('link',{name:'Analysis',exact:true}).click();
   await page.getByRole('combobox',{name:'Solve count',exact:true}).selectOption('50');
-  for(const viewport of [{width:390,height:844},{width:844,height:390}]){
+  for(const viewport of [{width:390,height:844},{width:844,height:390},{width:1280,height:900}]){
     await page.setViewportSize(viewport);
-    await expect(page.locator('#app-controls')).toBeHidden();
-    await openControls(page);
-    await expect(page.getByRole('combobox',{name:'Solve count',exact:true})).toHaveValue('50');
-    const panel=await page.locator('#app-controls').boundingBox();
-    expect(panel.x+panel.width).toBeLessThanOrEqual(viewport.width);
-    expect(panel.y+panel.height).toBeLessThanOrEqual(viewport.height);
-    await page.keyboard.press('Escape');
-    await expect(page.locator('#app-controls')).toBeHidden();
+    const filter=page.getByRole('combobox',{name:'Solve count',exact:true});
+    await expect(filter).toBeVisible();await expect(filter).toHaveValue('50');
+    const box=await filter.boundingBox();
+    expect(box.x+box.width).toBeLessThanOrEqual(viewport.width);expect(box.y+box.height).toBeLessThan(viewport.height);
   }
-  await page.setViewportSize({width:1280,height:900});
-  await expect(page.locator('#app-controls')).toBeVisible();
-  await expect(page.locator('#open-controls')).toBeHidden();
-  await expect(page.getByRole('combobox',{name:'Solve count',exact:true})).toHaveValue('50');
 });
 
-test('keyboard actions in the phone controls popup do not stop or cancel a running solve',async({page,server})=>{
-  await page.setViewportSize({width:390,height:844});
-  await openApp(page,server);
-  await startKeyboardSolve(page);
-  await page.getByRole('button',{name:'Toggle fullscreen timer'}).click();
-  await openControls(page);
-  await page.locator('#open-controls').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#app-controls')).toBeHidden();
-  await expect(page.locator('#timer-card')).toHaveClass(/\brunning\b/);
-  await openControls(page);
-  await page.locator('#open-controls').focus();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#app-controls')).toBeHidden();
-  await expect(page.locator('#timer-card')).toHaveClass(/\brunning\b/);
-  await page.locator('#timer-pad').focus();
-  await finishKeyboardSolve(page);
+test('phone toolbar sits at the card top and sync details open in Settings',async({page,server})=>{
+  await page.setViewportSize({width:390,height:844});await openApp(page,server);
+  await expect(page.locator('#settings-sync-dot')).toBeVisible();await expect(page.locator('#mobile-sync')).toBeHidden();
+  const card=await page.locator('#timer-card').boundingBox(),toolbar=await page.locator('.timer-toolbar').boundingBox();
+  expect(toolbar.y-card.y).toBeLessThan(12);
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await expect(page.locator('#mobile-sync')).toBeVisible();await expect(page.locator('#connect-sync')).toBeVisible();
+  await expect(page.locator('#hold-duration')).toHaveValue('0.5');
+  await page.locator('#hold-duration').fill('0.7');await page.locator('#save-settings').click();
+  await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await expect(page.locator('#hold-duration')).toHaveValue('0.7');
 });
