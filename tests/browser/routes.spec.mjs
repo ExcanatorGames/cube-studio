@@ -4,7 +4,7 @@ test('direct page links and refresh restore the page and selected Analysis tab',
   for (const [path, selector] of [
     ['/timer', '#timer-page'], ['/analysis', '#insights-page'],
     ['/analysis/solves', '#history-page'], ['/lessons', '#lesson-list'],
-    ['/practice', '#practice-list'], ['/splits', '#splits-page'],
+    ['/practice', '#practice-list'], ['/settings?tab=splits', '#settings-panel-splits'], ['/settings?tab=app', '#settings-panel-app'],
   ]) {
     const response = await page.goto(server.url + path);
     expect(response.status()).toBe(200);
@@ -14,6 +14,12 @@ test('direct page links and refresh restore the page and selected Analysis tab',
     await expect(page).toHaveURL(server.url + path);
   }
   await expect(page.getByRole('link', { name: 'Analysis', exact: true })).toHaveAttribute('href', '/analysis');
+});
+
+test('the old Splits URL opens the Splits settings tab', async ({page,server}) => {
+  await page.goto(server.url+'/splits');
+  await expect(page.locator('#settings-panel-splits')).toBeVisible();
+  await expect(page).toHaveURL(server.url+'/settings?tab=splits');
 });
 
 test('lesson group, case, and practice tab survive refresh and browser history', async ({ page, server }) => {

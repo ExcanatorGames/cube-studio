@@ -40,13 +40,14 @@ test('a waiting update lights the Settings dot and its button preserves saved so
   const saved = (await storedState(page)).solves;
   await page.locator('#focus').click();
   await page.getByRole('link',{name:'Settings',exact:true}).click();
-  const update=page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Update',exact:true});
+  await page.getByRole('tab',{name:'App & data',exact:true}).click();
+  const update=page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Update and reopen',exact:true});
   await expect(update).toBeVisible();await expect(update).toHaveCSS('color','rgb(143, 214, 178)');
   await Promise.all([page.waitForEvent('load'), update.click()]);
   await expect(page.locator('#new-scramble')).toBeEnabled();
   await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['cube-studio-browser-2']);
   await expect(page.locator('#settings-sync-dot')).toBeHidden();
-  await expect(page).toHaveURL(server.url + '/settings');
+  await expect(page).toHaveURL(server.url + '/settings?tab=app');
   await expect(page.getByRole('dialog',{name:'Settings',exact:true})).toBeVisible();
   await expect(page.locator('#update-app')).toBeHidden();
   await page.getByRole('button',{name:'Close settings',exact:true}).click();

@@ -5,7 +5,7 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     await page.setViewportSize(viewport);
     await openApp(page,server);
     const nav=page.getByRole('navigation',{name:'Main navigation'});
-    await expect(nav.locator('[data-page]')).toHaveCount(5);
+    await expect(nav.locator('[data-page]')).toHaveCount(4);
     await expect(nav.getByRole('button',{name:'Solves',exact:true})).toHaveCount(0);
     await expect(nav.getByRole('link',{name:'Settings',exact:true})).toBeVisible();
     await expect(page.locator('.app-bar')).toHaveCount(0);

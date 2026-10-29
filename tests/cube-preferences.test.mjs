@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {CUBE_COLORS, cubeFrame, cubeStickers, cubeOrientationId, validOrientation, orientAlgorithm, flipOrientation} from '../web/cube.js';
+import {CUBE_COLORS, cubeFrame, cubeStickers, cubeOrientationId, validOrientation, orientAlgorithm, orientTargets, flipOrientation, getScrambleOrientation} from '../web/cube.js';
 import {validateSnapshot} from '../web/device-storage.js';
 import {splitMethods, selectedSplitSteps} from '../web/split-methods.js';
 
@@ -22,9 +22,12 @@ test('all 24 top/front frames preserve the physical scramble and turn directions
     const actual = cubeStickers(displayed).map(s => key({face:frame.faces[s.face], position:transform(s.position), normal:transform(s.normal)})).sort();
     assert.deepEqual(actual, expected, orientation);
     assert.equal(orientAlgorithm(displayed, orientation, 'white-top'), algorithm);
+    const target=['1,-1,1','1,0,1'];
+    assert.deepEqual(orientTargets(orientTargets(target,'white-bottom',orientation),orientation,'white-bottom'),target);
     assert.equal(flipOrientation(flipOrientation(orientation)), orientation);
   }
   assert.equal(count, 24);
+  assert.deepEqual(orientTargets(['1,-1,1','1,0,1'],'white-bottom','white-top'),['-1,1,1','-1,0,1']);
 });
 
 test('legacy custom splits migrate without loss and new preferences survive validation', () => {
@@ -39,6 +42,19 @@ test('legacy custom splits migrate without loss and new preferences survive vali
   assert.deepEqual(selectedSplitSteps(reloaded.snapshot.settings), ['One']);
   assert.equal(reloaded.snapshot.settings.orientation, 'blue-red');
   assert.equal(reloaded.snapshot.settings.solveColors, 'neutral');
+});
+
+test('scramble orientation follows the default position unless explicitly chosen and recovers invalid preferences', () => {
+  const settings = validateSnapshot({settings:{orientation:'blue-red'}}).snapshot.settings;
+  assert.equal(settings.scrambleOrientation, 'default');
+  assert.equal(getScrambleOrientation(settings), 'blue-red');
+  assert.equal(getScrambleOrientation({...settings,orientation:'white-top'}), 'white-top');
+  const saved = validateSnapshot({settings:{...settings,scrambleOrientation:'white-bottom'}});
+  assert.deepEqual(saved.issues, []);
+  assert.equal(getScrambleOrientation(saved.snapshot.settings), 'white-bottom');
+  const recovered = validateSnapshot({settings:{...settings,scrambleOrientation:'white-yellow'}});
+  assert.ok(recovered.issues.includes('settings.scrambleOrientation'));
+  assert.equal(getScrambleOrientation(recovered.snapshot.settings), 'blue-red');
 });
 
 test('damaged split lists and impossible cube frames recover while valid lists survive', () => {

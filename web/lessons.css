@@ -67,6 +67,7 @@ body.focus-mode #lesson-panel-practice .lesson-workspace{display:block;height:au
 .lesson-section h3{margin:0;font-size:18px;line-height:1.3}
 .lesson-section p{color:#acbad0;font-size:13px;line-height:1.4;margin:6px 0}
 .lesson-demo-setup code{display:block;font:600 clamp(13px,1.5vw,18px)/1.5 var(--mono);color:#dce7ff;text-align:center;text-wrap:balance}
+.lesson-scramble-frame,.lesson-view-frame{display:block;font-size:12px;line-height:1.5;color:var(--muted);text-align:center;margin:0 0 6px}
 .lesson-demo-layout{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);align-items:center;gap:12px}
 .lesson-cube{min-width:0;min-height:0;height:100%;display:flex;align-items:center;justify-content:center}
 .lesson-cube svg{display:block;width:100%;height:100%;max-height:min(56dvh,600px)}

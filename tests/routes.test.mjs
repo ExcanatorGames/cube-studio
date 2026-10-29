@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { lessonGroups, parseRoute, routePath, createRouter } from '../web/routes.js';
 
 test('page, tab, group, case and practice URLs roundtrip independently of device preferences', () => {
-  const paths = ['/timer', '/analysis', '/analysis/solves', '/lessons', '/practice', '/splits', '/settings'];
+  const paths = ['/timer', '/analysis', '/analysis/solves', '/lessons', '/practice', '/splits', '/settings', '/settings?tab=splits', '/settings?tab=app'];
   for (const group of lessonGroups) {
     for (const tab of ['lesson', 'practice']) {
       paths.push(`/lessons/${group.lessonId}/${group.slug}/${tab}?case=${group.cases.at(-1).id}&cases=${group.cases[0].id}`);
