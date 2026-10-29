@@ -1,3 +1,6 @@
+import { orientationColors, validOrientation } from './cube.js';
+import { splitMethods, validSplitMethod } from './split-methods.js';
+
 const isObject = (value) =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 const nonempty = (value) =>
@@ -9,6 +12,8 @@ const defaults = () => ({
   track: false,
   orientation: 'white-top',
   lessonOrientation: 'white-bottom',
+  crossPosition: 'bottom',
+  solveColors: 'white',
 });
 
 function record(value, path, issues, lesson, checks) {
@@ -109,8 +114,22 @@ export function validateSnapshot(value) {
   if (value.settings !== undefined && !isObject(value.settings))
     issues.push('settings');
   snapshot.settings = { ...defaults(), ...settings };
+  if (settings.crossPosition === undefined) snapshot.settings.crossPosition = settings.lessonOrientation === 'white-top' ? 'top' : 'bottom';
+  if (settings.splitMethods !== undefined) {
+    if (!Array.isArray(settings.splitMethods)) {
+      issues.push('settings.splitMethods');
+      delete snapshot.settings.splitMethods;
+    } else {
+      const ids = new Set();
+      snapshot.settings.splitMethods = settings.splitMethods.filter((method, index) => {
+        if (!validSplitMethod(method) || ids.has(method.id)) { issues.push(`settings.splitMethods[${index}]`); return false; }
+        ids.add(method.id);
+        return true;
+      });
+    }
+  }
   const rules = {
-    preset: (v) => ['beginner', 'cfop', 'custom'].includes(v),
+    preset: (v) => splitMethods(snapshot.settings).some(method => method.id === v) || (!snapshot.settings.splitMethods?.length && ['beginner', 'cfop', 'custom'].includes(v)),
     custom: (v) =>
       Array.isArray(v) &&
       v.length <= 12 &&
@@ -118,14 +137,21 @@ export function validateSnapshot(value) {
       (settings.preset !== 'custom' || v.length >= 2),
     hold: (v) => Number.isFinite(v) && v >= 0 && v <= 2147483647,
     track: (v) => typeof v === 'boolean',
-    orientation: (v) => ['white-top', 'white-bottom'].includes(v),
+    orientation: (v) => typeof v === 'string' && validOrientation(...Object.values(orientationColors(v))),
     lessonOrientation: (v) => ['white-top', 'white-bottom'].includes(v),
+    crossPosition: (v) => ['top', 'bottom'].includes(v),
+    solveColors: (v) => ['neutral', 'white-yellow', 'white'].includes(v),
   };
   for (const [name, valid] of Object.entries(rules))
     if (settings[name] !== undefined && !valid(settings[name])) {
       issues.push(`settings.${name}`);
       snapshot.settings[name] = defaults()[name];
     }
+  if (snapshot.settings.splitMethods) {
+    const methods = snapshot.settings.splitMethods;
+    if (!methods.some(method => method.id === snapshot.settings.preset)) snapshot.settings.preset = methods[0]?.id || 'beginner';
+    if (!methods.length) snapshot.settings.track = false;
+  }
   if (settings.lessonCaseSelections !== undefined) {
     if (!isObject(settings.lessonCaseSelections)) {
       issues.push('settings.lessonCaseSelections');

@@ -16,6 +16,7 @@
   <button data-page="insights" class="nav" aria-label="Analysis"><span aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 3v18h18M6 15l5-5 4 3 6-7"/></svg></span>Analysis</button>
   <button data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</button>
   <button data-page="practice" class="nav" aria-label="Practice"><span aria-hidden="true"><svg class="nav-symbol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" focusable="false"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg></span>Practice</button>
+  <button data-page="splits" class="nav" aria-label="Splits"><span aria-hidden="true">≡</span>Splits</button>
   <section id="app-controls" class="app-controls" aria-label="Page controls" popover="auto">
   <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="manual-entry" type="button" class="icon-button" title="Add time" aria-label="Add time">＋</button><button id="history-import" class="small-button">↥ Import</button></div>
   <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-period" aria-label="Solve count"><option value="all">All time</option><option value="200">Last 200 solves</option><option value="100">Last 100 solves</option><option value="50">Last 50 solves</option><option value="20">Last 20 solves</option><option value="10">Last 10 solves</option><option value="5">Last 5 solves</option></select></div>
@@ -45,7 +46,13 @@
    <fieldset id="practice-case-picker" class="practice-case-picker"><legend class="sr-only">Cases to practice</legend><div id="practice-case-list"></div></fieldset>
    <div class="timer-toolbar">
     <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
-    <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="cube-orientation" type="button" class="small-button" title="White on top. Switch to white on bottom." aria-label="White on top. Switch to white on bottom.">White ↑</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
+    <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button>
+    <div id="timer-split-control" class="timer-split-control">
+     <button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button>
+     <button id="timer-split-method" type="button" class="timer-split-picker" aria-label="Choose timer split list" aria-haspopup="menu" aria-expanded="false" aria-controls="timer-split-menu" popovertarget="timer-split-menu"></button>
+     <div id="timer-split-menu" class="timer-split-menu" popover="auto" role="menu" aria-label="Timer split lists"><div class="split-menu-heading">Split list</div><div id="timer-split-options"></div></div>
+    </div>
+    <button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
    </div>
    <h2 id="fullscreen-lesson-title" class="fullscreen-lesson-title" hidden></h2>
    <div id="timer-pad" role="button" tabindex="0" aria-label="Hold Space or two fingers, then release to start. Tap to stop or mark a split.">
@@ -107,6 +114,12 @@
    </div>
   </div>
  </section>
+ <section id="splits-page" class="page" hidden>
+  <div class="splits-heading"><div><h2>Your split lists</h2><p class="muted">Choose a list for the timer, or make your own sequence of steps.</p></div><button id="new-split-method" type="button" class="small-button">+ New split list</button></div>
+  <label class="check-label split-tracking-label"><input id="split-tracking" type="checkbox"> Track splits while solving</label>
+  <div id="split-method-list" class="split-method-grid"></div>
+  <p class="muted small">Preset steps: <a href="https://www.cubeskills.com/tutorials/f2l" target="_blank" rel="noopener noreferrer">CFOP · CubeSkills ↗</a> · <a href="https://www.speedsolving.com/wiki/index.php/Roux_method" target="_blank" rel="noopener noreferrer">Roux · Speedsolving Wiki ↗</a></p>
+ </section>
  <section id="practice-page" class="page" aria-label="Practice" hidden>
   <div id="practice-list">
    <div id="practice-cards"></div>
@@ -134,13 +147,22 @@
 </main>
 <dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog">
  <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button class="close" aria-label="Close settings">×</button></div>
- <label class="field">Split method<select id="preset"><option value="beginner">Beginner · 7 splits</option><option value="cfop">CFOP · 4 splits</option><option value="custom">Custom</option></select></label>
- <label class="field" id="custom-field" hidden>Splits, separated by commas<textarea id="custom-steps" rows="3" placeholder="Cross, F2L, Last layer"></textarea></label>
+ <fieldset class="cube-settings"><legend>Default cube position</legend><div class="cube-settings-layout"><div><label class="field">Color on top<select id="cube-top"></select></label><label class="field">Color in front<select id="cube-front"></select></label></div><div id="settings-cube-preview" class="settings-cube-preview"></div></div></fieldset>
+ <label class="field">Cross position<select id="lesson-orientation" aria-describedby="cross-position-help"><option value="white-bottom">Cross on bottom</option><option value="white-top">Cross on top</option></select></label>
+ <p id="cross-position-help" class="small muted">Your solving preference. White-cross lessons use this position.</p>
+ <label class="field">Solving colors<select id="solve-colors"><option value="neutral">Color neutral · any color</option><option value="white-yellow">White and yellow</option><option value="white">Always white</option></select></label>
  <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>
- <label class="field">Lesson orientation<select id="lesson-orientation"><option value="white-bottom">White on bottom</option><option value="white-top">White on top</option></select></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
  <div class="settings-actions"><button id="open-import" type="button" class="small-button">Import CSV</button><button id="export" type="button" class="small-button">Export CSV</button><button id="install-app" type="button" class="small-button">Install app <span id="app-status" class="sr-only"></span></button></div>
+</form></dialog>
+<dialog id="split-editor-dialog" aria-labelledby="split-editor-title"><form method="dialog">
+ <div class="dialog-heading"><h2 id="split-editor-title">New split list</h2><button class="close" aria-label="Close split editor">×</button></div>
+ <label class="field">List name<input id="split-name" maxlength="60" placeholder="My method" required></label>
+ <label class="field">Steps<textarea id="split-words" rows="7" placeholder="Cross&#10;F2L&#10;Last layer" aria-describedby="split-words-help"></textarea></label>
+ <p id="split-words-help" class="small muted">One step per line, or separate steps with commas. Add 1–12 steps in solving order.</p>
+ <p id="split-editor-error" class="small" role="alert"></p>
+ <button id="save-split-method" type="button" class="primary-button">Save split list</button>
 </form></dialog>
 <dialog id="import-dialog"><form method="dialog">
  <div class="dialog-heading"><h2>Import</h2><button class="close" aria-label="Close import">×</button></div>

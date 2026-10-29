@@ -91,24 +91,20 @@ test('migration preserves history, tombstones, pending lessons and settings; lat
   ).toHaveLength(1);
 });
 
-test('discarding an invalid custom-step draft allows the next solve to persist', async ({
+test('discarding an invalid split-list draft allows the next solve to persist', async ({
   page,
   server,
 }) => {
   await openApp(page, server);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page
-    .locator('#settings-dialog')
-    .getByLabel('Split method')
-    .selectOption('custom');
-  await page
-    .getByLabel('Splits, separated by commas')
-    .fill(Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '));
-  await page
-    .locator('#settings-dialog')
-    .getByLabel('Split method')
-    .selectOption('beginner');
-  await page.locator('#save-settings').click();
+  await page.locator('.sidebar [data-page="splits"]').click();
+  await page.getByRole('button', { name: '+ New split list', exact: true }).click();
+  await page.getByLabel('List name', { exact: true }).fill('Invalid draft');
+  await page.getByLabel('Steps', { exact: true }).fill(Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '));
+  await page.getByRole('button', { name: 'Save split list', exact: true }).click();
+  await expect(page.locator('#split-editor-error')).toContainText('12 steps');
+  await page.getByRole('button', { name: 'Close split editor', exact: true }).click();
+  await page.getByRole('button', { name: 'Timer', exact: true }).click();
+  await expect(page.locator('#timer-page')).toBeVisible();
   await startKeyboardSolve(page);
   await finishKeyboardSolve(page);
   await expect(page.locator('#storage-warning')).toBeHidden();
