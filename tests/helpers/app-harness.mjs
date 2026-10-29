@@ -196,6 +196,7 @@ export function harness({
   for (const id of ['history-scope', 'insight-period'])
     element('#' + id).value = 'all';
   element('#split-preset').value = 'beginner';
+  element('#update-app').hidden = true;
   const document = {
     documentElement: element('html'),
     querySelector: element,

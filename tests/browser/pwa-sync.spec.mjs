@@ -23,33 +23,33 @@ test('a closed tab reopens offline from the service worker with its saved histor
   await expect(reopened.locator('#mobile-sync')).toHaveText('2 saved offline');
 });
 
-test('a real waiting service worker updates only between solves and preserves the result', async ({page, server}) => {
-  await openApp(page, server);
+test('a waiting update lights the Settings dot and its button preserves saved solves', async ({page, server}) => {
+  await page.setViewportSize({width:390,height:844});
+  await openApp(page, server);await connect(page);
+  await expect(page.locator('#settings-sync-dot')).toBeHidden();
   server.deployUpdate();
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
-  await expect(page.locator('#update-app')).toBeVisible();
-  await page.locator('#timer-pad').focus();
-  await page.keyboard.down('Space');
-  await expect(page.locator('#timer-card')).toHaveClass(/\barmed\b/);
-  await page.locator('#update-app').click();
-  await expect(page.locator('#toast')).toHaveText('Finish or cancel your solve before updating.');
-  await page.keyboard.up('Space');
-  await expect(page.locator('#timer-card')).toHaveClass(/\brunning\b/);
-  await page.locator('#focus').click();
-  await page.locator('#update-app').click();
-  await expect(page.locator('#toast')).toHaveText('Finish or cancel your solve before updating.');
+  await expect(page.locator('#settings-sync-dot')).toBeVisible();
+  await expect(page.locator('#open-controls')).toHaveCount(0);
+  await expect(page.locator('#update-app')).toBeHidden();
+  await startKeyboardSolve(page);
   expect(await page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()).waiting)).toBe(true);
   expect(await page.evaluate(() => caches.keys())).toContain('cube-studio-browser-1');
-  await page.locator('#timer-pad').focus();
   await finishKeyboardSolve(page);
   await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
   const saved = (await storedState(page)).solves;
-  await Promise.all([page.waitForEvent('load'), page.locator('#update-app').click()]);
+  await page.locator('#focus').click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  const update=page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Update',exact:true});
+  await expect(update).toBeVisible();await expect(update).toHaveCSS('color','rgb(143, 214, 178)');
+  await Promise.all([page.waitForEvent('load'), update.click()]);
   await expect(page.locator('#new-scramble')).toBeEnabled();
-  await expect(page.locator('#update-app')).toBeHidden();
   await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['cube-studio-browser-2']);
-  await showHistory(page);
-  await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
+  await expect(page.locator('#settings-sync-dot')).toBeHidden();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.locator('#update-app')).toBeHidden();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
+  await showHistory(page);await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
   expect((await storedState(page)).solves).toEqual(saved);
 });
 
@@ -86,6 +86,7 @@ test('a rejected upload keeps its pending record until manual retry succeeds', a
   expect((await storedState(page)).pending).toHaveLength(1);
   expect(server.solves()).toHaveLength(0);
   await page.locator('#focus').click();
+  await page.getByRole('button', {name:'Settings',exact:true}).click();
   await page.getByRole('button', {name: 'Retry sync'}).click();
   await expect(page.locator('#sync-attention')).toBeHidden();
   expect((await storedState(page)).pending).toEqual([]);

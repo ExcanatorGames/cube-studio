@@ -42,7 +42,7 @@ input::placeholder,textarea::placeholder{color:#8290a5}
 .avatar{background:#3a332a;color:#d7c3a2}
 .breadcrumb strong{color:#bdc8d9}
 .icon-button,.profile>button,.text-button,.view-history{color:#a3b4d2}
-#update-app{color:#8fd6b2}
+#update-app,#update-app:hover{color:#8fd6b2}
 .icon-button:hover,.small-button:hover{background:#29364b;color:#c1ceff}
 .small-button{background:#202a3a;border-color:#3a465a;color:#c9d4e7}
 kbd{background:#202b3d;border-color:#465570;color:#b9c6dc}
@@ -653,41 +653,8 @@ dialog[open]::backdrop{background:#06090ebd}
  .analysis-tabs [role="tab"]{flex:1;padding:8px 16px}
 }
 
-/* Contextual controls share one home in the rail or the phone popup. */
 main{padding-top:16px}
-.app-controls{flex-shrink:0;min-width:0;color:#acbad0;font-size:13px}
-.app-controls:not([popover]){margin-top:auto;padding:12px 0;border-top:1px solid var(--line)}
-.app-controls .header-context,.app-controls .filter-bar,.app-controls .app-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;margin:0}
-.app-controls .filter-bar{margin-bottom:10px}
-.app-controls .filter-bar input,.app-controls .filter-bar select{width:100%;min-width:0;max-width:100%;margin:0;font-size:14px;min-height:44px}
-.app-controls [data-header-context="history"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-.app-controls [data-header-context="history"] input,.app-controls [data-header-context="history"] select{grid-column:1/-1}
-.app-controls .filter-bar>button{margin:0;min-width:0;min-height:44px;padding:8px;font-size:14px}
-.app-controls #manual-entry{font-size:22px}
-.app-controls .sync-attention{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:4px;flex:none}
-.app-controls #mobile-sync{flex-basis:100%;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.app-controls .text-button{min-height:44px;text-align:left;font-size:13px}
-.app-controls #sync-mobile{min-width:44px;min-height:44px}
-#open-controls{display:none}
-.sidebar #open-settings{margin-top:0}
 @media(min-width:741px){.sidebar nav{min-height:0;overflow-y:auto}.sidebar .brand{flex-shrink:0}}
-@media(max-width:740px),(orientation:landscape) and (max-height:500px) and (max-width:1100px){
- #open-controls{display:none;place-items:center;position:fixed;top:max(8px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:30;width:44px;height:44px;padding:0;border:1px solid #35435b;border-radius:10px;background:#19212e;font-size:25px;line-height:1}
- body:has(#app-controls .header-context:not([hidden]),#sync-attention:not([hidden]),#update-app:not([hidden])) #open-controls{display:grid}
- body:has(#sync-attention:not([hidden]),#update-app:not([hidden])) #open-controls:after{content:'';position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:#adbeef}
- .app-controls[popover]{inset:max(60px,calc(env(safe-area-inset-top) + 52px)) max(12px,env(safe-area-inset-right)) auto auto;margin:0;padding:14px;width:min(320px,calc(100vw - 24px));max-height:calc(100dvh - 150px);overflow-y:auto;border:1px solid #46546b;border-radius:12px;background:#19212e;box-shadow:0 12px 36px #0008}
- .app-controls::backdrop{background:transparent}
- .app-controls .filter-bar input,.app-controls .filter-bar select{font-size:16px}
- .lesson-heading{padding-right:48px}
- .analysis-tabs{padding-right:48px}
- #timer-page .timer-toolbar{padding-right:48px}
- #lesson-list .lesson-card:first-child .lesson-card-copy,#practice-cards article:first-child .lesson-card-copy{padding-right:44px}
-}
-body.focus-mode #open-controls,body.focus-mode .app-controls{display:none}
-body.focus-mode #timer-page .timer-toolbar{padding-right:0}
-@media(max-width:740px) and (orientation:portrait){
- body:not(.focus-mode) #timer-page .timer-toolbar{top:44px;padding-right:0}
-}
 @media(max-width:380px){
  #timer-card .timer-toolbar{gap:4px}
  #timer-card #fullscreen-track{padding-inline:7px;gap:4px}
@@ -696,3 +663,24 @@ body.focus-mode #timer-page .timer-toolbar{padding-right:0}
  .timer-split-control{--split-arrow-width:44px}
  .timer-split-control #fullscreen-track,#timer-split-method{min-height:44px}
 }
+
+/* Keep page filters visible alongside the content they affect. */
+.page-filters{display:flex;align-items:center;gap:10px;margin:0 0 16px;flex-wrap:wrap}
+.page-filters input,.page-filters select{min-height:44px;font-size:14px;margin:0;min-width:0}
+.page-filters #search{flex:1;min-width:120px;max-width:360px}
+.page-filters #manual-entry{width:44px;min-height:44px;flex-shrink:0;font-size:24px;border:1px solid var(--line);border-radius:8px;background:#202a3a;order:1}
+#open-settings{position:relative}
+.settings-dot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:#e5b96f;box-shadow:0 0 0 2px #131923}
+.settings-sync{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.settings-sync h3{font-size:13px;font-weight:500;margin:0 0 8px}
+.settings-sync .sync-attention{justify-content:flex-start;flex-wrap:wrap;font-size:13px}
+.settings-sync #sync-mobile{min-width:44px;min-height:44px}
+@media(max-width:740px){
+ .page-filters{gap:8px;margin-bottom:12px}
+ .page-filters input,.page-filters select{font-size:16px}
+ #history-scope{flex:1}
+ .page-filters #search{order:2;flex-basis:100%;max-width:none}
+ .settings-dot{top:5px;right:calc(50% - 20px)}
+}
+
+.settings-sync:not(:has(.sync-attention:not([hidden]))){display:none}

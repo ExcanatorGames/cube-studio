@@ -259,7 +259,7 @@ test('repairs malformed optional record fields and settings while retaining usab
     snapshot.settings.custom.join(', '),
     'Cross, First pair, Remaining F2L, Last layer',
   );
-  assert.equal(snapshot.settings.hold, 550);
+  assert.equal(snapshot.settings.hold, 500);
   assert.equal(snapshot.settings.track, false);
   assert.equal(snapshot.settings.orientation, 'white-bottom');
   assert.equal(snapshot.settings.lessonOrientation, 'white-bottom');
@@ -452,4 +452,11 @@ test('invalid or unserializable writes fail without replacing valid persisted hi
     assert.equal(device.getState().error, 'invalid-snapshot');
     assert.equal(storage.getItem(key), raw);
   }
+});
+
+test('legacy hold times above one second are capped without losing other settings', () => {
+  const storage = createDeviceStorage({ storage: memory(JSON.stringify({ settings: { hold: 2000, orientation: 'white-bottom' } })) });
+  const { snapshot } = storage.read();
+  assert.equal(snapshot.settings.hold, 1000);
+  assert.equal(snapshot.settings.orientation, 'white-bottom');
 });

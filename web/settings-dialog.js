@@ -23,7 +23,7 @@ export function initSettingsDialog({
     $('#cube-front').innerHTML = colorOptions(front);
     $('#cube-front').value = front;
     preview();
-    $('#hold-duration').value = getSettings().hold;
+    $('#hold-duration').value = getSettings().hold / 1000;
     $('#lesson-orientation').value = getSettings().lessonOrientation;
     $('#solve-colors').value = getSettings().solveColors || 'white';
     openDialog('#settings-dialog');
@@ -37,11 +37,17 @@ export function initSettingsDialog({
       toast('Choose adjacent colors for the top and front.');
       return;
     }
+    const hold = String($('#hold-duration').value).trim();
+    if (hold === '' || !Number.isFinite(Number(hold)) || Number(hold) < 0 || Number(hold) > 1) {
+      toast('Enter a hold time from 0 to 1 second.');
+      $('#hold-duration').focus();
+      return;
+    }
     const lessonOrientation = $('#lesson-orientation').value === 'white-top' ? 'white-top' : 'white-bottom';
     const next = {
       ...getSettings(),
       orientation: cubeOrientationId(top, front),
-      hold: Number($('#hold-duration').value),
+      hold: Math.round(Number(hold) * 1000),
       lessonOrientation,
       crossPosition: lessonOrientation === 'white-top' ? 'top' : 'bottom',
       solveColors: $('#solve-colors').value,
