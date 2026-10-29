@@ -10,6 +10,7 @@ import {
   timeExtremes,
   solveDistribution,
   splitComparisons,
+  stableId,
 } from './core.js';
 import { initSplitCharts } from './split-charts.js';
 import { $, esc } from './dom.js';
@@ -18,6 +19,7 @@ export function createSolveViews({
   getSolves: all,
   getPage,
   getCustomSteps,
+  getSplitMethods,
   motion,
   openSolve,
 }) {
@@ -248,8 +250,23 @@ export function createSolveViews({
           )
           .join('')
       : '<div class="empty">No completed solves.</div>';
-    const preset = $('#split-preset').value,
-      labels = preset === 'custom' ? getCustomSteps() : PRESETS[preset],
+    let methods = getSplitMethods?.() || [
+      ...Object.entries(PRESETS).map(([id, steps]) => ({id, name: id === 'cfop' ? 'CFOP' : 'Beginner', steps})),
+      {id: 'custom', name: 'Custom', steps: getCustomSteps()},
+    ];
+    // Keep old recordings available after their list is edited or deleted.
+    const signatures = new Set(methods.map(method => JSON.stringify(method.steps)));
+    for (const solve of all()) {
+      const steps = solve.splits.map(step => step.name), signature = JSON.stringify(steps);
+      if (!steps.length || signatures.has(signature)) continue;
+      signatures.add(signature);
+      methods = [...methods, {id: `recorded-${stableId(signature)}`, name: `Recorded · ${steps.join(' / ')}`, steps}];
+    }
+    const previousPreset = $('#split-preset').value;
+    $('#split-preset').innerHTML = methods.map(method => `<option value="${esc(method.id)}">${esc(method.name)}</option>`).join('');
+    const preset = methods.some(method => method.id === previousPreset) ? previousPreset : methods[0]?.id || '';
+    $('#split-preset').value = preset;
+    const labels = methods.find(method => method.id === preset)?.steps || [],
       progress = splitProgress(a, labels, insightPeriods(all()).view);
     progress.comparisons = splitComparisons(
       periods.current,

@@ -172,14 +172,16 @@ export function harness({
       close() {
         el.open = false;
       },
+      hidePopover() { el.open = false; },
+      showPopover() { el.open = true; },
     };
     elements.set(selector, el);
     return el;
   }
-  const pages = ['timer', 'analysis', 'lessons', 'practice'].map((name) =>
+  const pages = ['timer', 'analysis', 'lessons', 'practice', 'splits'].map((name) =>
     element('#' + name + '-page'),
   );
-  const nav = ['timer', 'insights', 'lessons', 'practice'].map((name) => {
+  const nav = ['timer', 'insights', 'lessons', 'practice', 'splits'].map((name) => {
     const el = element('nav-' + name);
     el.dataset.page = name;
     el.tagName = 'BUTTON';

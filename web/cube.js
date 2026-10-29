@@ -15,12 +15,42 @@ const frames={
     label:'yellow on top, white on bottom, green in front and orange on the right',
   },
 };
-export function cubeFrame(orientation='white-top'){return frames[orientation]??frames['white-top'];}
-// A half-turn around the front/back axis keeps green in front. Rewrite the
-// moves in that frame without changing the physical scrambled state.
+export const CUBE_COLORS = {white:'U',yellow:'D',green:'F',blue:'B',red:'R',orange:'L'};
+const colorNames=Object.fromEntries(Object.entries(CUBE_COLORS).map(([name,face])=>[face,name]));
+export function orientationColors(orientation='white-top'){
+  if(orientation==='white-top')return {top:'white',front:'green'};
+  if(orientation==='white-bottom')return {top:'yellow',front:'green'};
+  const [top,front]=String(orientation).split('-');
+  return {top,front};
+}
+export function validOrientation(top,front){
+  return Object.hasOwn(CUBE_COLORS,top)&&Object.hasOwn(CUBE_COLORS,front)&&dot(FACES[CUBE_COLORS[top]].normal,FACES[CUBE_COLORS[front]].normal)===0;
+}
+export function cubeOrientationId(top,front){
+  if(!validOrientation(top,front))return 'white-top';
+  return front==='green'&&top==='white'?'white-top':front==='green'&&top==='yellow'?'white-bottom':`${top}-${front}`;
+}
+export function cubeFrame(orientation='white-top'){
+  const {top,front}=orientationColors(orientation);
+  if(!validOrientation(top,front))return cubeFrame('white-top');
+  const up=FACES[CUBE_COLORS[top]].normal,forward=FACES[CUBE_COLORS[front]].normal;
+  const right=[up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]];
+  const faces=Object.fromEntries(Object.entries(FACES).map(([face,{normal}])=>{
+    const physical=right.map((v,i)=>v*normal[0]+up[i]*normal[1]+forward[i]*normal[2]);
+    return [face,Object.keys(FACES).find(f=>dot(FACES[f].normal,physical)===1)];
+  }));
+  const legacy=frames[cubeOrientationId(top,front)];
+  return {faces,colors:Object.fromEntries(Object.entries(faces).map(([face,source])=>[face,colors[source]])),label:legacy?.label??`${top} on top and ${front} in front, with ${colorNames[faces.R]} on the right`};
+}
+export function flipOrientation(orientation){
+  const frame=cubeFrame(orientation),{front}=orientationColors(orientation);
+  return cubeOrientationId(colorNames[frame.faces.D],front);
+}
+// Map notation between physical cube frames without changing the scramble.
 export function orientAlgorithm(algorithm,from,to){
   if(from===to)return algorithm;
-  const faces={U:'D',D:'U',R:'L',L:'R',F:'F',B:'B'};
+  const source=cubeFrame(from).faces,target=cubeFrame(to).faces;
+  const faces=Object.fromEntries(Object.entries(source).map(([face,physical])=>[face,Object.keys(target).find(f=>target[f]===physical)]));
   return algorithm.trim().split(/\s+/).filter(Boolean).map(move=>faces[move[0]]+move.slice(1)).join(' ');
 }
 const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);

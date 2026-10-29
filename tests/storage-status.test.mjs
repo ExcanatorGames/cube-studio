@@ -77,26 +77,25 @@ test('an intact pending copy restores damaged history before a user edits it', (
   assert.equal(stored.pending[0].note, intact.note);
 });
 
-test('switching away from an invalid custom-step draft cannot poison later saves', () => {
+test('an invalid split-list draft cannot poison later settings or solve saves', () => {
   const accepted = ['First phase', 'Second phase'];
-  for (const preset of ['beginner', 'cfop']) {
-    for (const draft of [
-      Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '),
-      'x'.repeat(51) + ', Finish',
-    ]) {
-      const h = harness({ saved: { settings: { custom: accepted } } });
-      h.element('#open-settings').onclick();
-      h.element('#preset').value = 'custom';
-      h.element('#preset').onchange();
-      h.element('#custom-steps').value = draft;
-      h.element('#preset').value = preset;
-      h.element('#preset').onchange();
-      h.element('#save-settings').onclick();
-      addTime(h);
-      assert.equal(h.element('#storage-warning').hidden, true);
-      const stored = JSON.parse(h.storage.get('cube-studio-v1'));
-      assert.equal(stored.solves.length, 1);
-      assert.deepEqual(stored.settings.custom, accepted);
-    }
+  for (const draft of [
+    Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '),
+    'x'.repeat(51) + ', Finish',
+  ]) {
+    const h = harness({ saved: { settings: { custom: accepted } } });
+    h.element('#new-split-method').onclick();
+    h.element('#split-name').value = 'Draft';
+    h.element('#split-words').value = draft;
+    h.element('#save-split-method').onclick();
+    assert.match(h.element('#split-editor-error').textContent, /12 steps/);
+    h.element('#split-editor-dialog').close();
+    h.element('#open-settings').onclick();
+    h.element('#save-settings').onclick();
+    addTime(h);
+    assert.equal(h.element('#storage-warning').hidden, true);
+    const stored = JSON.parse(h.storage.get('cube-studio-v1'));
+    assert.equal(stored.solves.length, 1);
+    assert.deepEqual(stored.settings.custom, accepted);
   }
 });

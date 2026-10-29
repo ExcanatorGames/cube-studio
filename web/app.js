@@ -1,8 +1,10 @@
 import { createScrambleLayout } from './scramble-layout.js';
 import { initSettingsDialog } from './settings-dialog.js';
+import { initSplitsPage } from './splits-page.js';
+import { splitMethods, selectedSplitSteps } from './split-methods.js';
+import { initTimerSplitPicker } from './timer-split-picker.js';
 import { initHistoryDialogs } from './history-dialogs.js';
 import {
-  PRESETS,
   formatTime,
   result,
   practiceScramble,
@@ -10,7 +12,7 @@ import {
   normalizeSolve,
 } from './core.js';
 import { initPWA } from './pwa.js';
-import { cubeSVG, cubeFrame, orientAlgorithm } from './cube.js';
+import { cubeSVG, cubeFrame, orientAlgorithm, orientationColors, validOrientation } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
 import { getLesson, orientLessonCase } from './lessons.js';
@@ -61,10 +63,11 @@ let settings = {
   track: false,
   orientation: 'white-top',
   lessonOrientation: 'white-bottom',
+  crossPosition: 'bottom',
+  solveColors: 'white',
   ...saved.settings,
 };
-settings.orientation =
-  settings.orientation === 'white-bottom' ? 'white-bottom' : 'white-top';
+if (!validOrientation(...Object.values(orientationColors(settings.orientation)))) settings.orientation = 'white-top';
 settings.lessonOrientation =
   settings.lessonOrientation === 'white-top' ? 'white-top' : 'white-bottom';
 let page = 'timer',
@@ -118,9 +121,7 @@ const all = () =>
 const names = () =>
   lessonSession.context.kind === 'lesson'
     ? []
-    : settings.preset === 'custom'
-      ? settings.custom
-      : PRESETS[settings.preset];
+    : selectedSplitSteps(settings);
 function deviceSnapshot() {
   return {
     solves: [...records.values()],
@@ -310,6 +311,7 @@ function setPage(p, { showList = false } = {}) {
     insights: 'Analysis',
     lessons: 'Lessons',
     practice: 'Practice',
+    splits: 'Splits',
   }[p];
   // Selection is immediate and stays outside the moving page snapshots.
   $$('.sidebar [data-page]').forEach((b) => {
@@ -608,6 +610,7 @@ function render() {
   renderRecent();
   if (page === 'history') renderHistory();
   if (page === 'insights') renderInsights();
+  if (page === 'splits') renderSplits();
   updateTimerHeight();
 }
 function renderSteps() {
@@ -653,21 +656,18 @@ function renderSteps() {
   $('#fullscreen-splits .current')?.scrollIntoView({ block: 'nearest' });
   $('#fullscreen-track').setAttribute('aria-pressed', String(tracking()));
   $('#fullscreen-track').hidden = lesson;
+  const methods = splitMethods(settings);
+  const selected = methods.find(method => method.id === settings.preset) || methods[0];
   $('#fullscreen-track').innerHTML =
-    `<span aria-hidden="true">${tracking() ? '✓' : '✕'}</span> Splits`;
+    `<span class="split-toggle-icon" aria-hidden="true">${tracking() ? '✓' : '✕'}</span><span class="split-selection-name">${esc(selected?.name || 'No split list')}</span>`;
   $('#fullscreen-track').disabled = ['running', 'arming', 'armed'].includes(
     timing.state,
   );
-  const bottom = cubeOrientation() === 'white-bottom';
-  $('#cube-orientation').textContent = bottom ? 'White ↓' : 'White ↑';
-  $('#cube-orientation').title =
-    `Scramble with ${cubeFrame(cubeOrientation()).label}. Switch to white on ${bottom ? 'top' : 'bottom'}.`;
-  $('#cube-orientation').setAttribute(
-    'aria-label',
-    `White on ${bottom ? 'bottom' : 'top'}. Switch to white on ${bottom ? 'top' : 'bottom'}.`,
-  );
-  $('#cube-orientation').disabled =
-    ['running', 'arming', 'armed'].includes(timing.state) || !scramble;
+  splitPicker.render({ methods, selected, disabled: busy() || lesson || !methods.length });
+  $('#timer-split-control').hidden = lesson;
+  $('#fullscreen-track').title = selected
+    ? `Enable or disable split timing · ${selected.name}`
+    : 'Create a list in the Splits tab';
 }
 function timerVisual() {
   if (!busy() && orientationChanged) {
@@ -883,6 +883,7 @@ document.addEventListener('visibilitychange', () => {
 });
 function setTracking(enabled) {
   if (busy() || lessonSession.context.kind === 'lesson') return;
+  if (enabled && !names().length) { toast('Create a split list in the Splits tab first.'); return; }
   motion.layout([$('.timer-center')], () => {
     settings.track = enabled;
     persist();
@@ -895,6 +896,17 @@ $('#fullscreen-track').onclick = () => {
   setTracking(!tracking());
   $('#fullscreen-track').blur();
 };
+const splitPicker = initTimerSplitPicker({ select(id) {
+  if (busy() || lessonSession.context.kind === 'lesson') return;
+  const selected = splitMethods(settings).find(method => method.id === id);
+  if (!selected) return;
+  motion.layout([$('.timer-center')], () => {
+    settings.preset = selected.id;
+    timer.reset();
+    persist();
+    timerVisual();
+  });
+} });
 function refreshOrientation() {
   if (lessonSession.context.kind === 'lesson') {
     const exercise = lessonExercise();
@@ -914,18 +926,6 @@ function refreshOrientation() {
   if (scramble) showScramble({ animate: false });
   renderSteps();
 }
-$('#cube-orientation').onclick = () => {
-  if (busy() || !scramble) return;
-  const key =
-    lessonSession.context.kind === 'lesson'
-      ? 'lessonOrientation'
-      : 'orientation';
-  settings[key] =
-    cubeOrientation() === 'white-top' ? 'white-bottom' : 'white-top';
-  persist();
-  refreshOrientation();
-  $('#cube-orientation').blur();
-};
 let automaticFocus = false,
   focusRequested = document.body.classList.contains('focus-mode');
 function focusView(enabled, { immediate = false } = {}) {
@@ -1086,7 +1086,6 @@ function requestLessonScramble() {
 }
 async function newScramble() {
   if (busy()) return;
-  $('#cube-orientation').disabled = true;
   const req = ++scrambleRequest;
   if (lessonSession.context.kind === 'lesson') {
     scramble = '';
@@ -1133,7 +1132,6 @@ function showScramble({ animate = true } = {}) {
   const instruction = `Scramble with ${cubeFrame(cubeOrientation()).label}. Moves follow the cube's U, F and R faces.`;
   $('#fullscreen-scramble').title = instruction;
   $('#fullscreen-scramble').setAttribute('aria-label', instruction);
-  $('#cube-orientation').disabled = busy() || !scramble;
   $('#scramble-type').textContent = scrambleKind;
   $('#scramble-type').classList.toggle(
     'sr-only',
@@ -1185,6 +1183,20 @@ initSettingsDialog({
     refreshOrientation();
   },
 });
+const renderSplits = initSplitsPage({
+  getSettings: () => settings,
+  busy: () => busy(),
+  openDialog,
+  toast,
+  save(next) {
+    settings = next;
+    timer.reset();
+    const saving = persist();
+    timerVisual();
+    render();
+    return saving;
+  },
+});
 const { openSolve } = initHistoryDialogs({
   getRecords: () => records,
   getLessons: () => lessonAttempts,
@@ -1231,6 +1243,7 @@ const { renderRecent, renderHistory, renderInsights } = createSolveViews({
   getSolves: all,
   getPage: () => page,
   getCustomSteps: () => settings.custom,
+  getSplitMethods: () => splitMethods(settings),
   motion,
   openSolve,
 });

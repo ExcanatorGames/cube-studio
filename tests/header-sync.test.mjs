@@ -70,7 +70,7 @@ test('the header back button stays locked for arming, armed and running lesson a
 
 test('swipe navigation includes restored lessons and preserves the shared timer on return',()=>{
   const h=harness(),scramble=h.run('scramble');
-  assert.deepEqual(Array.from(h.run('mobileNavigation.pages')),['timer','insights','lessons','practice']);
+  assert.deepEqual(Array.from(h.run('mobileNavigation.pages')),['timer','insights','lessons','practice','splits']);
   h.run("mobileNavigation.navigate('lessons');openLesson('13');setLessonTab('practice')");
   assert.equal(h.element('#timer-card').parentElement.id,'lesson-practice-mount');
   assert.equal(h.run('mobileNavigation.blocked()'),false);
