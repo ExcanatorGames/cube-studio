@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LESSONS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
+import {LESSONS,LESSON_CATALOG,F2L_GROUPS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
@@ -50,6 +50,32 @@ function shortestTriggerCosts(){
 }
 const triggerCosts=shortestTriggerCosts();
 
+test('one F2L lesson covers all 41 standard cases in the video groups without duplicates',()=>{
+  assert.equal(LESSON_CATALOG.length,1);
+  const lesson=LESSON_CATALOG[0];
+  assert.deepEqual(F2L_GROUPS.map(group=>lesson.cases.filter(item=>item.group===group).length),[4,10,6,6,10,5]);
+  const seen=new Set();
+  for(const item of lesson.cases){
+    const cube=new Cube().move(item.setup),key=targetStateKey(cube);
+    assert.ok(!seen.has(key),'duplicate physical case '+key);seen.add(key);
+    const [corner,,edge]=key.split(',').map(Number);
+    if(item.group==='Corner in Slot')assert.deepEqual([corner,edge],[4,0]);
+    if(item.group==='Edge in Slot')assert.deepEqual([corner,edge],[0,8]);
+    if(item.group==='Both Pieces in Slot')assert.deepEqual([corner,edge],[4,8]);
+    if(item.group==='Connected Pairs')assert.ok(corner===0&&edge<2);
+    if(item.group==='Disconnected Pairs')assert.ok(corner===0&&edge>=2&&edge<4);
+    const solved=cubeStickers(),prepared=cubeStickers(item.setup),after=cubeStickers(item.setup+' '+item.solution);
+    for(const sticker of solved.filter(s=>s.position[1]<1&&!item.target.includes(s.cubie))){
+      const match=items=>items.find(s=>s.cubie===sticker.cubie&&s.face===sticker.face);
+      assert.equal(JSON.stringify(match(prepared)),JSON.stringify(sticker),'setup preserves other slots and cross');
+      assert.equal(JSON.stringify(match(after)),JSON.stringify(sticker),'solution preserves other slots and cross');
+    }
+    assertInserted(after,item.target);
+  }
+  assert.equal(seen.size,41);
+  assert.ok(!seen.has('4,0,8,0'),'solved pair is not a practice case');
+});
+
 test('every pairing solution is as short as an independently searched route using basic slot triggers',()=>{
   assert.equal(triggerCosts.size,150,'covers every target-pair configuration reachable with these triggers');
   for(const item of LESSONS[1].cases){
@@ -93,12 +119,12 @@ test('the two lessons cover all 24 top-layer configurations exactly once',()=>{
 test('every case supports all slots and alignments with random backgrounds and independently verified hints',()=>{
   let seed=235178;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
   const solvedStickers=cubeStickers(),crossCubies=['0,-1,1','1,-1,0','0,-1,-1','-1,-1,0'];
-  for(const lesson of LESSONS)for(const item of lesson.cases){
+  for(const lesson of LESSON_CATALOG)for(const item of lesson.cases){
     const backgrounds=new Set();
     for(let slot=0;slot<4;slot++)for(let auf=0;auf<4;auf++){
       const choices=[slot/4,auf/4];
       const exercise=createExercise(lesson.id,{caseIds:[item.id],random:()=>choices.length?choices.shift():next()});
-      assert.equal(exercise.lessonId,lesson.id);assert.equal(exercise.caseId,item.id);
+      assert.equal(exercise.lessonId,item.sourceLessonId);assert.equal(exercise.caseId,item.id);
       assert.equal(exercise.auf,auf);assert.equal(changeLessonFrame(exercise.scramble),exercise.setup);
       const before=cubeStickers(exercise.setup),after=cubeStickers(exercise.setup+' '+exercise.solution);
       const expected=cubeStickers(rotateReference(item.setup,slot)+' '+['','U','U2',"U'"][auf]);
@@ -115,7 +141,6 @@ test('every case supports all slots and alignments with random backgrounds and i
       for(let i=0;i<before.length;i++){
         if(exercise.target.includes(before[i].cubie)){
           assert.equal(JSON.stringify(before[i]),JSON.stringify(expected[i]),`${item.id}: exact case in slot ${slot}, alignment ${auf}`);
-          assert.equal(before[i].position[1],1,'both target pieces start in the top layer');
         }
         if(crossCubies.includes(before[i].cubie)){
           assert.equal(JSON.stringify(before[i]),JSON.stringify(solvedStickers[i]),'cross starts solved');

@@ -176,16 +176,16 @@ export function harness({
     elements.set(selector, el);
     return el;
   }
-  const pages = ['timer', 'history', 'insights', 'lessons'].map((name) =>
+  const pages = ['timer', 'analysis', 'lessons', 'practice'].map((name) =>
     element('#' + name + '-page'),
   );
-  const nav = ['timer', 'history', 'insights', 'lessons'].map((name) => {
+  const nav = ['timer', 'insights', 'lessons', 'practice'].map((name) => {
     const el = element('nav-' + name);
     el.dataset.page = name;
     el.tagName = 'BUTTON';
     return el;
   });
-  const groups = ['history', 'insights', 'lesson'].map((name) => {
+  const groups = ['history', 'insights', 'lesson', 'practice-detail'].map((name) => {
     const el = element('[data-header-context=\"' + name + '\"]');
     el.dataset.headerContext = name;
     return el;

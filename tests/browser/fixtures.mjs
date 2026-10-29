@@ -43,11 +43,22 @@ export async function finishKeyboardSolve(page) {
   await expect(page.locator('#timer-card')).not.toHaveClass(/\brunning\b/);
 }
 
+export async function openControls(page) {
+  if (await page.locator('#open-controls').isVisible() && !await page.locator('#app-controls').isVisible())
+    await page.getByRole('button', {name:'Page controls',exact:true}).click();
+}
+
+export async function pageControl(page, name) {
+  await openControls(page);
+  await page.getByRole('button', {name}).click();
+}
+
 export async function showHistory(page) {
   if (await page.locator('body').evaluate(body => body.classList.contains('focus-mode'))) {
     await page.getByRole('button', {name: 'Toggle fullscreen timer'}).click();
   }
-  await page.getByRole('button', {name: 'Solves', exact: true}).click();
+  await page.getByRole('button', {name: 'Analysis', exact: true}).click();
+  await page.getByRole('tab', {name: 'Solves', exact: true}).click();
 }
 
 export function storedState(page) {
@@ -71,6 +82,7 @@ export function storedState(page) {
 }
 
 export async function connect(page) {
+  await openControls(page);
   await page.locator('#connect-sync').click();
   await page.getByLabel('Sync code', {exact: true}).fill(SYNC_CODE);
   await page.locator('#save-connection').click();

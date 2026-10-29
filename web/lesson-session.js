@@ -1,4 +1,4 @@
-import { LESSONS, orientLessonCase } from './lessons.js';
+import { getLesson, orientLessonCase } from './lessons.js';
 
 export function createLessonSession({
   getSettings,
@@ -11,7 +11,12 @@ export function createLessonSession({
   const update = (values) => {
     context = Object.freeze({ ...context, ...values });
   };
-  const lesson = () => LESSONS.find((item) => item.id === context.lessonId);
+  const lesson = () => {
+    const selected = getLesson(context.lessonId);
+    if (!selected || !context.scopeCaseIds) return selected;
+    const cases = selected.cases.filter(item => context.scopeCaseIds.includes(item.id));
+    return { ...selected, cases, case: cases[0] };
+  };
   return {
     get context() {
       return context;
@@ -29,23 +34,32 @@ export function createLessonSession({
         ? orientLessonCase(context.exercise, getSettings().lessonOrientation)
         : null;
     },
-    open(id) {
-      const selected = LESSONS.find((item) => item.id === id);
-      if (!selected) return false;
+    open(id, { caseIds, title, scopeCaseIds } = {}) {
+      const source = getLesson(id);
+      if (!source) return false;
+      const cases = scopeCaseIds ? source.cases.filter(item => scopeCaseIds.includes(item.id)) : source.cases;
+      if (!cases.length) return false;
+      const selected = { ...source, cases, case: cases[0] };
+      const requested = caseIds && selected.cases.filter(item => caseIds.includes(item.id)).map(item => item.id);
+      if (requested && !requested.length) return false;
       generation++;
+      const selections = getSettings().lessonCaseSelections || {};
       const saved = selected.cases
-        .filter((item) =>
-          getSettings().lessonCaseSelections?.[id]?.includes(item.id),
-        )
+        .filter((item) => {
+          const ids = selections[id] ?? selections[item.sourceLessonId];
+          return ids === undefined || ids.includes(item.id);
+        })
         .map((item) => item.id);
       context = Object.freeze({
         kind: 'lesson',
         lessonId: id,
+        title: title || selected.title,
+        scopeCaseIds: scopeCaseIds ? cases.map(item => item.id) : undefined,
         tab: 'lesson',
         exercise: null,
         assistance: false,
         demoCaseId: selected.case.id,
-        caseIds: saved.length ? saved : selected.cases.map((item) => item.id),
+        caseIds: requested || (saved.length ? saved : selected.cases.map((item) => item.id)),
       });
       return true;
     },
@@ -92,9 +106,10 @@ export function createLessonSession({
         .filter(
           (s) =>
             !s.deleted &&
-            s.completion === lesson()?.case.completion &&
-            s.lessonId === context.lessonId &&
-            context.caseIds.includes(s.caseId),
+            context.caseIds?.includes(s.caseId) &&
+            lesson()?.cases.some(item => item.id === s.caseId &&
+              (item.sourceLessonId || context.lessonId) === s.lessonId &&
+              item.completion === s.completion),
         )
         .sort(
           (a, b) =>

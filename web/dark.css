@@ -65,8 +65,6 @@ dialog::backdrop{background:#06090ebd}
 .danger-button{color:#eca9ad}
 .detail-scramble{color:#b7c5dd}
 #toast{background:#2b3a53;color:#e5ecf8;border:1px solid #536585}
-.app-bar,.app-bar #app-status{color:#9caabe}
-.app-bar #install-app,.app-bar a{color:#b0c1ff}
 .timer-card.arming .clock{color:#e2bd82}
 .timer-card.armed{background:#182d29}
 .timer-card.armed .clock{color:#8fd6b2}
@@ -77,10 +75,6 @@ dialog::backdrop{background:#06090ebd}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .sidebar nav{margin-top:46px}
 .side-bottom{padding-bottom:24px}
-.app-bar{height:76px;padding-top:0;gap:14px;border-bottom:1px solid var(--line);margin-bottom:26px}
-.app-bar #install-app{padding:6px 9px;color:#b0c1ff}
-.app-bar #sync-mobile{font-size:20px}
-.app-bar #export{font-size:20px}
 .timer-toolbar{min-height:28px;margin:11px 15px 0;justify-content:flex-end}
 #timer-pad{padding:16px 12px 30px}
 .timer-footer{justify-content:flex-end;padding:9px 18px}
@@ -97,17 +91,11 @@ dialog::backdrop{background:#06090ebd}
 .keyboard-help{display:flex;flex-wrap:wrap;gap:14px;font-size:10px;color:#9caabe;margin:22px 0}
 .keyboard-help span{display:flex;align-items:center;gap:6px}
 .filter-bar>select{font-size:11px}
-body.focus-mode .app-bar{display:none}
 @media(max-width:740px){.page,.sidebar nav{touch-action:pan-y pinch-zoom}}
 @media(max-width:950px){.sidebar nav{margin-top:42px}}
 @media(max-width:740px){
  .sidebar nav{margin-top:0}
  .side-bottom{padding:0}
- .app-bar{height:52px;min-height:52px;gap:7px;margin-bottom:16px;padding-top:0}
- .app-bar #mobile-sync{font-size:9px}
- .app-bar #connect-sync{font-size:9px;white-space:nowrap}
- .app-bar #install-app{font-size:10px;padding:5px}
- .app-bar .icon-button{padding:5px;min-width:28px}
  #timer-pad{padding:15px 8px 25px}
  .touch-instruction{display:block;margin-top:14px}
  .steps-card{padding:17px 14px}
@@ -142,10 +130,6 @@ body.focus-mode .timer-footer{display:none}
 @media(pointer:coarse){.timer-instruction{display:none}.touch-instruction{display:block}}
 
 @media(max-width:740px){
- .app-bar{height:auto;min-height:60px;flex-wrap:wrap;padding:7px 0;gap:5px}
- .app-bar #mobile-sync{font-size:12px}
- .app-bar #connect-sync,.app-bar #install-app{font-size:14px;padding:9px 7px;min-height:44px}
- .app-bar .icon-button{min-width:40px;min-height:44px;font-size:23px}
  .sidebar .nav{font-size:12px}
  h2,.steps-card .card-top h2,.session-card .card-top h2{font-size:16px}
  .muted,.count,.scramble-card .card-top .muted{font-size:12px}
@@ -187,8 +171,7 @@ body.focus-mode .timer-footer{display:none}
  .nav{font-size:14px}
  h2,.steps-card .card-top h2,.session-card .card-top h2,.chart-card .card-top h2{font-size:18px}
  .scramble{font-size:20px;line-height:1.8;letter-spacing:.3px}
- .muted,.count,.app-bar #mobile-sync{font-size:13px}
- .app-bar #install-app,.app-bar #connect-sync{font-size:14px}
+ .muted,.count{font-size:13px}
  .check-label{font-size:14px;line-height:1.5;gap:8px}
  .check-label input{width:17px;height:17px}
  .text-button,.small-button,.view-history{font-size:14px;min-height:40px;padding:9px 12px}
@@ -245,7 +228,7 @@ body.focus-mode .timer-footer{display:none}
 
 /* The history viewport holds its filters and pagination in place. */
 body:has(#history-page:not([hidden])){overflow:hidden}
-main:has(>#history-page:not([hidden])){padding-bottom:0}
+main:has(#history-page:not([hidden])){padding-bottom:0}
 #history-page:not([hidden]){display:flex;flex-direction:column;height:var(--history-available-height,calc(100dvh - 140px));min-height:0}
 #history-page>.filter-bar{flex-shrink:0}
 #history-page .table-card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;margin-bottom:0}
@@ -458,10 +441,6 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  .sidebar .nav{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-width:0;min-height:44px;margin:0;padding:4px 2px;font-size:10px;line-height:1.2;text-align:center}
  .sidebar .nav>span:first-child{display:block;width:24px;height:24px;font-size:22px;line-height:24px}
  main{margin-left:68px;padding:0 max(12px,env(safe-area-inset-right)) 12px 12px;max-width:none}
- .app-bar{height:44px;min-height:44px;flex-wrap:nowrap;padding:0;gap:8px;margin-bottom:8px}
- .app-bar #mobile-sync{font-size:11px}
- .app-bar #install-app,.app-bar #connect-sync{font-size:12px;padding:6px;min-height:40px;white-space:nowrap}
- .app-bar .icon-button{min-width:40px;min-height:40px}
  body:not(.focus-mode) main:has(>#timer-page:not([hidden])){padding-bottom:0}
  body:not(.focus-mode) #timer-card,body:not(.focus-mode) #timer-card.with-splits{min-height:180px}
  #timer-card{--landscape-split-width:clamp(230px,30%,300px);--landscape-gap:clamp(20px,3vw,36px)}
@@ -515,34 +494,14 @@ main:has(>#timer-page:not([hidden])){padding-bottom:0}
  body:not(.focus-mode) #timer-page .clock{font-size:46px}
  body:not(.focus-mode) #timer-page .timer-instruction,body:not(.focus-mode) #timer-page .touch-instruction{font-size:10px}
 }
-
-.app-bar{height:auto;flex-wrap:wrap;min-height:76px;padding:8px 0;gap:8px 16px}
 .header-context{display:flex;align-items:center;min-width:0;max-width:100%}
-.app-bar .filter-bar{flex:1 1 320px;gap:8px;margin:0}
-.app-bar .filter-bar input{flex:1 1 100px;width:100px;min-width:0;max-width:240px;margin:0;order:0}
-.app-bar .filter-bar>select{min-width:0;max-width:100%;font-size:14px}
-.app-bar .filter-bar>button{margin:0;font-size:13px}
-.app-bar #manual-entry{min-width:40px;min-height:40px;font-size:22px}
 .app-actions,.sync-attention{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;max-width:100%}
 .app-actions{margin-left:auto;flex-wrap:wrap}
 .sync-attention{flex:1 1 auto}
-.app-bar #mobile-sync{margin:0;min-width:0;overflow-wrap:anywhere;line-height:1.4}
-.app-bar #connect-sync{white-space:nowrap}
-.app-bar #sync-mobile,.app-bar #connect-sync,.app-bar #export,.app-bar #install-app{flex-shrink:0}
-.app-bar #lesson-back{min-height:44px;font-size:13px}
 @media(max-width:740px){
- .app-bar{min-height:52px;gap:4px 8px;padding:4px 0}
  .app-actions{flex-wrap:nowrap}
- .app-bar .filter-bar{order:2;flex:1 0 100%;display:flex;flex-wrap:nowrap;gap:6px;padding-bottom:4px}
- .app-bar .filter-bar input{flex:1 1 0;max-width:none;width:0;font-size:16px}
- .app-bar .filter-bar>select{flex:0 1 auto;font-size:16px;padding:8px}
- .app-bar .filter-bar>button{flex-shrink:0;padding:8px;font-size:12px}
- .app-bar #lesson-back{font-size:12px;padding:6px 8px}
 }
 @media(orientation:landscape) and (max-height:500px) and (max-width:1100px){
- .app-bar{min-height:44px;padding:0;gap:4px 8px}
- .app-bar .filter-bar{flex-basis:280px}
- .app-bar .filter-bar>select,.app-bar .filter-bar input,.app-bar .filter-bar>button{font-size:14px;min-height:40px}
 }
 
 /* Brief motion supports changes of state; the live clock never animates digits. */
@@ -631,3 +590,56 @@ dialog[open]::backdrop{background:#06090ebd}
  dialog::backdrop{transition:none!important}
  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
+
+/* Keep document and nested scrollbars on the same dark surfaces as the app. */
+:root{color-scheme:dark;scrollbar-color:#465570 #10141c;scrollbar-width:thin}
+*{scrollbar-width:thin}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#10141c}
+::-webkit-scrollbar-thumb{background:#465570;border:2px solid #10141c;border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:#7182a2}
+::-webkit-scrollbar-button{display:none}
+
+.analysis-tabs{display:flex;gap:0;border-bottom:1px solid #35435b;margin-bottom:16px}
+.analysis-tabs [role="tab"]{min-height:44px;padding:10px 24px;border-bottom:3px solid transparent;color:#acbad0;font-size:15px}
+.analysis-tabs [aria-selected="true"]{border-color:#adbeef;color:#e0e9ff;background:#202d43}
+@media(min-width:741px){
+ .sidebar nav{display:flex;flex-direction:column;flex:1;padding-bottom:16px}
+ .sidebar #open-settings{margin-top:auto}
+}
+@media(max-width:740px){
+ .analysis-tabs{margin-bottom:12px}
+ .analysis-tabs [role="tab"]{flex:1;padding:8px 16px}
+}
+
+/* Contextual controls share one home in the rail or the phone popup. */
+main{padding-top:16px}
+.app-controls{flex-shrink:0;min-width:0;color:#acbad0;font-size:13px}
+.app-controls:not([popover]){margin-top:auto;padding:12px 0;border-top:1px solid var(--line)}
+.app-controls .header-context,.app-controls .filter-bar,.app-controls .app-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;margin:0}
+.app-controls .filter-bar{margin-bottom:10px}
+.app-controls .filter-bar input,.app-controls .filter-bar select{width:100%;min-width:0;max-width:100%;margin:0;font-size:14px;min-height:44px}
+.app-controls [data-header-context="history"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.app-controls [data-header-context="history"] input,.app-controls [data-header-context="history"] select{grid-column:1/-1}
+.app-controls .filter-bar>button{margin:0;min-width:0;min-height:44px;padding:8px;font-size:14px}
+.app-controls #manual-entry{font-size:22px}
+.app-controls .sync-attention{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:4px;flex:none}
+.app-controls #mobile-sync{flex-basis:100%;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.app-controls .text-button{min-height:44px;text-align:left;font-size:13px}
+.app-controls #sync-mobile{min-width:44px;min-height:44px}
+#open-controls{display:none}
+.sidebar #open-settings{margin-top:0}
+@media(min-width:741px){.sidebar nav{min-height:0;overflow-y:auto}.sidebar .brand{flex-shrink:0}}
+@media(max-width:740px),(orientation:landscape) and (max-height:500px) and (max-width:1100px){
+ #open-controls{display:none;place-items:center;position:fixed;top:max(8px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:30;width:44px;height:44px;padding:0;border:1px solid #35435b;border-radius:10px;background:#19212e;font-size:25px;line-height:1}
+ body:has(#app-controls .header-context:not([hidden]),#sync-attention:not([hidden]),#update-app:not([hidden])) #open-controls{display:grid}
+ body:has(#sync-attention:not([hidden]),#update-app:not([hidden])) #open-controls:after{content:'';position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:#adbeef}
+ .app-controls[popover]{inset:max(60px,calc(env(safe-area-inset-top) + 52px)) max(12px,env(safe-area-inset-right)) auto auto;margin:0;padding:14px;width:min(320px,calc(100vw - 24px));max-height:calc(100dvh - 150px);overflow-y:auto;border:1px solid #46546b;border-radius:12px;background:#19212e;box-shadow:0 12px 36px #0008}
+ .app-controls::backdrop{background:transparent}
+ .app-controls .filter-bar input,.app-controls .filter-bar select{font-size:16px}
+ .lesson-heading{padding-right:48px}
+ .analysis-tabs{padding-right:48px}
+ #timer-page .timer-toolbar{padding-right:48px}
+ #lesson-list .lesson-card:first-child .lesson-card-copy,#practice-cards article:first-child .lesson-card-copy{padding-right:44px}
+}
+body.focus-mode #open-controls,body.focus-mode .app-controls{display:none}

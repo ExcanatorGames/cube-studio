@@ -62,6 +62,59 @@ export const LESSONS=Object.freeze([
     "Start with a solved white cross and both matching pieces in the top layer. Join and insert the pair using simple slot triggers. Some cases pair as they enter the slot. Practice ends once the pair is slotted in and the white cross is restored.",pairingCases),
 ]);
 
+// The original IDs remain valid for saved attempts and selections. The visible
+// catalog combines them into one lesson; new cases use the stable F2L ID.
+// Recognition groups follow CubeHead's All Standard F2L Cases chapters:
+// https://www.youtube.com/watch?v=3tYj-9f4dA0
+export const F2L_GROUPS=Object.freeze([
+  'Easy Inserts','Disconnected Pairs','Corner in Slot',
+  'Edge in Slot','Connected Pairs','Both Pieces in Slot',
+]);
+const slotAlgorithms=[
+  ['0,0,8,1',"F' U F R U2 R'",["R U2 R' F' U' F","U F' U2 F R U R'","F' U2 F R U R'"]],
+  ['4,1,0,0',"F' U2 F R U2 R'"],
+  ['4,2,0,0',"R U R' U' R U R'",["U F' U F R U R'","F' U F R U R'","R U2 R' U2 R U R'"]],
+  ['4,0,0,1',"R U2 R' U2 F' U' F",["U R U' R' U' F' U F","R U' R' U' F' U F","U' R U' R' U' F' U F"]],
+  ['4,2,0,1',"U R U2 R' F' U2 F"],
+  ['4,1,0,1',"U' R U' R' F' U' F",["F' U' F U F' U' F","F' U2 F U2 F' U' F","R U' R' F' U' F"]],
+  ['0,1,8,0',"U' R U2 R' U R U R'",["R U R' U2 R U R'","U R U2 R' U R U R'","R U2 R' U R U R'"]],
+  ['0,2,8,1',"U2 R U R' U' F' U F",["U R U R' U' F' U F","R U R' U' F' U F","R U R' U F' U' F"]],
+  ['4,0,0,0',"U' F' U' F U R U R'",["F' U2 F U2 R U R'","U F' U' F U R U R'","F' U' F U R U R'"]],
+  ['0,1,8,1',"U2 F' U F U R U R'",["F' U' F U' R U R'","F' U F U R U R'","U' F' U F U R U R'"]],
+  ['4,1,8,1',"F' U F R U' R' U2 R U R'"],
+  ['0,0,8,0',"R U2 R' F' U2 F U' R U R'",["R U' R' U F' U2 F R U2 R'","R U R' F' U F U2 R U R'","R U R' U' F' U' F R U R'"]],
+  ['0,2,8,0',"U' R U' R' U' R U2 R'",["F' U2 F U' F' U' F","U R U' R' U' R U2 R'","R U' R' U' R U2 R'"]],
+  ['4,2,8,1',"R U' R' F' U F U2 F' U' F"],
+  ['4,2,8,0',"R U2 R' U R U' R' U R U R'"],
+  ['4,1,8,0',"R U2 R' U2 R U2 R' U' R U R'"],
+  ['4,0,8,1',"F' U' F U2 F' U2 F U' R U R'"],
+];
+const slotCases=slotAlgorithms.map(([key,solution,alignments])=>{
+  const [corner,twist,edge,flip]=key.split(',').map(Number);
+  const group=corner===4?(edge===8?'Both Pieces in Slot':'Corner in Slot'):'Edge in Slot';
+  const white=cubeStickers(inverse(solution)).find(s=>s.cubie===target[0]&&s.face==='D');
+  const facing=white.normal[1]===1?'up':white.normal[1]===-1?'down':white.normal[0]===1?'right':'front';
+  const title=`${group} · white ${facing} · ${flip?'flipped edge':'oriented edge'}`;
+  const alignmentSolutions=Object.fromEntries((alignments||(corner===4&&edge===8?[solution,solution,solution]:[])).map((alg,i)=>[i+1,alg]));
+  return Object.freeze({...defineCase('slot-'+key.replaceAll(',','-'),title,solution,
+    'Free the target pieces, then pair and insert them while preserving the cross.',group,solution,alignmentSolutions),sourceLessonId:'f2l'});
+});
+const topCases=LESSONS.flatMap(lesson=>lesson.cases.map(item=>{
+  const easy=lesson.id==='13'||['pair-1-3-0','pair-2-2-1'].includes(item.id);
+  const edge=Number(item.id.split('-')[2]);
+  return Object.freeze({...item,sourceLessonId:lesson.id,
+    group:easy?'Easy Inserts':edge<2?'Connected Pairs':'Disconnected Pairs'});
+}));
+const f2lCases=F2L_GROUPS.flatMap(group=>[...topCases,...slotCases].filter(item=>item.group===group));
+export const LESSON_CATALOG=Object.freeze([
+  defineLesson('f2l','F2L','41 cases · 6 practice groups',
+    'Learn to pair and insert a corner and edge. Practice any group, or mix groups together.',f2lCases),
+]);
+export function getLesson(id){
+  if(id==='mixed')return defineLesson('mixed','Mixed practice','Choose lessons and groups','',LESSON_CATALOG.flatMap(lesson=>lesson.cases));
+  return LESSON_CATALOG.find(item=>item.id===id)||LESSONS.find(item=>item.id===id);
+}
+
 // Turn over about the front/back axis: green stays in front while white-top,
 // red-right scrambling coordinates become white-bottom, orange-right solving.
 export function changeLessonFrame(algorithm){

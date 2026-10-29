@@ -4,42 +4,76 @@ import {harness} from './helpers/app-harness.mjs';
 import {LESSONS} from '../web/lessons.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
 
-test('both lessons expose their demos and persist practice subsets independently',()=>{
+test('clicking the active Practice navigation preserves the session without a page transition',()=>{
+  const h=harness();
+  h.run("setPage('practice');openLesson('mixed')");
+  const context=h.run('lessonSession.context');
+  const requests=h.lessonMessages.length;
+  h.run('globalThis.pageTransitions=0;const originalSwap=motion.swap;motion.swap=(...args)=>{pageTransitions++;return originalSwap(...args)}');
+  h.run("setPage('practice')");
+  assert.equal(h.run('pageTransitions'),0);
+  assert.equal(h.run('lessonSession.context'),context);
+  assert.equal(h.lessonMessages.length,requests);
+});
+
+test('the practice list does not prepare an exercise until a practice is explicitly opened',()=>{
+  const h=harness();
+  h.run("setPage('practice')");
+  assert.equal(h.run('lessonSession.context.kind'),'normal');
+  assert.equal(h.lessonMessages.length,0);
+  assert.equal(h.run('timerVisible()'),false);
+  assert.equal(h.element('#practice-list').hidden,false);
+  assert.match(h.element('#practice-cards').innerHTML,/Easy Inserts/);
+  h.element('#practice-cards').onclick({target:{closest:()=>({dataset:{practiceOpen:'f2l-2'}})}});
+  assert.equal(h.run('lessonSession.context.caseIds.length'),6);
+  assert.equal(h.run('lessonSession.context.title'),'F2L · Corner in Slot');
+  assert.equal(h.lessonMessages.length,1);
+  assert.equal(h.run('timerVisible()'),true);
+  assert.equal(h.element('#practice-list').hidden,true);
+  h.element('#practice-back').onclick();
+  assert.equal(h.run('timerVisible()'),false);
+  assert.equal(h.element('#practice-list').hidden,false);
+});
+
+test('practice case tiles keep one case selected and invalidate older scramble requests',()=>{
+  const h=harness({deferLessonScrambles:true});
+  h.run("setPage('practice');openLesson('mixed',{scopeCaseIds:['ready-right','ready-left']})");
+  const click=id=>h.element('#practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:id}})}});
+  click('ready-right');
+  assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
+  h.lessonRequests[0]();assert.equal(h.run('lessonSession.context.exercise'),null);
+  h.lessonRequests[1]();assert.equal(h.run('lessonSession.context.exercise.caseId'),'ready-left');
+  click('ready-left');
+  assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
+  assert.equal(h.element('#practice-case-ready-left').getAttribute('aria-pressed'),'true');
+});
+
+test('legacy lessons expose their demos and restore practice subsets independently',()=>{
   const h=harness();h.run("setPage('lessons');openLesson('13')");
-  assert.equal(h.element('#lesson-case-dropdown').open,false);
-  h.element('#lesson-case-dropdown').open=true;
   assert.match(h.element('#lesson-case-list').innerHTML,/Ready right/);assert.match(h.element('#lesson-case-list').innerHTML,/Ready left/);
   h.element('#lesson-case-list').onclick({target:{closest:()=>({dataset:{lessonCase:'ready-left'}})}});
-  assert.equal(h.element('#lesson-case-dropdown').open,false);
   assert.equal(h.run('lessonSession.context.demoCaseId'),'ready-left');
   assert.equal(h.element('#lesson-case-ready-left').getAttribute('aria-pressed'),'true');
   assert.equal(h.element('#lesson-case-ready-right').getAttribute('aria-pressed'),'false');
   assert.equal(h.element('#lesson-case-title').textContent,'Ready left');
-  h.element('#lesson-case-dropdown').open=true;
-  h.element('#lesson-case-dropdown').onkeydown({key:'Escape'});
-  assert.equal(h.element('#lesson-case-dropdown').open,false);
-  h.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});
+  h.run("setPracticeCases(['ready-left'])");
   assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
   assert.equal(h.run('lessonSession.context.exercise.caseId'),'ready-left');
   assert.equal(h.lessonMessages.at(-1).caseIds.join(),'ready-left');
   h.run("openLesson('14')");
   assert.equal(h.run('lessonSession.context.caseIds.length'),22);
-  assert.equal((h.element('#lesson-practice-case-list').innerHTML.match(/data-practice-case=/g)||[]).length,22);
-  assert.match(h.element('#lesson-practice-case-list').innerHTML,/lesson-case-thumbnail/);
   const cases=LESSONS[1].cases;
   h.run(`setPracticeCases(${JSON.stringify(cases.slice(2,4).map(item=>item.id))})`);
   assert.equal(h.run('lessonSession.context.caseIds.length'),2);
-  for(const item of cases)assert.equal(h.element('#practice-case-'+item.id).getAttribute('aria-pressed'),String(cases.slice(2,4).includes(item)));
   h.run('setPracticeCases([])');assert.equal(h.run('lessonSession.context.caseIds.length'),2);
   const reloaded=harness({saved:JSON.parse(h.storage.get('cube-studio-v1'))});
   reloaded.run("setPage('lessons');openLesson('14')");
   assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),cases.slice(2,4).map(item=>item.id).join());
   reloaded.run("openLesson('13')");assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-left');
-  reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});assert.equal(reloaded.run('lessonSession.context.caseIds.length'),2);
-  reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-left'}})}});
+  reloaded.run("setPracticeCases(['ready-right'])");
   assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-right');
-  reloaded.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:'ready-right'}})}});
-  assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-right','the final selected case cannot be toggled off');
+  reloaded.run('setPracticeCases([])');
+  assert.equal(reloaded.run('lessonSession.context.caseIds.join()'),'ready-right','an active session must have at least one case');
 });
 
 test('changing selected cases or lessons ignores every superseded worker result',()=>{
@@ -60,9 +94,8 @@ test('selected case metadata is saved, locked during timing, and used to filter 
   h.run('setPracticeCases([lessonSession.context.demoCaseId])');
   const id=h.run('lessonSession.context.exercise.caseId');
   h.run('arm()');h.arm();h.run('start()');
-  assert.equal(h.element('#lesson-practice-cases').disabled,true);assert.equal(h.element('#lesson-case-picker').disabled,true);
-  h.element('#lesson-practice-case-list').onclick({target:{closest:()=>({dataset:{practiceCase:id}})}});
-  assert.equal(h.run('lessonSession.context.caseIds.join()'),id,'case tile clicks are locked during an attempt');
+  assert.equal(h.element('#practice-case-picker').disabled,true);assert.equal(h.element('#lesson-case-picker').disabled,true);
+  assert.equal(h.run('lessonSession.context.caseIds.join()'),id);
   h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('lessonSession.context.caseIds.length'),1);
   h.advance(7100);h.run('stop()');
   assert.equal(h.run('practiceTimes()[0].caseId'),id);

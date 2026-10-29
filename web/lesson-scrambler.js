@@ -1,5 +1,5 @@
 import {Cube} from './cube-solver.js';
-import {LESSONS,changeLessonFrame} from './lessons.js';
+import {getLesson,changeLessonFrame} from './lessons.js';
 
 // cubejs order: URF UFL ULB UBR DFR DLF DBL DRB;
 // UR UF UL UB DR DF DL DB FR FL BL BR. Fix D cross edges and the FR pair.
@@ -53,7 +53,7 @@ function randomBackground(random){
  * Run in the worker: solver initialization and search must not block the UI.
  */
 export function createExercise(lessonId='13',{previousScramble='',random=Math.random,varied=true,caseIds}={}){
-  const lesson=LESSONS.find(item=>item.id===lessonId);
+  const lesson=getLesson(lessonId);
   if(!lesson)throw Error('Unknown lesson');
   const cases=caseIds===undefined?lesson.cases:caseIds.map(id=>lesson.cases.find(item=>item.id===id));
   if(!cases.length||cases.some(item=>!item))throw Error('Select valid lesson cases');
@@ -72,5 +72,5 @@ export function createExercise(lessonId='13',{previousScramble='',random=Math.ra
     setup=solve(background.move('U'));
     scramble=changeLessonFrame(setup);
   }
-  return Object.freeze({lessonId,caseId,scramble,setup,solution,orientation,target,slot:slots[slot],auf,completion:selected.completion});
+  return Object.freeze({lessonId:selected.sourceLessonId||lessonId,caseId,scramble,setup,solution,orientation,target,slot:slots[slot],auf,completion:selected.completion});
 }

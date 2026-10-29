@@ -17,39 +17,43 @@ function assertContext(h,active){
   for(const name of ['history','insights','lesson'])assert.equal(h.element(`[data-header-context="${name}"]`).hidden,name!==active,name);
 }
 
-test('page controls live once in the shared header and lessons retain only their detail heading',async()=>{
+test('page controls live once above Settings and lessons retain only their detail heading',async()=>{
   const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
-  const header=html.match(/<header class="app-bar">([\s\S]*?)<\/header>/)[1];
-  for(const id of ['history-scope','search','history-import','insight-period','lesson-back','mobile-sync','sync-mobile','connect-sync','open-settings','update-app']){
-    assert.ok(header.includes(`id="${id}"`),id);
+  const controls=html.match(/<section id="app-controls"[^>]*>([\s\S]*?)<\/section>/)[1];
+  assert.doesNotMatch(html,/class="app-bar"/);
+  assert.ok(html.indexOf('id="app-controls"')<html.indexOf('id="open-settings"'));
+  for(const id of ['history-scope','search','history-import','insight-period','lesson-back','mobile-sync','sync-mobile','connect-sync','update-app']){
+    assert.ok(controls.includes(`id="${id}"`),id);
     assert.equal(html.split(`id="${id}"`).length-1,1,id);
   }
   for(const id of ['open-import','export','install-app'])assert.equal(html.split(`id="${id}"`).length-1,1,id);
-  assert.doesNotMatch(html.match(/<aside class="sidebar">([\s\S]*?)<\/aside>/)[1],/id="open-settings"/);
+  assert.match(html.match(/<aside class="sidebar">([\s\S]*?)<\/aside>/)[1],/id="open-settings"/);
+  assert.doesNotMatch(controls,/id="open-settings"/);
+  assert.equal(html.split('id="open-settings"').length-1,1);
   assert.doesNotMatch(html,/puzzle-label|class="lesson-intro"|<h2[^>]*>Lessons<\/h2>/);
   assert.match(html,/<header class="lesson-heading"><h2 id="lesson-title"/);
 });
 
 test('navigation, opening and leaving lessons show only the matching header group and preserve filter values',()=>{
   const h=harness();assertContext(h,null);
-  h.element('nav-history').onclick();assertContext(h,'history');
+  h.element('#analysis-tab-history').onclick();assertContext(h,'history');
   h.element('#history-scope').value='today';h.element('#history-scope').onchange();
   h.element('#search').value='old note';h.element('#search').oninput();
   h.element('#history-import').onclick();assert.equal(h.element('#import-dialog').open,true);
-  h.element('nav-insights').onclick();assertContext(h,'insights');
+  h.element('#analysis-tab-insights').onclick();assertContext(h,'insights');
   h.element('#insight-period').value='7';h.element('#insight-period').onchange();
   h.element('nav-lessons').onclick();assertContext(h,null);
-  assert.match(h.element('#lesson-cards').innerHTML,/<strong>Use one F2L pair<\/strong>/);
-  assert.match(h.element('#lesson-cards').innerHTML,/<strong>Build an F2L pair<\/strong>/);
+  assert.match(h.element('#lesson-cards').innerHTML,/<strong>F2L · Easy Inserts<\/strong>/);
+  assert.equal((h.element('#lesson-cards').innerHTML.match(/data-lesson=/g)||[]).length,6);
   assert.doesNotMatch(h.element('#lesson-cards').innerHTML,/<strong>\d/);
   h.element('#lesson-cards').onclick({target:{closest:()=>({dataset:{lesson:'13'}})}});
   assertContext(h,'lesson');assert.equal(h.element('#lesson-title').textContent,'Use one F2L pair');
   h.element('#lesson-tab-practice').onclick();assertContext(h,'lesson');
   h.element('#lesson-back').onclick();assertContext(h,null);
   assert.equal(h.element('#lesson-detail').hidden,true);
-  h.element('nav-history').onclick();assertContext(h,'history');
+  h.element('#analysis-tab-history').onclick();assertContext(h,'history');
   assert.equal(h.element('#history-scope').value,'today');assert.equal(h.element('#search').value,'old note');
-  h.element('nav-insights').onclick();assert.equal(h.element('#insight-period').value,'7');
+  h.element('#analysis-tab-insights').onclick();assert.equal(h.element('#insight-period').value,'7');
   h.element('.brand').onclick({preventDefault(){}});assertContext(h,null);
 });
 
@@ -66,7 +70,7 @@ test('the header back button stays locked for arming, armed and running lesson a
 
 test('swipe navigation includes restored lessons and preserves the shared timer on return',()=>{
   const h=harness(),scramble=h.run('scramble');
-  assert.deepEqual(Array.from(h.run('mobileNavigation.pages')),['timer','history','insights','lessons']);
+  assert.deepEqual(Array.from(h.run('mobileNavigation.pages')),['timer','insights','lessons','practice']);
   h.run("mobileNavigation.navigate('lessons');openLesson('13');setLessonTab('practice')");
   assert.equal(h.element('#timer-card').parentElement.id,'lesson-practice-mount');
   assert.equal(h.run('mobileNavigation.blocked()'),false);
@@ -75,6 +79,27 @@ test('swipe navigation includes restored lessons and preserves the shared timer 
   assert.equal(h.element('#timer-card').parentElement.id,'timer-page');
   assert.equal(h.run('scramble'),scramble);
   h.element('#open-settings').onclick();assert.equal(h.element('#settings-dialog').open,true);
+});
+
+test('analysis opens by default, tabs share navigation, and the active destination preserves the selected tab',()=>{
+  const h=harness();
+  h.element('nav-insights').onclick();
+  assert.equal(h.element('#analysis-page').hidden,false);
+  assert.equal(h.element('#insights-page').hidden,false);
+  assert.equal(h.element('#history-page').hidden,true);
+  h.element('#analysis-tab-history').onclick();
+  assert.equal(h.element('#analysis-tab-history').getAttribute('aria-selected'),'true');
+  assert.equal(h.element('nav-insights').getAttribute('aria-current'),'page');
+  assert.equal(h.run('mobileNavigation.getPage()'),'insights');
+  h.element('nav-insights').onclick();
+  assert.equal(h.run('page'),'history');
+  h.element('#analysis-tab-history').onkeydown({key:'Home',preventDefault(){}});
+  assert.equal(h.run('page'),'insights');
+  h.element('nav-timer').onclick();
+  assert.equal(h.element('#analysis-page').hidden,true);
+  assert.equal(h.element('#history-page').hidden,true);
+  h.element('nav-insights').onclick();
+  assert.equal(h.run('page'),'insights');
 });
 
 test('startup and healthy periodic background refreshes never show sync status or retry',async()=>{
