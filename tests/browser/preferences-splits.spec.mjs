@@ -19,7 +19,7 @@ async function chooseTimerSplit(page, name) {
 
 test('cube preferences validate adjacent faces and persist after reload and offline reopening', async ({page, context, server}) => {
   await openApp(page, server);
-  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  await page.getByRole('link', {name:'Settings',exact:true}).click();
   await expect(page.locator('#preset')).toHaveCount(0);
   await page.getByRole('combobox', {name:'Color on top',exact:true}).selectOption('green');
   await expect(page.locator('#cube-front option')).toHaveCount(4);
@@ -34,7 +34,7 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await page.reload();
   await expect(page.locator('#new-scramble')).toBeEnabled();
   await expect(page.locator('#scramble-type')).toHaveText('Random state', {timeout:20000});
-  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  await page.getByRole('link', {name:'Settings',exact:true}).click();
   await expect(page.locator('#cube-top')).toHaveValue('green');
   await expect(page.locator('#cube-front')).toHaveValue('red');
   await expect(page.locator('#lesson-orientation')).toHaveValue('white-top');
@@ -45,7 +45,7 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await page.setViewportSize({width:390,height:844});
   await page.locator('.sidebar [data-page="splits"]').click();
   await expect(page.locator('#splits-page')).toBeVisible();
-  const navigation = await page.locator('.sidebar nav > button').evaluateAll(buttons => buttons.map(button => ({y:button.getBoundingClientRect().y,bottom:button.getBoundingClientRect().bottom})));
+  const navigation = await page.locator('.sidebar nav > .nav').evaluateAll(buttons => buttons.map(button => ({y:button.getBoundingClientRect().y,bottom:button.getBoundingClientRect().bottom})));
   expect(new Set(navigation.map(button => button.y)).size).toBe(1);
   expect(navigation.every(button => button.bottom <= 844)).toBe(true);
 });
@@ -61,7 +61,7 @@ test('split lists drive the timer, preserve recorded steps after editing, and su
   await page.getByRole('button', {name:'Save split list',exact:true}).click();
   const card = page.locator('.split-method-card').filter({has:page.getByRole('heading', {name:'My phases',exact:true})});
   await expect(page.locator('#split-editor-dialog')).not.toBeVisible();
-  await page.getByRole('button', {name:'Timer',exact:true}).click();
+  await page.getByRole('link', {name:'Timer',exact:true}).click();
   await expect(page.locator('#timer-page')).toBeVisible();
   await page.setViewportSize({width:320,height:700});
   const toolbarFits = await page.locator('.timer-toolbar').evaluate(toolbar => {
@@ -108,7 +108,7 @@ test('split lists drive the timer, preserve recorded steps after editing, and su
   await page.reload();
   await page.locator('.sidebar [data-page="splits"]').click();
   await expect(card.locator('li')).toHaveText(['Start','End']);
-  await page.getByRole('button', {name:'Analysis',exact:true}).click();
+  await page.getByRole('link', {name:'Analysis',exact:true}).click();
   await page.getByRole('combobox', {name:'Split method',exact:true}).selectOption({label:'Recorded · Plan / Build / Finish'});
   await expect(page.locator('#split-progress-count')).toHaveText(/1/);
   await page.locator('.sidebar [data-page="splits"]').click();

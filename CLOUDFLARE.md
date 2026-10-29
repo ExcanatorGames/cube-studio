@@ -70,4 +70,6 @@ npm run deploy:cloudflare
 
 `wrangler.jsonc` holds your local deployment configuration. The deploy command builds the PWA, applies schema migrations, and deploys static files and the API. The Cloudflare secret survives deployments. Missing configuration fails closed with 503; absent or incorrect codes receive 401 after setup. Static files contain no imported solve data.
 
+The example config enables `assets.not_found_handling: "single-page-application"` so direct page and tab links serve the app shell. The Worker also handles extensionless page links for existing configs. `/api/*` continues to run through the authenticated API, and missing scripts and styles keep their normal asset responses. The service worker restores nested page links offline after installation.
+
 `npm run dev` runs a separate local UI/SQLite server at http://localhost:5188 without the production sync code. `npm run dev:cloudflare` emulates the production Worker; apply local D1 migrations and configure a local `.dev.vars` verifier to test authenticated requests. Local credentials, migration backups and generated build output are ignored by Git. Never commit a plaintext sync code.

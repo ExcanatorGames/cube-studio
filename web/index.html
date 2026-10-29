@@ -12,12 +12,12 @@
 <aside class="sidebar">
  <a class="brand" href="/" aria-label="Cube Studio home"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>cube<span class="light">studio</span></span></a>
  <nav aria-label="Main navigation">
-  <button data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true"><svg class="nav-symbol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 2v10h10"/></svg></span>Timer</button>
-  <button data-page="insights" class="nav" aria-label="Analysis"><span aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 3v18h18M6 15l5-5 4 3 6-7"/></svg></span>Analysis</button>
-  <button data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</button>
-  <button data-page="practice" class="nav" aria-label="Practice"><span aria-hidden="true"><svg class="nav-symbol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" focusable="false"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg></span>Practice</button>
-  <button data-page="splits" class="nav" aria-label="Splits"><span aria-hidden="true">≡</span>Splits</button>
-  <button id="open-settings" type="button" aria-describedby="settings-notice" class="nav" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog"><span aria-hidden="true">⚙</span>Settings<span id="settings-notice" class="sr-only"></span><i id="settings-sync-dot" class="settings-dot" aria-hidden="true" hidden></i></button>
+  <a href="/timer" data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true"><svg class="nav-symbol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 2v10h10"/></svg></span>Timer</a>
+  <a href="/analysis" data-page="insights" class="nav" aria-label="Analysis"><span aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 3v18h18M6 15l5-5 4 3 6-7"/></svg></span>Analysis</a>
+  <a href="/lessons" data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</a>
+  <a href="/practice" data-page="practice" class="nav" aria-label="Practice"><span aria-hidden="true"><svg class="nav-symbol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" focusable="false"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg></span>Practice</a>
+  <a href="/splits" data-page="splits" class="nav" aria-label="Splits"><span aria-hidden="true">≡</span>Splits</a>
+  <a href="/settings" id="open-settings" aria-describedby="settings-notice" class="nav" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog"><span aria-hidden="true">⚙</span>Settings<span id="settings-notice" class="sr-only"></span><i id="settings-sync-dot" class="settings-dot" aria-hidden="true" hidden></i></a>
  </nav>
 </aside>
 <main>
@@ -63,16 +63,16 @@
    </div>
   </div>
   <aside class="timer-recent" aria-label="Recent solves">
-   <div class="card-top"><h2>Recent solves</h2><button data-page="history" type="button" class="text-button">Solves ↗</button></div>
+   <div class="card-top"><h2>Recent solves</h2><a href="/analysis/solves" data-page="history" class="text-button">Solves ↗</a></div>
    <ol id="recent-solves"></ol>
   </aside>
  </section>
  <section id="lessons-page" class="page" hidden>
   <div id="lesson-list"><div id="lesson-cards"></div></div>
   <div id="lesson-detail" hidden>
-   <header class="lesson-heading"><div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="icon-button detail-back" type="button" aria-label="All lessons" title="All lessons"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></button></div><div class="header-context" data-header-context="practice-detail" hidden><button id="practice-back" class="icon-button detail-back" type="button" aria-label="All practices" title="All practices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></button></div><h2 id="lesson-title" class="lessons-title"></h2></header>
+   <header class="lesson-heading"><div class="header-context" data-header-context="lesson" hidden><a href="/lessons" id="lesson-back" class="icon-button detail-back" aria-label="All lessons" title="All lessons"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></a></div><div class="header-context" data-header-context="practice-detail" hidden><a href="/practice" id="practice-back" class="icon-button detail-back" aria-label="All practices" title="All practices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></a></div><h2 id="lesson-title" class="lessons-title"></h2></header>
    <div class="lesson-activity">
-   <div class="lesson-tabs" role="tablist" aria-label="Lesson activity"><button id="lesson-tab-lesson" type="button" role="tab" aria-selected="true" aria-controls="lesson-panel-lesson" tabindex="0">Lesson</button><button id="lesson-tab-practice" type="button" role="tab" aria-selected="false" aria-controls="lesson-panel-practice" tabindex="-1">Practice</button></div>
+   <div class="lesson-tabs" role="tablist" aria-label="Lesson activity"><a href="/lessons" id="lesson-tab-lesson" role="tab" aria-selected="true" aria-controls="lesson-panel-lesson" tabindex="0">Lesson</a><a href="/practice" id="lesson-tab-practice" role="tab" aria-selected="false" aria-controls="lesson-panel-practice" tabindex="-1">Practice</a></div>
    <div id="lesson-panel-lesson" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-lesson">
      <div class="lesson-workspace lesson-demo-workspace">
       <div class="lesson-content">
@@ -112,8 +112,8 @@
  </section>
  <section id="analysis-page" class="page" aria-label="Analysis" hidden>
   <div class="analysis-tabs" role="tablist" aria-label="Solve views">
-   <button id="analysis-tab-insights" type="button" role="tab" aria-selected="true" aria-controls="insights-page">Analysis</button>
-   <button id="analysis-tab-history" type="button" role="tab" aria-selected="false" aria-controls="history-page" tabindex="-1">Solves</button>
+   <a href="/analysis" id="analysis-tab-insights" role="tab" aria-selected="true" aria-controls="insights-page">Analysis</a>
+   <a href="/analysis/solves" id="analysis-tab-history" role="tab" aria-selected="false" aria-controls="history-page" tabindex="-1">Solves</a>
   </div>
  <section id="history-page" role="tabpanel" aria-labelledby="analysis-tab-history" hidden>
  <div class="header-context filter-bar page-filters" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="manual-entry" type="button" class="icon-button" title="Add time" aria-label="Add time">＋</button></div>
@@ -130,6 +130,10 @@
    <div id="split-trend-charts" class="split-trend-grid"></div>
   </section>
  </section>
+ </section>
+ <section id="not-found-page" class="page" hidden>
+  <h2>Page not found</h2><p>This page, lesson, or case is unavailable.</p>
+  <button type="button" class="primary-button" data-page="timer">Go to timer</button>
  </section>
 </main>
 <dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog">

@@ -28,7 +28,7 @@ async function holdPractice(page, id, touch = false) {
 test('desktop cube rows choose lesson demos and filter practice cases inside the solve box',async({page,server})=>{
   test.setTimeout(60_000);
   await openApp(page,server);
-  await page.getByRole('button',{name:'Lessons',exact:true}).click();
+  await page.getByRole('link',{name:'Lessons',exact:true}).click();
   await page.locator('[data-lesson-group="f2l-1"]').click();
   await expect(page.locator('#lesson-case-row')).toBeVisible();
   await expect(page.locator('#lesson-case-dropdown')).toHaveCount(0);
@@ -38,7 +38,7 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   expect(await row.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
   const demoCase=page.locator('#lesson-case-row [data-lesson-case]').nth(3);
   await demoCase.click();
-  await expect(demoCase).toHaveAttribute('aria-pressed','true');
+  await expect(demoCase).toHaveAttribute('aria-current','true');
   await expect(page.locator('#lesson-demo [data-action="play"]')).toBeEnabled({timeout:20_000});
   const demoLayout=await page.evaluate(()=>{
     const code=document.querySelector('.lesson-demo-setup code');
@@ -74,21 +74,21 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await page.setViewportSize({width:390,height:844});
   await expect(page.locator('#lesson-case-row')).toBeVisible();
   expect(await row.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
-  await expect(demoCase).toHaveAttribute('aria-pressed','true');
+  await expect(demoCase).toHaveAttribute('aria-current','true');
 });
 
 for (const viewport of [{width:390,height:844},{width:320,height:568}]) {
   test(`phone lesson cube strip and speed controls work at ${viewport.width}px`,async({page,server})=>{
     await page.setViewportSize(viewport);
     await openApp(page,server);
-    await page.getByRole('button',{name:'Lessons',exact:true}).click();
+    await page.getByRole('link',{name:'Lessons',exact:true}).click();
     await page.locator('[data-lesson-group="f2l-1"]').click();
     const row=page.locator('#lesson-case-list');
     await expect(page.locator('#lesson-case-dropdown')).toHaveCount(0);
     expect(await row.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
     const lastCase=row.locator('[data-lesson-case]').last();
     await lastCase.click();
-    await expect(lastCase).toHaveAttribute('aria-pressed','true');
+    await expect(lastCase).toHaveAttribute('aria-current','true');
     expect(await row.evaluate(el=>el.scrollLeft)).toBeGreaterThan(0);
     const speed=page.locator('#lesson-animation-speed');
     await expect(speed).toBeVisible({timeout:20_000});
@@ -117,7 +117,7 @@ for (const width of [390, 1920]) {
   test(`lesson and practice cards fill the width and show complete case previews at ${width}px`,async({page,server})=>{
     await page.setViewportSize({width,height:1080});
     await openApp(page,server);
-    await page.getByRole('button',{name:'Practice',exact:true}).click();
+    await page.getByRole('link',{name:'Practice',exact:true}).click();
     await expect(page.locator('#practice-list h2,#practice-list h3,#practice-list p,.lesson-card-arrow')).toHaveCount(0);
     await expect(page.locator('#practice-cards .catalog-case-preview')).toHaveCount(41);
     const inspect=()=>page.locator('.practice-card:visible,.catalog-lesson-card:visible').evaluateAll(cards=>cards.map(card=>{
@@ -138,7 +138,7 @@ for (const width of [390, 1920]) {
     };
     verify(await inspect());
     await page.screenshot({path:`test-results/practice-cards-${width}.png`,fullPage:true});
-    await page.getByRole('button',{name:'Lessons',exact:true}).click();
+    await page.getByRole('link',{name:'Lessons',exact:true}).click();
     await expect(page.locator('[data-lesson-group]')).toHaveCount(6);
     await expect(page.locator('#lesson-cards .catalog-case-preview')).toHaveCount(41);
     verify(await inspect());
@@ -156,16 +156,16 @@ for (const width of [390, 1920]) {
 
 test('Practice lists groups first, opens one directly, and ignores clicks on the active navigation',async({page,server})=>{
   await openApp(page,server);
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.locator('#practice-list')).toBeVisible();
   await expect(page.locator('.practice-card')).toHaveCount(6);
   await expect(page.locator('#timer-card')).toBeHidden();
   await expect(page.locator('#start-practice-mix')).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(6);
   await countTransitions(page);
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   expect(await page.evaluate(()=>pageTransitions)).toBe(0);
-  await page.getByRole('button',{name:'Practice F2L · Corner in Slot',exact:true}).click();
+  await page.getByRole('link',{name:'Practice F2L · Corner in Slot',exact:true}).click();
   await expect(page.locator('#practice-page #timer-card')).toBeVisible();
   await expect(page.locator('#lesson-title')).toHaveText('F2L · Corner in Slot');
   await expect(page.locator('#practice-list')).toBeHidden();
@@ -173,7 +173,7 @@ test('Practice lists groups first, opens one directly, and ignores clicks on the
   await expect(page.locator('.lesson-practice-sidebar')).toHaveCount(0);
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
   const scramble=await page.locator('#fullscreen-scramble').innerText();
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   expect(await page.evaluate(()=>pageTransitions)).toBe(0);
   expect(await page.locator('#fullscreen-scramble').innerText()).toBe(scramble);
   await expect(page.locator('#practice-list')).toBeHidden();
@@ -184,7 +184,7 @@ test('Practice lists groups first, opens one directly, and ignores clicks on the
 
 test('desktop practice checkboxes are always available and open a saved mix without holding',async({page,server})=>{
   await openApp(page,server);
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   const corners=page.getByRole('checkbox',{name:'Include F2L · Corner in Slot',exact:true});
   const edges=page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true});
   await expect(page.getByRole('checkbox')).toHaveCount(6);
@@ -197,7 +197,7 @@ test('desktop practice checkboxes are always available and open a saved mix with
   await page.setViewportSize({width:1280,height:900});
   await expect(corners).toBeChecked();await expect(edges).toBeChecked();
   await page.reload();
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(corners).toBeChecked();await expect(edges).toBeChecked();
   await page.locator('[data-practice-open="f2l-2"]').click();
   await expect(page.locator('#timer-card #practice-case-list [aria-pressed="true"]')).toHaveCount(12);
@@ -214,9 +214,9 @@ test('desktop practice checkboxes are always available and open a saved mix with
   await page.screenshot({path:'test-results/desktop-practice-solve-box.png'});
   await pageControl(page,'All practices');
   await corners.uncheck();await edges.uncheck();
-  await page.getByRole('button',{name:'Practice F2L · Easy Inserts',exact:true}).click();
+  await page.getByRole('link',{name:'Practice F2L · Easy Inserts',exact:true}).click();
   await expect(page.locator('#practice-case-list [aria-pressed="true"]')).toHaveCount(4);
-  await page.getByRole('button',{name:'Timer',exact:true}).click();
+  await page.getByRole('link',{name:'Timer',exact:true}).click();
   await expect(page.locator('#practice-case-picker')).toBeHidden();
 });
 
@@ -224,7 +224,7 @@ test('selected practices persist, start an exact mix, and save the generated sou
   test.setTimeout(60_000);
   await page.setViewportSize({width:390,height:844});
   await openApp(page,server);
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   await holdPractice(page,'f2l-2');
   await expect(page.locator('#practice-list')).toBeVisible();
   await expect(page.getByRole('checkbox',{name:'Include F2L · Corner in Slot',exact:true})).toBeChecked();
@@ -234,10 +234,10 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect.poll(async()=> (await storedState(page)).settings.lessonCaseSelections?.mixed?.length).toBe(12);
   const selected=(await storedState(page)).settings.lessonCaseSelections.mixed;
   await page.reload();
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   // A direct single-practice session must not overwrite the saved mix.
-  await page.getByRole('button',{name:'Practice F2L · Easy Inserts',exact:true}).click();
+  await page.getByRole('link',{name:'Practice F2L · Easy Inserts',exact:true}).click();
   await pageControl(page,'All practices');
   await holdPractice(page,'f2l-2');
   await expect(page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true})).toBeChecked();
@@ -245,8 +245,8 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
   const scramble=await page.locator('#fullscreen-scramble').innerText();
   await startKeyboardSolve(page);
-  await expect(page.locator('#practice-back')).toBeDisabled();
-  await expect(page.locator('[data-page="lessons"]')).toBeDisabled();
+  await expect(page.locator('#practice-back')).toHaveAttribute('aria-disabled','true');
+  await expect(page.locator('[data-page="lessons"]')).toHaveAttribute('aria-disabled','true');
   await finishKeyboardSolve(page);
   await expect.poll(async()=> (await storedState(page)).lessonAttempts.length).toBe(1);
   const state=await storedState(page),attempt=state.lessonAttempts[0];
@@ -260,13 +260,13 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true}).uncheck();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.locator('#practice-cards')).not.toHaveClass(/practice-selecting/);
-  await page.getByRole('button',{name:'Lessons',exact:true}).click();
+  await page.getByRole('link',{name:'Lessons',exact:true}).click();
   await page.locator('[data-lesson-group="f2l-5"]').click();
   await page.getByRole('tab',{name:'Practice',exact:true}).click();
   await expect(page.getByRole('tab',{name:'Practice',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.locator('#new-scramble')).toBeEnabled();
   await expect(page.locator('.lesson-practice-sidebar')).toHaveCount(0);
-  await page.getByRole('button',{name:'Timer',exact:true}).click();
+  await page.getByRole('link',{name:'Timer',exact:true}).click();
   await expect(page.locator('#timer-page #timer-card')).toBeVisible();
   await expect(page.locator('#fullscreen-track')).toBeVisible();
 });
@@ -274,7 +274,7 @@ test('selected practices persist, start an exact mix, and save the generated sou
 test('mobile practices have a selectable list and a separate timer that fits above navigation',async({page,server})=>{
   await page.setViewportSize({width:390,height:844});
   await openApp(page,server);
-  await page.getByRole('button',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.locator('#timer-card')).toBeHidden();
   await holdPractice(page,'f2l-0',true);
   await expect(page.locator('#practice-list')).toBeVisible();

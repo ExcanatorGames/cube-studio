@@ -16,7 +16,7 @@ test('a closed tab reopens offline from the service worker with its saved histor
   await showHistory(reopened);
   await expect(reopened.locator('#history-body [data-id]')).toHaveCount(1);
   expect((await storedState(reopened)).solves).toEqual(saved);
-  await reopened.getByRole('button', {name: 'Timer', exact: true}).click();
+  await reopened.getByRole('link', {name: 'Timer', exact: true}).click();
   await startKeyboardSolve(reopened);
   await finishKeyboardSolve(reopened);
   await expect.poll(async () => (await storedState(reopened)).solves.length).toBe(2);
@@ -39,14 +39,15 @@ test('a waiting update lights the Settings dot and its button preserves saved so
   await expect.poll(async () => (await storedState(page)).solves.length).toBe(1);
   const saved = (await storedState(page)).solves;
   await page.locator('#focus').click();
-  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
   const update=page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Update',exact:true});
   await expect(update).toBeVisible();await expect(update).toHaveCSS('color','rgb(143, 214, 178)');
   await Promise.all([page.waitForEvent('load'), update.click()]);
   await expect(page.locator('#new-scramble')).toBeEnabled();
   await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['cube-studio-browser-2']);
   await expect(page.locator('#settings-sync-dot')).toBeHidden();
-  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page).toHaveURL(server.url + '/settings');
+  await expect(page.getByRole('dialog',{name:'Settings',exact:true})).toBeVisible();
   await expect(page.locator('#update-app')).toBeHidden();
   await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await showHistory(page);await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
@@ -86,7 +87,7 @@ test('a rejected upload keeps its pending record until manual retry succeeds', a
   expect((await storedState(page)).pending).toHaveLength(1);
   expect(server.solves()).toHaveLength(0);
   await page.locator('#focus').click();
-  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  await page.getByRole('link', {name:'Settings',exact:true}).click();
   await page.getByRole('button', {name: 'Retry sync'}).click();
   await expect(page.locator('#sync-attention')).toBeHidden();
   expect((await storedState(page)).pending).toEqual([]);

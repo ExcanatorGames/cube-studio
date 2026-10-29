@@ -26,6 +26,8 @@ A personal 3×3 timer with phone and desktop layouts, two-finger start, keyboard
 
 ## Run locally
 
+Pages have shareable URLs: `/timer`, `/analysis`, `/analysis/solves`, `/lessons`, `/practice`, `/splits`, and `/settings`. Lesson groups and their tabs use paths such as `/lessons/f2l/easy-inserts/lesson` and `/lessons/f2l/easy-inserts/practice`; practice cards use `/practice/f2l/easy-inserts`. Case choices and mixed practice selections are included in the URL. Refresh, Back/Forward, and offline reopening restore the linked view. Navigation waits until an armed or running attempt is finished or cancelled. Unknown pages or unavailable cases show a missing-page screen.
+
 Requires Node 22.13+ (Node 22.19+ recommended for its built-in SQLite support). Run `npm ci` for the Cloudflare development tools. The browser app uses native web APIs.
 
 ```powershell

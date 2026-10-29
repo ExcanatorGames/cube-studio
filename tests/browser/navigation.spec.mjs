@@ -7,9 +7,9 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     const nav=page.getByRole('navigation',{name:'Main navigation'});
     await expect(nav.locator('[data-page]')).toHaveCount(5);
     await expect(nav.getByRole('button',{name:'Solves',exact:true})).toHaveCount(0);
-    await expect(nav.getByRole('button',{name:'Settings',exact:true})).toBeVisible();
+    await expect(nav.getByRole('link',{name:'Settings',exact:true})).toBeVisible();
     await expect(page.locator('.app-bar')).toHaveCount(0);
-    await nav.getByRole('button',{name:'Analysis',exact:true}).click();
+    await nav.getByRole('link',{name:'Analysis',exact:true}).click();
     await expect(page.getByRole('tab',{name:'Analysis',exact:true})).toHaveAttribute('aria-selected','true');
     await expect(page.locator('#insights-page')).toBeVisible();
     const solves=page.getByRole('tab',{name:'Solves',exact:true});
@@ -17,8 +17,8 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     await page.keyboard.press('End');
     await expect(solves).toBeFocused();
     await expect(page.locator('#history-page')).toBeVisible();
-    await expect(nav.getByRole('button',{name:'Analysis',exact:true})).toHaveAttribute('aria-current','page');
-    await page.getByRole('button',{name:'Add time',exact:true}).click();
+    await expect(nav.getByRole('link',{name:'Analysis',exact:true})).toHaveAttribute('aria-current','page');
+      await page.getByRole('button',{name:'Add time',exact:true}).click();
     await page.locator('#manual-time').fill('12.34');
     await page.locator('#save-manual').click();
     await expect(page.locator('#history-body [data-id]')).toHaveCount(1);
@@ -29,9 +29,9 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     await solves.click();
     await expect(page.getByRole('searchbox',{name:'Search solves'})).toHaveValue('unmatched');
     await page.getByRole('searchbox',{name:'Search solves'}).fill('');
-    await nav.getByRole('button',{name:'Analysis',exact:true}).click();
+    await nav.getByRole('link',{name:'Analysis',exact:true}).click();
     await expect(solves).toHaveAttribute('aria-selected','true');
-    await nav.getByRole('button',{name:'Settings',exact:true}).click();
+    await nav.getByRole('link',{name:'Settings',exact:true}).click();
     await expect(page.getByRole('dialog',{name:'Settings',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Close settings',exact:true}).click();
     await page.locator('#settings-dialog').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{}))));
@@ -47,10 +47,10 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
     if(viewport.width<=740)expect(dimensions.bottom).toBeLessThanOrEqual(dimensions.nav);
     await page.waitForFunction(()=>!document.documentElement.dataset.motion);
     await page.screenshot({path:`test-results/combined-solves-${viewport.width}.png`});
-    await nav.getByRole('button',{name:'Timer',exact:true}).click();
+    await nav.getByRole('link',{name:'Timer',exact:true}).click();
     await expect(page.locator('#analysis-page')).toBeHidden();
     expect(await page.locator('body').evaluate(el=>getComputedStyle(el).overflow)).not.toBe('hidden');
-    await nav.getByRole('button',{name:'Analysis',exact:true}).click();
+    await nav.getByRole('link',{name:'Analysis',exact:true}).click();
     await expect(page.getByRole('tab',{name:'Analysis',exact:true})).toHaveAttribute('aria-selected','true');
     await page.waitForFunction(()=>!document.documentElement.dataset.motion);
     const filter=await page.getByRole('combobox',{name:'Solve count',exact:true}).boundingBox();
@@ -62,7 +62,7 @@ for (const viewport of [{width:390,height:844},{width:1280,height:900}]) {
 
 test('inline filters stay visible and preserve selections when a phone rotates',async({page,server})=>{
   await openApp(page,server);
-  await page.getByRole('button',{name:'Analysis',exact:true}).click();
+  await page.getByRole('link',{name:'Analysis',exact:true}).click();
   await page.getByRole('combobox',{name:'Solve count',exact:true}).selectOption('50');
   for(const viewport of [{width:390,height:844},{width:844,height:390},{width:1280,height:900}]){
     await page.setViewportSize(viewport);
@@ -78,10 +78,10 @@ test('phone toolbar sits at the card top and sync details open in Settings',asyn
   await expect(page.locator('#settings-sync-dot')).toBeVisible();await expect(page.locator('#mobile-sync')).toBeHidden();
   const card=await page.locator('#timer-card').boundingBox(),toolbar=await page.locator('.timer-toolbar').boundingBox();
   expect(toolbar.y-card.y).toBeLessThan(12);
-  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
   await expect(page.locator('#mobile-sync')).toBeVisible();await expect(page.locator('#connect-sync')).toBeVisible();
   await expect(page.locator('#hold-duration')).toHaveValue('0.5');
   await page.locator('#hold-duration').fill('0.7');await page.locator('#save-settings').click();
-  await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click();
   await expect(page.locator('#hold-duration')).toHaveValue('0.7');
 });

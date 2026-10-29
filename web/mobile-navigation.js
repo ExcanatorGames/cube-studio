@@ -9,7 +9,7 @@ export function initMobileNavigation({pages,getPage,navigate,blocked,root=docume
     pointers.add(event.pointerId);
     if(pointers.size!==1){swipe=null;return;}
     const target=event.target,nav=target.closest('.sidebar nav');
-    if(!available()||event.clientX<20||event.clientX>view.innerWidth-20||(!nav&&!target.closest('.page:not([hidden])'))||target.closest('input,textarea,select,a,[contenteditable="true"],[role="slider"]')||(!nav&&target.closest('button')))return;
+    if(!available()||event.clientX<20||event.clientX>view.innerWidth-20||(!nav&&!target.closest('.page:not([hidden])'))||target.closest('input,textarea,select,[contenteditable="true"],[role="slider"]')||(!nav&&target.closest('button,a')))return;
     swipe={id:event.pointerId,x:event.clientX,y:event.clientY,start:view.performance.now(),horizontal:false};
   },true);
   root.addEventListener('pointermove',event=>{

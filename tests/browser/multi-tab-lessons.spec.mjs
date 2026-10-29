@@ -61,7 +61,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
   await openApp(page, server);
   await connect(page);
   await context.setOffline(true);
-  await page.getByRole('button', { name: 'Lessons', exact: true }).click();
+  await page.getByRole('link', { name: 'Lessons', exact: true }).click();
   await page.locator('[data-lesson-group="f2l-0"]').click();
   await page.getByRole('tab', { name: 'Practice', exact: true }).click();
   await expect(page.locator('#new-scramble')).toBeEnabled({ timeout: 20_000 });
@@ -95,7 +95,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
       .toEqual([original]);
     await showHistory(remote);
     await expect(remote.locator('#history-body [data-id]')).toHaveCount(0);
-    await remote.getByRole('button', { name: 'Settings', exact: true }).click();
+    await remote.getByRole('link', { name: 'Settings', exact: true }).click();
     const downloadPromise = remote.waitForEvent('download');
     await remote.locator('#export').click();
     const download = await downloadPromise,
@@ -115,7 +115,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
       const imported = await importedDevice.newPage();
       await openApp(imported, server);
       await imported
-        .getByRole('button', { name: 'Settings', exact: true })
+        .getByRole('link', { name: 'Settings', exact: true })
         .click();
       await imported.locator('#open-import').click();
       await imported
@@ -142,7 +142,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
         expect(restored[key]).toEqual(original[key]);
       expect((await storedState(imported)).solves).toEqual([]);
       await showHistory(imported);
-      await imported.getByRole('button',{name:'Settings',exact:true}).click();
+      await imported.getByRole('link',{name:'Settings',exact:true}).click();
       await imported.locator('#open-import').click();
       await imported
         .locator('#csv-file')
