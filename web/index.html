@@ -13,17 +13,14 @@
  <a class="brand" href="/" aria-label="Cube Studio home"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>cube<span class="light">studio</span></span></a>
  <nav aria-label="Main navigation">
   <button data-page="timer" class="nav active" aria-label="Timer" aria-current="page"><span aria-hidden="true">◷</span>Timer</button>
-  <button data-page="history" class="nav" aria-label="Solves"><span aria-hidden="true">☷</span>Solves</button>
   <button data-page="insights" class="nav" aria-label="Analysis"><span aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 3v18h18M6 15l5-5 4 3 6-7"/></svg></span>Analysis</button>
   <button data-page="lessons" class="nav" aria-label="Lessons"><span aria-hidden="true">▤</span>Lessons</button>
- </nav>
-</aside>
-<main>
- <header class="app-bar">
-  <h1 id="page-title" class="sr-only">Timer</h1>
+  <button data-page="practice" class="nav" aria-label="Practice"><span aria-hidden="true">◎</span>Practice</button>
+  <section id="app-controls" class="app-controls" aria-label="Page controls" popover="auto">
   <div class="header-context filter-bar" data-header-context="history" hidden><select id="history-scope" aria-label="Filter solves"><option value="all">All solves</option><option value="today">Today</option></select><input id="search" type="search" aria-label="Search solves" placeholder="Search…"><button id="manual-entry" type="button" class="icon-button" title="Add time" aria-label="Add time">＋</button><button id="history-import" class="small-button">↥ Import</button></div>
   <div class="header-context filter-bar" data-header-context="insights" hidden><select id="insight-period" aria-label="Solve count"><option value="all">All time</option><option value="200">Last 200 solves</option><option value="100">Last 100 solves</option><option value="50">Last 50 solves</option><option value="20">Last 20 solves</option><option value="10">Last 10 solves</option><option value="5">Last 5 solves</option></select></div>
   <div class="header-context" data-header-context="lesson" hidden><button id="lesson-back" class="text-button" type="button">← All lessons</button></div>
+  <div class="header-context" data-header-context="practice-detail" hidden><button id="practice-back" class="text-button" type="button">← All practices</button></div>
   <div class="app-actions">
    <div id="sync-attention" class="sync-attention" hidden>
     <span id="mobile-sync" role="status" hidden></span>
@@ -31,15 +28,21 @@
     <button id="sync-mobile" class="icon-button" aria-label="Retry sync" title="Retry sync" hidden>↻</button>
    </div>
    <button id="update-app" type="button" class="text-button" hidden>Update</button>
-   <button id="open-settings" type="button" class="icon-button" aria-label="Settings" title="Settings">⚙</button>
   </div>
- </header>
+  </section>
+  <button id="open-settings" type="button" class="nav" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog"><span aria-hidden="true">⚙</span>Settings</button>
+ </nav>
+</aside>
+<button id="open-controls" type="button" class="icon-button" popovertarget="app-controls" aria-label="Page controls" title="Page controls">⋯</button>
+<main>
+ <h1 id="page-title" class="sr-only">Timer</h1>
  <aside id="storage-warning" class="storage-warning" role="alert" hidden>
   <p id="storage-message"></p>
   <div class="storage-actions"><button id="retry-storage" type="button" class="small-button">Retry saving</button><button id="export-recovery" type="button" class="small-button">Download recovery data</button></div>
  </aside>
  <section id="timer-page" class="page">
   <div class="timer-card" id="timer-card">
+   <fieldset id="practice-case-picker" class="practice-case-picker"><legend class="sr-only">Cases to practice</legend><div id="practice-case-list"></div></fieldset>
    <div class="timer-toolbar">
     <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
     <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button><button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button><button id="cube-orientation" type="button" class="small-button" title="White on top. Switch to white on bottom." aria-label="White on top. Switch to white on bottom.">White ↑</button><button id="focus" class="icon-button" title="Fullscreen" aria-label="Toggle fullscreen timer" aria-pressed="false">⛶</button>
@@ -83,12 +86,13 @@
       <div class="lesson-content">
       <section id="lesson-demonstration" class="lesson-section" aria-label="Pair demonstration">
        <div class="lesson-case-heading">
-        <details id="lesson-case-dropdown" class="lesson-case-dropdown">
-         <summary id="lesson-case-title">Choose a case</summary>
-         <aside class="lesson-case-dropdown-panel" aria-label="Lesson cases">
-          <fieldset id="lesson-case-picker"><legend class="sr-only">Choose a case</legend><div id="lesson-case-list"></div></fieldset>
-         </aside>
-        </details>
+        <div id="lesson-group-field" class="lesson-group-field" hidden><label for="lesson-group">Group</label><select id="lesson-group" aria-label="F2L group"></select></div>
+        <div id="lesson-case-row">
+         <fieldset id="lesson-case-picker">
+          <legend id="lesson-case-title" class="sr-only">Choose a case</legend>
+          <div id="lesson-case-list"></div>
+         </fieldset>
+        </div>
        </div>
        <div id="lesson-demo"></div>
       </section>
@@ -97,19 +101,26 @@
    </div>
     <div id="lesson-panel-practice" class="lesson-panel" role="tabpanel" aria-labelledby="lesson-tab-practice" hidden>
      <div class="lesson-workspace">
-      <aside class="lesson-case-sidebar lesson-practice-sidebar" aria-label="Practice cases">
-       <fieldset id="lesson-practice-cases"><legend>Cases to practice</legend><div id="lesson-practice-case-list"></div></fieldset>
-      </aside>
       <div id="lesson-practice-mount"></div>
      </div>
    </div>
    </div>
   </div>
  </section>
- <section id="history-page" class="page" hidden>
+ <section id="practice-page" class="page" aria-label="Practice" hidden>
+  <div id="practice-list">
+   <div id="practice-cards"></div>
+  </div>
+ </section>
+ <section id="analysis-page" class="page" aria-label="Analysis" hidden>
+  <div class="analysis-tabs" role="tablist" aria-label="Solve views">
+   <button id="analysis-tab-insights" type="button" role="tab" aria-selected="true" aria-controls="insights-page">Analysis</button>
+   <button id="analysis-tab-history" type="button" role="tab" aria-selected="false" aria-controls="history-page" tabindex="-1">Solves</button>
+  </div>
+ <section id="history-page" role="tabpanel" aria-labelledby="analysis-tab-history" hidden>
   <div class="table-card"><div class="history-scroll history-table-scroll" tabindex="0" role="region" aria-label="Solve list"><table><thead><tr><th class="history-index">#</th><th class="history-date">Date</th><th class="history-time">Time</th><th class="history-splits">Splits</th><th class="history-action"><span class="sr-only">Details</span></th></tr></thead><tbody id="history-body"></tbody></table></div><div class="pagination"><span id="history-summary"></span><div><button id="prev" class="small-button">← Previous</button><button id="next" class="small-button">Next →</button></div></div></div>
  </section>
- <section id="insights-page" class="page" hidden>
+ <section id="insights-page" role="tabpanel" aria-labelledby="analysis-tab-insights" hidden>
   <p id="insight-comparison" class="insight-comparison"></p>
   <div id="insight-stats" class="stat-grid"></div>
   <div class="chart-card"><div class="card-top"><h2>Times (s)</h2><div class="legend"><span><i></i>Solve</span><span><i></i>ao12</span><span class="fastest-legend"><i></i>Fastest</span><span class="slowest-legend"><i></i>Slowest</span></div></div><div id="main-chart"></div></div>
@@ -119,9 +130,10 @@
    <div id="split-trend-charts" class="split-trend-grid"></div>
   </section>
  </section>
+ </section>
 </main>
-<dialog id="settings-dialog"><form method="dialog">
- <div class="dialog-heading"><h2>Settings</h2><button class="close" aria-label="Close settings">×</button></div>
+<dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog">
+ <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button class="close" aria-label="Close settings">×</button></div>
  <label class="field">Split method<select id="preset"><option value="beginner">Beginner · 7 splits</option><option value="cfop">CFOP · 4 splits</option><option value="custom">Custom</option></select></label>
  <label class="field" id="custom-field" hidden>Splits, separated by commas<textarea id="custom-steps" rows="3" placeholder="Cross, F2L, Last layer"></textarea></label>
  <label class="field">Hold to start<select id="hold-duration"><option value="300">0.3s</option><option value="550">0.55s</option><option value="1000">1s</option></select></label>

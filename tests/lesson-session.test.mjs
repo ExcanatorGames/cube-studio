@@ -1,6 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLessonSession } from '../web/lesson-session.js';
+import { getLesson } from '../web/lessons.js';
+
+test('a lesson opened from a group card keeps demonstration and practice inside that group',()=>{
+  const session=createLessonSession({getSettings:()=>({})});
+  const source=getLesson('f2l');
+  const cases=source.cases.filter(item=>item.group==='Edge in Slot');
+  assert.equal(session.open('f2l',{scopeCaseIds:cases.map(item=>item.id),title:'F2L · Edge in Slot'}),true);
+  assert.equal(session.lesson.cases.length,6);
+  assert.equal(session.context.demoCaseId,cases[0].id);
+  assert.deepEqual(session.context.caseIds,cases.map(item=>item.id));
+  assert.equal(session.selectDemo('ready-right'),false);
+  assert.equal(session.selectCases(['ready-right']),false);
+  session.open('f2l');
+  assert.equal(session.lesson.cases.length,41);
+});
+
+test('unified F2L restores old selections and includes legacy records without rewriting their IDs',()=>{
+  const session=createLessonSession({getSettings:()=>({lessonCaseSelections:{'13':['ready-left'],'14':['pair-1-3-0']}})});
+  session.open('f2l');
+  assert.equal(session.context.caseIds.length,19,'two old selected cases plus 17 newly available cases');
+  assert.ok(!session.context.caseIds.includes('ready-right'));
+  const attempt={id:'old',lessonId:'13',caseId:'ready-left',completion:'insertion',date:'2026-01-01'};
+  assert.deepEqual(session.times([attempt,{...attempt,id:'wrong-source',lessonId:'f2l'}]),[attempt]);
+});
+
+test('mixed practice restores an exact cross-group subset and records its source identities',()=>{
+  const cases=getLesson('f2l').cases;
+  const ids=['ready-left',cases.find(c=>c.group==='Both Pieces in Slot').id];
+  const session=createLessonSession({getSettings:()=>({lessonCaseSelections:{mixed:ids}})});
+  session.open('mixed');
+  assert.deepEqual(session.context.caseIds,ids);
+  const attempts=ids.map((caseId,i)=>({id:String(i),caseId,lessonId:i?'f2l':'13',completion:'insertion',date:'2026-01-01'}));
+  assert.deepEqual(session.times(attempts),attempts);
+  assert.equal(session.selectCases(['removed']),false);
+  session.open('f2l');assert.equal(session.context.caseIds.length,41,'lesson-specific selection stays independent');
+});
 
 test('lesson selection restores valid saved cases and cannot select an empty practice set', () => {
   const session = createLessonSession({ getSettings: () => ({ lessonCaseSelections: { '13': ['ready-left', 'removed-case'] } }) });

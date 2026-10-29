@@ -62,7 +62,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
   await connect(page);
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Lessons', exact: true }).click();
-  await page.locator('[data-lesson="13"]').click();
+  await page.locator('[data-lesson-group="f2l-0"]').click();
   await page.getByRole('tab', { name: 'Practice', exact: true }).click();
   await expect(page.locator('#new-scramble')).toBeEnabled({ timeout: 20_000 });
   await startKeyboardSolve(page);

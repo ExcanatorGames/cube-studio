@@ -71,6 +71,7 @@ export function initTimerInput({
     if (
       e.repeat ||
       $$('dialog').some((d) => d.open) ||
+      $$('#app-controls:popover-open').length > 0 ||
       /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)
     )
       return;

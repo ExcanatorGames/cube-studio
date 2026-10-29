@@ -56,7 +56,7 @@ test('recovery retains valid history beside invalid records', () => {
   const h = harness({
     saved: { solves: [savedSolve, null], pending: [], settings: null },
   });
-  h.element('nav-history').onclick();
+  h.element('#analysis-tab-history').onclick();
   assert.match(h.element('#history-body').innerHTML, /12\.34/);
   assert.equal(h.element('#storage-warning').hidden, false);
 });

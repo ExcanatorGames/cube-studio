@@ -13,14 +13,14 @@ import { initPWA } from './pwa.js';
 import { cubeSVG, cubeFrame, orientAlgorithm } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
-import { LESSONS, orientLessonCase } from './lessons.js';
+import { getLesson, orientLessonCase } from './lessons.js';
 import { createLessonDemo } from './lesson-view.js';
 import { initMobileNavigation } from './mobile-navigation.js';
 import { createMotion } from './motion.js';
 import { $, $$, esc } from './dom.js';
 import { createSolveViews } from './solve-views.js';
 import { createSync } from './sync.js';
-import { createLessonPresentation, lessonTabs } from './lesson-presentation.js';
+import { createLessonPresentation, lessonTabs, practiceOptions, initPracticeSelection } from './lesson-presentation.js';
 import { createTimerSession } from './timer-session.js';
 import { createLessonSession } from './lesson-session.js';
 import { initTimerInput } from './timer-input.js';
@@ -105,7 +105,7 @@ const cubeOrientation = () =>
 const lessonExercise = () => lessonSession.exercise;
 const timerVisible = () =>
   page === 'timer' ||
-  (page === 'lessons' &&
+  (['lessons', 'practice'].includes(page) &&
     lessonSession.context.kind === 'lesson' &&
     lessonSession.context.tab === 'practice');
 const all = () =>
@@ -265,41 +265,70 @@ function saveAttempt(s, attempt) {
 function practiceTimes() {
   return lessonSession.times(lessonAttempts.values());
 }
+const compactControls = matchMedia('(max-width:740px), (orientation:landscape) and (max-height:500px) and (max-width:1100px)');
+function closeControls() {
+  if ($$('#app-controls:popover-open').length) $('#app-controls').hidePopover();
+}
+function layoutControls() {
+  closeControls();
+  if (compactControls.matches) $('#app-controls').setAttribute('popover', 'auto');
+  else $('#app-controls').removeAttribute('popover');
+}
+layoutControls();
+compactControls.addEventListener?.('change', layoutControls);
+const analysisTabs = ['insights', 'history'];
+const navigationPage = (value) => value === 'history' ? 'insights' : value;
+const pageElement = (value) => '#' + (analysisTabs.includes(value) ? 'analysis' : value) + '-page';
 function renderHeader() {
+  for (const name of analysisTabs) {
+    const selected = page === name;
+    $('#' + name + '-page').hidden = !selected;
+    const tab = $('#analysis-tab-' + name);
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
   const context =
     page === 'lessons' && lessonSession.context.kind === 'lesson'
       ? 'lesson'
-      : page;
+      : page === 'practice' && lessonSession.context.kind === 'lesson'
+        ? 'practice-detail'
+        : page;
   $$('[data-header-context]').forEach(
     (group) => (group.hidden = group.dataset.headerContext !== context),
   );
 }
-function setPage(p) {
-  if (busy() || (p === page && lessonSession.context.kind !== 'lesson')) return;
+function setPage(p, { showList = false } = {}) {
+  if (busy()) return;
+  closeControls();
+  if (p === page && !showList) return;
   const previous = page;
   page = p;
   focusView(false, { immediate: true });
   $('#page-title').textContent = {
     timer: 'Timer',
-    history: 'Solves',
+    history: 'Analysis',
     insights: 'Analysis',
     lessons: 'Lessons',
+    practice: 'Practice',
   }[p];
   // Selection is immediate and stays outside the moving page snapshots.
   $$('.sidebar [data-page]').forEach((b) => {
-    b.classList.toggle('active', b.dataset.page === p);
-    if (b.dataset.page === p) b.setAttribute('aria-current', 'page');
+    b.classList.toggle('active', b.dataset.page === navigationPage(p));
+    if (b.dataset.page === navigationPage(p)) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
   });
   const order = $$('.sidebar nav [data-page]').map((b) => b.dataset.page),
-    direction = order.indexOf(p) > order.indexOf(previous) ? 1 : -1;
+    direction = navigationPage(p) === navigationPage(previous)
+      ? (analysisTabs.indexOf(p) > analysisTabs.indexOf(previous) ? 1 : -1)
+      : (order.indexOf(navigationPage(p)) > order.indexOf(navigationPage(previous)) ? 1 : -1);
   const animated = motion.swap(
     'page',
     () => {
       lessonDemo?.destroy();
       lessonDemo = null;
       if (lessonSession.context.kind === 'lesson') leaveLesson();
-      $$('.page').forEach((el) => (el.hidden = el.id !== p + '-page'));
+      $$('.page').forEach((el) => (el.hidden = '#' + el.id !== pageElement(p)));
+      if (p === 'practice') renderPracticeList();
       render();
       window.scrollTo({ top: 0, behavior: 'instant' });
       // A long Insights snapshot must stay inside the space above the phone navigation.
@@ -308,7 +337,7 @@ function setPage(p) {
       const root = document.documentElement.style;
       root.setProperty(
         '--page-clip-top',
-        Math.max(0, $('.app-bar').getBoundingClientRect().bottom) + 'px',
+        '0px',
       );
       root.setProperty('--page-clip-left', (mobile ? 0 : nav.right) + 'px');
       root.setProperty(
@@ -320,20 +349,88 @@ function setPage(p) {
   );
   if (!animated)
     motion.play(
-      $('#' + p + '-page'),
+      $(pageElement(p)),
       [{ translate: `${direction * innerWidth}px 0` }, { translate: '0 0' }],
       { duration: 260 },
     );
 }
-$$('[data-page]').forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
+$$('[data-page]').forEach((b) => (b.onclick = () => {
+  if (b.dataset.page === navigationPage(page)) return;
+  setPage(b.dataset.page);
+}));
+for (const name of analysisTabs) {
+  const tab = $('#analysis-tab-' + name);
+  tab.onclick = () => setPage(name);
+  tab.onkeydown = (event) => {
+    let index = analysisTabs.indexOf(name);
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') index = 1 - index;
+    else if (event.key === 'Home') index = 0;
+    else if (event.key === 'End') index = analysisTabs.length - 1;
+    else return;
+    event.preventDefault();
+    if (busy()) return;
+    setPage(analysisTabs[index]);
+    $('#analysis-tab-' + analysisTabs[index]).focus();
+  };
+}
 $('.brand').onclick = (e) => {
   e.preventDefault();
   setPage('timer');
 };
 const lessonPresentation = createLessonPresentation();
 lessonPresentation.renderCards();
+let practiceSelecting = false;
+const practiceDesktop = matchMedia('(min-width:741px)');
+const practiceSelectionVisible = () => practiceSelecting || practiceDesktop.matches;
+practiceDesktop.addEventListener?.('change', () => {
+  if (page === 'practice' && lessonSession.context.kind !== 'lesson') renderPracticeList();
+});
+function renderPracticeList() {
+  $('#practice-list').hidden = false;
+  const ids = settings.lessonCaseSelections?.mixed || [];
+  if (!ids.length) practiceSelecting = false;
+  lessonPresentation.renderPracticeCards(ids, practiceSelectionVisible());
+}
+initPracticeSelection({ root: $('#practice-cards'), onHold(id) {
+  if (busy() || page !== 'practice' || lessonSession.context.kind === 'lesson') return;
+  const option = practiceOptions.find(item => item.id === id);
+  if (!option) return;
+  practiceSelecting = true;
+  const selected = new Set(settings.lessonCaseSelections?.mixed || []);
+  option.cases.forEach(item => selected.add(item.id));
+  settings.lessonCaseSelections = { ...settings.lessonCaseSelections, mixed: [...selected] };
+  persist();
+  renderPracticeList();
+} });
+$('#practice-cards').onchange = (event) => {
+  if (busy()) return;
+  const checkbox = event.target.closest('[data-practice-select]');
+  const option = practiceOptions.find(item => item.id === checkbox?.dataset.practiceSelect);
+  if (!option) return;
+  const selected = new Set(settings.lessonCaseSelections?.mixed || []);
+  for (const item of option.cases) {
+    if (checkbox.checked) selected.add(item.id);
+    else selected.delete(item.id);
+  }
+  settings.lessonCaseSelections = { ...settings.lessonCaseSelections, mixed: [...selected] };
+  persist();
+  renderPracticeList();
+  if (!selected.size) $(`[data-practice-open="${option.id}"]`).focus();
+};
+$('#practice-cards').onclick = (event) => {
+  const button = event.target.closest('[data-practice-open]');
+  const option = practiceOptions.find(item => item.id === button?.dataset.practiceOpen);
+  if (!option) return;
+  const selected = practiceSelectionVisible() ? settings.lessonCaseSelections?.mixed : null;
+  const ids = selected?.length ? selected : option.cases.map(item => item.id);
+  const scope = practiceOptions.filter(item => item.cases.some(c => ids.includes(c.id)))
+    .flatMap(item => item.cases.map(c => c.id));
+  openLesson('mixed', { caseIds: ids, scopeCaseIds: scope,
+    title: selected?.length ? undefined : option.fullTitle });
+};
 function renderLessonTabs() {
   lessonPresentation.renderTabs(lessonSession.context, busy());
+  $('.lesson-tabs').hidden = page === 'practice';
 }
 function renderLessonCases() {
   lessonPresentation.renderCases(currentLesson(), lessonSession.context);
@@ -347,9 +444,20 @@ function renderLessonAssistance() {
 }
 $('#lesson-cards').onclick = (e) => {
   const button = e.target.closest('[data-lesson]');
-  if (button) openLesson(button.dataset.lesson);
+  if (!button) return;
+  const option = practiceOptions.find(item => item.id === button.dataset.lessonGroup);
+  openLesson(button.dataset.lesson, option ? {
+    scopeCaseIds: option.cases.map(item => item.id),
+    title: option.fullTitle,
+  } : undefined);
 };
-$('#lesson-back').onclick = () => setPage('lessons');
+$('#lesson-back').onclick = () => setPage('lessons', { showList: true });
+$('#practice-back').onclick = () => setPage('practice', { showList: true });
+$('#lesson-group').onchange = (event) => {
+  if (busy()) return;
+  const selected = currentLesson()?.cases.find(item => item.group === event.target.value);
+  if (selected) selectDemoCase(selected.id);
+};
 for (const tab of lessonTabs) {
   const button = $('#lesson-tab-' + tab);
   button.onclick = () => setLessonTab(tab);
@@ -415,60 +523,39 @@ function setPracticeCases(caseIds) {
   timerVisual();
   renderSteps();
 }
-$('#lesson-practice-case-list').onclick = (e) => {
-  if (busy() || lessonSession.context.kind !== 'lesson') return;
-  const id = e.target.closest('[data-practice-case]')?.dataset.practiceCase;
-  if (!currentLesson().cases.some((item) => item.id === id)) return;
-  setPracticeCases(
-    lessonSession.context.caseIds.includes(id)
-      ? lessonSession.context.caseIds.filter((item) => item !== id)
-      : [...lessonSession.context.caseIds, id],
-  );
-};
 $('#lesson-case-list').onclick = (e) => {
   if (busy() || lessonSession.context.kind !== 'lesson') return;
   const id = e.target.closest('[data-lesson-case]')?.dataset.lessonCase;
+  selectDemoCase(id);
+};
+$('#practice-case-list').onclick = (event) => {
+  if (busy() || lessonSession.context.kind !== 'lesson') return;
+  const id = event.target.closest('[data-practice-case]')?.dataset.practiceCase;
+  if (!currentLesson().cases.some(item => item.id === id)) return;
+  const ids = lessonSession.context.caseIds;
+  setPracticeCases(ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
+};
+function selectDemoCase(id) {
   if (!currentLesson().cases.some((item) => item.id === id)) return;
-  $('#lesson-case-dropdown').open = false;
-  $('#lesson-case-dropdown summary').focus();
   if (!lessonSession.selectDemo(id)) return;
   lessonDemo?.destroy();
   lessonDemo = null;
   $('#lesson-demo').innerHTML = '<p role="status">Preparing scramble…</p>';
   renderLessonCases();
   newScramble();
-};
-function fitLessonCaseDropdown() {
-  const menu = $('#lesson-case-dropdown');
-  if (menu.open)
-    menu.style.setProperty(
-      '--case-menu-height',
-      Math.max(
-        80,
-        $('#lesson-panel-lesson').getBoundingClientRect().bottom -
-          menu.getBoundingClientRect().bottom -
-          12,
-      ) + 'px',
-    );
 }
-$('#lesson-case-dropdown').ontoggle = fitLessonCaseDropdown;
-$('#lesson-case-dropdown').onkeydown = (e) => {
-  if (e.key === 'Escape') {
-    $('#lesson-case-dropdown').open = false;
-    $('#lesson-case-dropdown summary').focus();
-  }
-};
-addEventListener('resize', fitLessonCaseDropdown);
-function openLesson(id) {
+function openLesson(id, options) {
   if (busy()) return;
-  if (!lessonSession.open(id)) return;
+  if (!lessonSession.open(id, options)) return;
+  if (page === 'practice') lessonSession.setTab('practice');
   const lesson = currentLesson();
   ++scrambleRequest;
   resetTimerContext();
   $('#lesson-list').hidden = true;
+  if (page === 'practice') $('#practice-list').hidden = true;
   $('#lesson-detail').hidden = false;
-  $('#lesson-title').textContent = lesson.title;
-  $('#lesson-case-dropdown').open = false;
+  $('#' + (page === 'practice' ? 'practice' : 'lessons') + '-page').append($('#lesson-detail'));
+  $('#lesson-title').textContent = lessonSession.context.title;
   renderLessonCases();
   renderHeader();
   $('#lesson-practice-mount').append($('#timer-card'));
@@ -486,7 +573,9 @@ function leaveLesson() {
   lessonSession.leave();
   $('#timer-page').prepend($('#timer-card'));
   $('#lesson-detail').hidden = true;
+  $('#lessons-page').append($('#lesson-detail'));
   $('#lesson-list').hidden = false;
+  $('#practice-list').hidden = false;
   renderHeader();
   if (normalScramble) {
     scramble = orientAlgorithm(
@@ -514,6 +603,7 @@ $('#lesson-help').onclick = () => {
 };
 function render() {
   renderHeader();
+  if (page === 'practice' && lessonSession.context.kind !== 'lesson') renderPracticeList();
   renderSteps();
   renderRecent();
   if (page === 'history') renderHistory();
@@ -615,7 +705,7 @@ function timerVisual() {
     lessonSession.context.kind === 'lesson' && !lessonSession.context.exercise;
   $('#new-scramble').disabled = busy() || preparing;
   $('#manual-entry').disabled = busy() || preparing;
-  $$('[data-page],#lesson-back,.brand').forEach((el) => {
+  $$('[data-page],#lesson-back,#practice-back,.brand').forEach((el) => {
     if (el.tagName === 'BUTTON') el.disabled = busy();
     else el.setAttribute('aria-disabled', String(busy()));
   });
@@ -624,7 +714,8 @@ function timerVisual() {
     lessonSession.context.kind === 'lesson' && busy(),
   );
   $('#lesson-case-picker').disabled = busy();
-  $('#lesson-practice-cases').disabled = busy();
+  $('#practice-case-picker').disabled = busy();
+  $('#lesson-group').disabled = busy();
   renderLessonTabs();
   renderLessonAssistance();
   renderSteps();
@@ -655,7 +746,7 @@ async function keepAwake() {
 function snapshotAttempt() {
   const lesson =
     lessonSession.context.kind === 'lesson'
-      ? LESSONS.find((item) => item.id === lessonSession.context.lessonId)
+      ? currentLesson()
       : null;
   return Object.freeze({
     scramble,
@@ -838,6 +929,7 @@ $('#cube-orientation').onclick = () => {
 let automaticFocus = false,
   focusRequested = document.body.classList.contains('focus-mode');
 function focusView(enabled, { immediate = false } = {}) {
+  if (enabled) closeControls();
   if (
     enabled === focusRequested &&
     enabled === document.body.classList.contains('focus-mode')
@@ -898,7 +990,7 @@ function updateTimerHeight() {
   const navigation = bottomNavigation
     ? $('.sidebar').getBoundingClientRect().height
     : 0;
-  if (page === 'lessons' && lessonSession.context.kind === 'lesson') {
+  if (['lessons', 'practice'].includes(page) && lessonSession.context.kind === 'lesson') {
     const detail = $('#lesson-detail');
     document.body.style.setProperty(
       '--lesson-navigation-height',
@@ -949,7 +1041,7 @@ function updateTimerHeight() {
 const chromeObserver = new ResizeObserver(() =>
   requestAnimationFrame(updateTimerHeight),
 );
-[$('.app-bar'), $('.sidebar')].forEach((el) => chromeObserver.observe(el));
+chromeObserver.observe($('.sidebar'));
 addEventListener('resize', updateTimerHeight);
 let officialScrambler = createScrambler();
 $('#lesson-demo').onclick = (e) => {
@@ -957,7 +1049,7 @@ $('#lesson-demo').onclick = (e) => {
 };
 function requestLessonScramble() {
   lessonSession.prepare({
-    withDemo: !lessonDemo,
+    withDemo: page === 'lessons' && !lessonDemo,
     failed() {
       scramble = '';
       scrambleKind = 'Scramble unavailable';
@@ -971,7 +1063,7 @@ function requestLessonScramble() {
     ready(demoExercise) {
       scramble = lessonExercise().scramble;
       scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
-      if (!lessonDemo) {
+      if (page === 'lessons' && !lessonDemo) {
         const lesson = currentLesson();
         const selected = lesson.cases.find(
           (item) => item.id === lessonSession.context.demoCaseId,
@@ -1072,6 +1164,7 @@ function showScramble({ animate = true } = {}) {
 }
 $('#new-scramble').onclick = () => newScramble();
 function openDialog(id) {
+  closeControls();
   if (
     timing.state === 'running' ||
     timing.state === 'arming' ||
@@ -1126,12 +1219,13 @@ setInterval(() => {
 const busy = () => timer.busy();
 initMobileNavigation({
   pages: $$('.sidebar nav [data-page]').map((button) => button.dataset.page),
-  getPage: () => page,
+  getPage: () => navigationPage(page),
   navigate: setPage,
   blocked: () =>
     busy() ||
     document.body.classList.contains('focus-mode') ||
-    $$('dialog').some((dialog) => dialog.open),
+    $$('dialog').some((dialog) => dialog.open) ||
+    $$('#app-controls:popover-open').length > 0,
 });
 const { renderRecent, renderHistory, renderInsights } = createSolveViews({
   getSolves: all,
