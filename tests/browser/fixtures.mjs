@@ -43,13 +43,7 @@ export async function finishKeyboardSolve(page) {
   await expect(page.locator('#timer-card')).not.toHaveClass(/\brunning\b/);
 }
 
-export async function openControls(page) {
-  if (await page.locator('#open-controls').isVisible() && !await page.locator('#app-controls').isVisible())
-    await page.getByRole('button', {name:'Page controls',exact:true}).click();
-}
-
 export async function pageControl(page, name) {
-  await openControls(page);
   await page.getByRole('button', {name}).click();
 }
 
@@ -82,10 +76,11 @@ export function storedState(page) {
 }
 
 export async function connect(page) {
-  await openControls(page);
+  await page.getByRole('button', {name:'Settings',exact:true}).click();
   await page.locator('#connect-sync').click();
   await page.getByLabel('Sync code', {exact: true}).fill(SYNC_CODE);
   await page.locator('#save-connection').click();
   await expect(page.locator('#connect-dialog')).not.toBeVisible();
   await expect(page.locator('#sync-attention')).toBeHidden();
+  await page.getByRole('button', {name:'Close settings',exact:true}).click();
 }

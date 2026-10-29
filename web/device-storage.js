@@ -8,7 +8,7 @@ const nonempty = (value) =>
 const defaults = () => ({
   preset: 'beginner',
   custom: ['Cross', 'First pair', 'Remaining F2L', 'Last layer'],
-  hold: 550,
+  hold: 500,
   track: false,
   orientation: 'white-top',
   lessonOrientation: 'white-bottom',
@@ -147,6 +147,7 @@ export function validateSnapshot(value) {
       issues.push(`settings.${name}`);
       snapshot.settings[name] = defaults()[name];
     }
+  snapshot.settings.hold = Math.min(1000, snapshot.settings.hold);
   if (snapshot.settings.splitMethods) {
     const methods = snapshot.settings.splitMethods;
     if (!methods.some(method => method.id === snapshot.settings.preset)) snapshot.settings.preset = methods[0]?.id || 'beginner';
