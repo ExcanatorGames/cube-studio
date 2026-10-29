@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {harness} from './helpers/app-harness.mjs';
 import {cubeSVG,orientAlgorithm} from '../web/cube.js';
 
+test('practice scramble preview follows the default scramble orientation instead of the lesson cross position',()=>{
+  const h=harness({saved:{settings:{orientation:'white-top',scrambleOrientation:'default',lessonOrientation:'white-bottom'}}});
+  h.run("setPage('practice');openLesson('13')");
+  assert.match(h.element('#fullscreen-scramble').title, /white on top and green in front/);
+  assert.match(h.element('#cube-preview').innerHTML, /white on top and green in front/);
+});
+
 function setTimerOrientation(h, orientation) {
   h.element('#open-settings').onclick();
   h.element('#cube-top').value = orientation === 'white-bottom' ? 'yellow' : 'white';
@@ -36,7 +43,7 @@ test('timer orientation updates the preview, persists, and stays separate from l
   h.element('#lesson-help').onclick();
   assert.equal(h.element('#lesson-solution strong').textContent,orientAlgorithm(h.run('lessonSession.context.exercise.solution'),'white-bottom','white-top'));
   assert.ok(h.run('lessonSession.context.exercise.solution').length);
-  assert.match(h.element('#cube-preview').innerHTML,/white on top and green in front/);
+  assert.match(h.element('#cube-preview').innerHTML,/yellow on top, white on bottom/);
   h.run("setPage('timer')");
   assert.equal(h.run('scramble'),bottomScramble);
   setTimerOrientation(h,'white-top');
@@ -55,13 +62,13 @@ test('new timer scrambles use the selected frame once and survive visits to less
   assert.equal(h.run('scramble'),"R U F' D2 L' B");
 });
 
-test('lesson scrambles and previews use the same U/F/R frame in both orientations',()=>{
+test('lesson scramble preview keeps the selected scramble frame across solving orientations',()=>{
   const h=harness();h.run("setPage('lessons');openLesson('13')");
   const original=h.run('lessonSession.context.exercise');
   for(const orientation of ['white-bottom','white-top','white-bottom']){
     if(h.run('cubeOrientation()')!==orientation)setLessonOrientation(h,orientation);
     const displayed=h.run('scramble');
-    assert.equal(h.element('#cube-preview').innerHTML,cubeSVG(displayed,{orientation}));
+    assert.equal(h.element('#cube-preview').innerHTML,cubeSVG(h.run('displayedScramble()'),{orientation:'white-top'}));
     assert.equal(h.run('lessonSession.context.exercise'),original);
     assert.equal(displayed,orientation==='white-bottom'?original.setup:original.scramble);
   }
@@ -85,7 +92,7 @@ test('Settings cannot change orientation while arming and timing, including less
   for(const lesson of [false,true]){
     const h=harness();
     if(lesson)h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
-    const original=h.run('cubeOrientation()'),scramble=h.run('scramble');
+    const original=h.run('cubeOrientation()'),scramble=h.run('displayedScramble()');
     const change=()=>lesson?setLessonOrientation(h,'white-top'):setTimerOrientation(h,'white-bottom');
     h.run('arm()');
     change();

@@ -18,7 +18,15 @@
 .split-method-actions{display:flex;justify-content:flex-end;gap:20px}
 #split-preset{min-width:0;max-width:75%;text-overflow:ellipsis}
 #split-editor-error{color:#efaaaa}
-#splits-page>p a{text-decoration:underline;text-underline-offset:3px}
+#settings-panel-splits>p a{text-decoration:underline;text-underline-offset:3px}
+.settings-tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:20px}
+.scramble-frame{display:block;font-size:11px;line-height:1.4;margin-bottom:4px;letter-spacing:0;text-transform:none}
+.settings-tabs [role="tab"]{flex:1;min-height:44px;padding:10px 8px;border-bottom:3px solid transparent;color:var(--muted)}
+.settings-tabs [aria-selected="true"]{border-color:#adbeef;color:var(--ink);background:#202d43}
+#settings-panel-splits .splits-heading{flex-wrap:wrap}
+#settings-panel-splits .split-method-card{padding:16px}
+#settings-panel-app h3{font-size:16px;font-weight:500;margin:24px 0 8px}
+#settings-panel-app .settings-actions{margin-top:12px;padding-top:0;border-top:0}
 @media(max-width:480px){.splits-heading{align-items:flex-start}.splits-heading h2{font-size:18px}.cube-settings-layout{grid-template-columns:minmax(0,1fr) 90px;gap:12px}}
 :root{color-scheme:dark;--ink:#d6deeb;--muted:#9caabe;--blue:#a3b4ff;--line:#2b3546;background:#10141c;color:var(--ink)}
 body{background:#10141c}

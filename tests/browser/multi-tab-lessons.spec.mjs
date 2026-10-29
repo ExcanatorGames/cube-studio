@@ -96,6 +96,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
     await showHistory(remote);
     await expect(remote.locator('#history-body [data-id]')).toHaveCount(0);
     await remote.getByRole('link', { name: 'Settings', exact: true }).click();
+    await remote.getByRole('tab', { name: 'App & data', exact: true }).click();
     const downloadPromise = remote.waitForEvent('download');
     await remote.locator('#export').click();
     const download = await downloadPromise,
@@ -117,6 +118,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
       await imported
         .getByRole('link', { name: 'Settings', exact: true })
         .click();
+      await imported.getByRole('tab', {name:'App & data',exact:true}).click();
       await imported.locator('#open-import').click();
       await imported
         .locator('#csv-file')
@@ -143,6 +145,7 @@ test('lesson attempts survive offline reload, sync to another device, and round-
       expect((await storedState(imported)).solves).toEqual([]);
       await showHistory(imported);
       await imported.getByRole('link',{name:'Settings',exact:true}).click();
+      await imported.getByRole('tab', {name:'App & data',exact:true}).click();
       await imported.locator('#open-import').click();
       await imported
         .locator('#csv-file')

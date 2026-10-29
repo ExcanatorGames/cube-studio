@@ -36,6 +36,13 @@ export async function startKeyboardSolve(page) {
   await expect(page.locator('#timer-card')).toHaveClass(/\brunning\b/);
 }
 
+export async function openSplitsSettings(page) {
+  if (!await page.locator('#settings-dialog').isVisible())
+    await page.getByRole('link', {name:'Settings',exact:true}).click();
+  await page.getByRole('tab', {name:'Splits',exact:true}).click();
+  await expect(page.locator('#settings-panel-splits')).toBeVisible();
+}
+
 export async function finishKeyboardSolve(page) {
   const minimumStoppableSeconds = 0.4;
   await expect.poll(async () => Number(await page.locator('#clock').innerText())).toBeGreaterThanOrEqual(minimumStoppableSeconds);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {harness} from './helpers/app-harness.mjs';
 import {LESSONS} from '../web/lessons.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
+import {orientAlgorithm} from '../web/cube.js';
 
 test('clicking the active Practice navigation preserves the session without a page transition',()=>{
   const h=harness();
@@ -143,7 +144,7 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   h.element('#lesson-help').onclick();
   assert.equal(h.element('#lesson-help').getAttribute('aria-pressed'),'true');
   assert.equal(h.element('#lesson-solution').hidden,false);
-  assert.match(h.element('#cube-preview').innerHTML,/data-target=/);
+  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corner and edge/);
   h.element('#lesson-help').onclick();
   assert.equal(h.element('#lesson-solution').hidden,true);
   assert.doesNotMatch(h.element('#cube-preview').innerHTML,/data-target=/);
@@ -177,7 +178,7 @@ test('busy lesson attempts lock context and finish on the first stop, with no sp
   assert.equal(saved.lessonId,'13');
   assert.equal(saved.caseId,'ready-right');
   assert.equal(h.run('records.size'),0);
-  assert.equal(saved.scramble,initial);
+  assert.equal(saved.scramble,orientAlgorithm(initial,'white-bottom','white-top'));
   assert.equal(saved.ms,6000);
   assert.deepEqual(saved.splits,[]);
   assert.match(saved.note,/^Use one F2L pair.*Pair inserted$/);
@@ -216,7 +217,7 @@ test('a delayed normal scramble cannot replace an exercise after opening a lesso
   const exercise=h.run('scramble');
   complete('R2 U2 F2');await pending;
   assert.equal(h.run('scramble'),exercise);
-  assert.equal(h.run('scrambleKind'),'Ready right · White on bottom');
+  assert.equal(h.run('scrambleKind'),'Ready right · white on top · green in front');
 });
 
 test('leaving a lesson regenerates an interrupted replacement scramble without reusing the finished solve',async()=>{
@@ -392,7 +393,7 @@ test('toggling hints updates markers immediately without fading the cube or scra
     element.animate=(keyframes)=>{animations.push({selector,keyframes});return {finished:Promise.resolve(),cancel(){}};};
   }
   h.element('#lesson-help').onclick();
-  assert.match(h.element('#cube-preview').innerHTML,/data-target=/);
+  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corner and edge/);
   assert.equal(h.element('#lesson-solution').hidden,false);
   assert.equal(animations.length,0,'enabling hints must not start an opacity-zero reveal');
   h.element('#lesson-help').onclick();

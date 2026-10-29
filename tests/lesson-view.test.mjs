@@ -4,11 +4,12 @@ import {createLessonDemo} from '../web/lesson-view.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
 import {LESSONS,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
+import {cubeStickers} from '../web/cube.js';
 
 const playbackCase=LESSONS[1].cases.find(item=>item.id==='pair-0-3-0');
 const options={...playbackCase,...createExercise('14',{varied:false,caseIds:[playbackCase.id]})};
 
-function demo({reduced=false,lesson=LESSONS[1],exercise=options}={}){
+function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrientation}={}){
   const elements=new Map(),timers=new Map(),frames=new Map(),listeners=new Map();let now=0,id=0;
   const runtime={
     performance:{now:()=>now},matchMedia:()=>({matches:reduced}),
@@ -20,7 +21,7 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options}={}){
     return elements.get(selector);
   };
   const root={innerHTML:'',querySelector:get,querySelectorAll:()=>[],contains:()=>true,addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);},replaceChildren(){this.innerHTML='';}};
-  const view=createLessonDemo(root,{...lesson,case:exercise},runtime);
+  const view=createLessonDemo(root,{...lesson,case:exercise},runtime,{getScrambleOrientation});
   return {view,get,root,frames,timers,
     click(dataset){listeners.get('click')?.({target:{closest:()=>({dataset})}});},
     speed(value){const input=get('#lesson-animation-speed');input.value=String(value);listeners.get('input')?.({target:input});},
@@ -38,6 +39,24 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options}={}){
   };
 }
 const expected=alg=>lessonCubeSVG(alg,options);
+
+test('lesson starts and resets in the scramble frame, then demonstrates the solution in the solving frame',()=>{
+  const d=demo({reduced:true,getScrambleOrientation:()=>'white-top'});
+  assert.match(d.svg(), /white on top and green in front/);
+  d.click({action:'next'});
+  assert.match(d.svg(), /yellow on top, white on bottom/);
+  d.click({action:'reset'});
+  assert.match(d.svg(), /white on top and green in front/);
+});
+
+test('white-up lesson moves physically produce the taught white-cross case and match its preview',()=>{
+  const exercise=LESSONS[0].case;
+  const d=demo({exercise,getScrambleOrientation:()=>'white-top'});
+  const notation=d.get('.lesson-demo-setup code').textContent;
+  assert.equal(notation,"L D L' D'");
+  assert.equal(JSON.stringify(cubeStickers(notation+" D L D' L'")),JSON.stringify(cubeStickers()));
+  assert.match(d.svg(), /white on top and green in front/);
+});
 
 test('the two direct joining cases play exactly three moves and stop with the pair inserted',()=>{
   for(const exercise of LESSONS[1].cases.slice(0,2)){

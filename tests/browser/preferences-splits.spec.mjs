@@ -1,4 +1,118 @@
-import {test, expect, openApp, storedState, startKeyboardSolve} from './fixtures.mjs';
+import {test, expect, openApp, openSplitsSettings, storedState, startKeyboardSolve, finishKeyboardSolve} from './fixtures.mjs';
+import {orientAlgorithm,cubeSVG} from '../../web/cube.js';
+
+for (const width of [320, 1280]) {
+  test(`settings contains accessible General, Splits and App & data tabs at ${width}px`, async ({page,server}) => {
+    await page.setViewportSize({width,height:900});
+    await openApp(page,server);
+    await expect(page.locator('.sidebar [data-page="splits"]')).toHaveCount(0);
+    await page.getByRole('link',{name:'Settings',exact:true}).click();
+    const general = page.getByRole('tab',{name:'General',exact:true});
+    const splits = page.getByRole('tab',{name:'Splits',exact:true});
+    await expect(general).toHaveAttribute('aria-selected','true');
+    await page.locator('#hold-duration').fill('1');
+    await general.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(splits).toBeFocused();
+    await expect(splits).toHaveAttribute('aria-selected','true');
+    await expect(page.locator('#settings-panel-general')).toBeHidden();
+    await expect(page.getByRole('heading',{name:'CFOP',exact:true})).toBeVisible();
+    await page.getByRole('checkbox',{name:'Track splits while solving'}).check();
+    await expect.poll(async () => (await storedState(page)).settings.track).toBe(true);
+    const fits = await page.locator('#settings-dialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth);
+    expect(fits).toBe(true);
+    await page.screenshot({path:`test-results/settings-splits-${width}.png`});
+    await splits.focus();
+    await page.keyboard.press('ArrowRight');
+    const app = page.getByRole('tab',{name:'App & data',exact:true});
+    await expect(app).toBeFocused();
+    await expect(page.locator('#settings-panel-general')).toBeHidden();
+    await expect(page.locator('#export')).toBeVisible();
+    await expect(page.locator('#install-app')).toBeVisible();
+    await expect(page.locator('#update-app')).toBeHidden();
+    await expect(page.locator('.sidebar #update-app')).toHaveCount(0);
+    const download = page.waitForEvent('download');
+    await page.locator('#export').click();
+    expect((await download).suggestedFilename()).toMatch(/cube-studio-.*\.csv/);
+    await page.screenshot({path:`test-results/settings-app-${width}.png`});
+    await app.focus();
+    await page.keyboard.press('Home');
+    await expect(general).toBeFocused();
+    await expect(page.locator('#hold-duration')).toHaveValue('1');
+    await page.locator('#save-settings').click();
+    await expect.poll(async () => (await storedState(page)).settings.hold).toBe(1000);
+    await expect.poll(async () => (await storedState(page)).settings.track).toBe(true);
+    await expect(page.locator('#timer-page')).toBeVisible();
+    await page.getByRole('link',{name:'Settings',exact:true}).click();
+    await app.click();
+    await page.locator('#install-app').click();
+    await expect(page.locator('#install-dialog')).toBeVisible();
+    await expect(page.locator('#install-help')).not.toBeEmpty();
+  });
+}
+
+test('scramble orientation changes notation and preview together, and follows the default position after reopening offline', async ({page,context,server}) => {
+  await openApp(page,server);
+  const notation = (await page.locator('#fullscreen-scramble').innerText()).replace(/\s+/g,' ');
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await expect(page.locator('#scramble-orientation')).toHaveValue('default');
+  await page.locator('#scramble-orientation').selectOption('white-bottom');
+  await page.locator('#save-settings').click();
+  await expect(page.locator('#fullscreen-scramble')).toHaveText(orientAlgorithm(notation,'white-top','white-bottom'));
+  await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /yellow on top/);
+  const expectedPreview=await page.evaluate(svg=>{const root=document.createElement('div');root.innerHTML=svg;return root.innerHTML;},cubeSVG(orientAlgorithm(notation,'white-top','white-bottom'),{orientation:'white-bottom'}));
+  expect(await page.locator('#cube-preview').innerHTML()).toBe(expectedPreview);
+  await expect.poll(async () => (await storedState(page)).settings.scrambleOrientation).toBe('white-bottom');
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect.poll(async () => (await storedState(page)).solves[0]?.scramble).toBe(orientAlgorithm(notation,'white-top','white-bottom'));
+  await page.locator('#focus').click();
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.locator('#scramble-orientation').selectOption('default');
+  await page.locator('#cube-top').selectOption('green');
+  await page.locator('#cube-front').selectOption('red');
+  await page.locator('#save-settings').click();
+  await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /green on top and red in front/);
+  await expect.poll(async () => (await storedState(page)).settings.orientation).toBe('green-red');
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#new-scramble')).toBeEnabled();
+  await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /green on top and red in front/);
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await expect(page.locator('#scramble-orientation')).toHaveValue('default');
+});
+
+test('lesson and practice scrambles use the chosen frame while animations and solutions keep the solving frame', async ({page,server}) => {
+  test.setTimeout(60000);
+  await openApp(page,server);
+  await page.getByRole('link',{name:'Lessons',exact:true}).click();
+  await page.locator('[data-lesson-group="f2l-1"]').click();
+  await expect(page.locator('#lesson-demo [data-action="play"]')).toBeEnabled({timeout:20000});
+  const code = page.locator('.lesson-demo-setup code');
+  const notation = await code.innerText();
+  const solution = await page.locator('.lesson-moves').innerText();
+  await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('title', /white on top/);
+  await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /white on top/);
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.locator('#scramble-orientation').selectOption('blue-red');
+  await page.locator('#save-settings').click();
+  await expect(code).toHaveText(orientAlgorithm(notation,'white-top','blue-red'));
+  await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('title', /blue on top and red in front/);
+  await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /blue on top and red in front/);
+  expect(await page.locator('.lesson-moves').innerText()).toBe(solution);
+  await page.getByRole('button',{name:'Next move',exact:true}).click();
+  await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /yellow on top, white on bottom/);
+  await page.getByRole('button',{name:'Reset',exact:true}).click();
+  await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /blue on top and red in front/);
+  await page.getByRole('tab',{name:'Practice',exact:true}).click();
+  await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20000});
+  await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /blue on top and red in front/);
+  await expect(page.locator('#cube-preview svg')).toHaveAttribute('aria-label', /blue on top and red in front/);
+  const practice = (await page.locator('#fullscreen-scramble').innerText()).replace(/\s+/g,' ');
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect.poll(async () => (await storedState(page)).lessonAttempts[0]?.scramble).toBe(practice);
+});
 
 async function chooseTimerSplit(page, name) {
   await page.getByRole('button', {name:'Choose timer split list',exact:true}).click();
@@ -43,8 +157,8 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await page.locator('#save-settings').click();
   await expect.poll(async () => (await storedState(page)).settings.solveColors).toBe('neutral');
   await page.setViewportSize({width:390,height:844});
-  await page.locator('.sidebar [data-page="splits"]').click();
-  await expect(page.locator('#splits-page')).toBeVisible();
+  await openSplitsSettings(page);
+  await expect(page.locator('#settings-panel-splits')).toBeVisible();
   const navigation = await page.locator('.sidebar nav > .nav').evaluateAll(buttons => buttons.map(button => ({y:button.getBoundingClientRect().y,bottom:button.getBoundingClientRect().bottom})));
   expect(new Set(navigation.map(button => button.y)).size).toBe(1);
   expect(navigation.every(button => button.bottom <= 844)).toBe(true);
@@ -52,7 +166,7 @@ test('cube preferences validate adjacent faces and persist after reload and offl
 
 test('split lists drive the timer, preserve recorded steps after editing, and survive reload', async ({page, server}) => {
   await openApp(page, server);
-  await page.locator('.sidebar [data-page="splits"]').click();
+  await openSplitsSettings(page);
   await expect(page.getByRole('heading', {name:'CFOP',exact:true})).toBeVisible();
   await expect(page.getByRole('heading', {name:'Roux',exact:true})).toBeVisible();
   await page.getByRole('button', {name:'+ New split list',exact:true}).click();
@@ -61,6 +175,7 @@ test('split lists drive the timer, preserve recorded steps after editing, and su
   await page.getByRole('button', {name:'Save split list',exact:true}).click();
   const card = page.locator('.split-method-card').filter({has:page.getByRole('heading', {name:'My phases',exact:true})});
   await expect(page.locator('#split-editor-dialog')).not.toBeVisible();
+  await page.getByRole('button', {name:'Close settings',exact:true}).click();
   await page.getByRole('link', {name:'Timer',exact:true}).click();
   await expect(page.locator('#timer-page')).toBeVisible();
   await page.setViewportSize({width:320,height:700});
@@ -100,18 +215,19 @@ test('split lists drive the timer, preserve recorded steps after editing, and su
   await expect(picker).toBeEnabled();
   expect((await storedState(page)).solves[0].splits.map(step => step.name)).toEqual(['Plan','Build','Finish']);
   await page.getByRole('button', {name:'Toggle fullscreen timer',exact:true}).click();
-  await page.locator('.sidebar [data-page="splits"]').click();
+  await openSplitsSettings(page);
   await page.getByRole('button', {name:'Edit My phases',exact:true}).click();
   await page.getByLabel('Steps', {exact:true}).fill('Start\nEnd');
   await page.getByRole('button', {name:'Save split list',exact:true}).click();
   await expect(page.locator('#split-editor-dialog')).not.toBeVisible();
   await page.reload();
-  await page.locator('.sidebar [data-page="splits"]').click();
+  await openSplitsSettings(page);
   await expect(card.locator('li')).toHaveText(['Start','End']);
+  await page.getByRole('button', {name:'Close settings',exact:true}).click();
   await page.getByRole('link', {name:'Analysis',exact:true}).click();
   await page.getByRole('combobox', {name:'Split method',exact:true}).selectOption({label:'Recorded · Plan / Build / Finish'});
   await expect(page.locator('#split-progress-count')).toHaveText(/1/);
-  await page.locator('.sidebar [data-page="splits"]').click();
+  await openSplitsSettings(page);
   await page.getByRole('button', {name:'Delete My phases',exact:true}).click();
   await expect(card).toHaveCount(0);
 });

@@ -26,6 +26,9 @@ export function orientationColors(orientation='white-top'){
 export function validOrientation(top,front){
   return Object.hasOwn(CUBE_COLORS,top)&&Object.hasOwn(CUBE_COLORS,front)&&dot(FACES[CUBE_COLORS[top]].normal,FACES[CUBE_COLORS[front]].normal)===0;
 }
+export function getScrambleOrientation(settings){
+  return !settings.scrambleOrientation || settings.scrambleOrientation==='default' ? settings.orientation : settings.scrambleOrientation;
+}
 export function cubeOrientationId(top,front){
   if(!validOrientation(top,front))return 'white-top';
   return front==='green'&&top==='white'?'white-top':front==='green'&&top==='yellow'?'white-bottom':`${top}-${front}`;
@@ -52,6 +55,16 @@ export function orientAlgorithm(algorithm,from,to){
   const source=cubeFrame(from).faces,target=cubeFrame(to).faces;
   const faces=Object.fromEntries(Object.entries(source).map(([face,physical])=>[face,Object.keys(target).find(f=>target[f]===physical)]));
   return algorithm.trim().split(/\s+/).filter(Boolean).map(move=>faces[move[0]]+move.slice(1)).join(' ');
+}
+export function orientTargets(target,from,to){
+  if(from===to)return target;
+  const source=cubeFrame(from).faces,destination=cubeFrame(to).faces;
+  const axes=['R','U','F'];
+  return target.map(cubie=>{
+    const position=cubie.split(',').map(Number);
+    const physical=[0,1,2].map(axis=>axes.reduce((sum,face,i)=>sum+position[i]*FACES[source[face]].normal[axis],0));
+    return axes.map(face=>dot(physical,FACES[destination[face]].normal)||0).join(',');
+  });
 }
 const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);
 function rotate(v,axis,direction){

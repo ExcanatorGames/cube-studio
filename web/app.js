@@ -12,7 +12,7 @@ import {
   normalizeSolve,
 } from './core.js';
 import { initPWA } from './pwa.js';
-import { cubeSVG, cubeFrame, orientAlgorithm, orientationColors, validOrientation } from './cube.js';
+import { cubeSVG, cubeFrame, orientAlgorithm, orientTargets, orientationColors, validOrientation, getScrambleOrientation } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
 import { getLesson, orientLessonCase } from './lessons.js';
@@ -63,6 +63,7 @@ let settings = {
   hold: 500,
   track: false,
   orientation: 'white-top',
+  scrambleOrientation: 'default',
   lessonOrientation: 'white-bottom',
   crossPosition: 'bottom',
   solveColors: 'white',
@@ -88,7 +89,7 @@ function recordRoute(options) {
     lessonSession.context.kind === 'lesson' ? lessonSession.context.title + ' · ' +
       (lessonSession.context.tab === 'practice' ? 'Practice' : 'Lesson') :
     { timer: 'Timer', insights: 'Analysis', history: 'Solves', lessons: 'Lessons', practice: 'Practice', splits: 'Splits', 'not-found': 'Page not found' }[page]} · Cube Studio`;
-  if (!applyingRoute) router?.commit({ ...currentRoute(), settings: !!$('#settings-dialog').open }, options);
+  if (!applyingRoute) router?.commit({ ...currentRoute(), settings: !!$('#settings-dialog').open, settingsTab: settingsDialog?.tab }, options);
 }
 const syncService = createSync({
   getRecords: () => records,
@@ -110,8 +111,8 @@ let scramble = '',
 let lastSolveId = null,
   stepsHTML = '';
 let scrambleRequest = 0;
-// normalScramble retains the generator's white-top frame; scramble is the
-// notation displayed and applied in the currently selected cube frame.
+// Keep the internal scramble in the solving frame; translate its displayed
+// notation separately so the cube previews and lesson solutions stay aligned.
 const lessonSession = createLessonSession({ getSettings: () => settings });
 let normalScramble = null,
   lessonDemo = null;
@@ -123,6 +124,11 @@ const cubeOrientation = () =>
   lessonSession.context.kind === 'lesson'
     ? settings.lessonOrientation
     : settings.orientation;
+const displayedScramble = () => orientAlgorithm(scramble, cubeOrientation(), getScrambleOrientation(settings));
+const lessonScrambleKind = () => {
+  const {top, front} = orientationColors(getScrambleOrientation(settings));
+  return `${exerciseCase()?.title} · ${top} on top · ${front} in front`;
+};
 const lessonExercise = () => lessonSession.exercise;
 const timerVisible = () =>
   page === 'timer' ||
@@ -170,6 +176,7 @@ const coordinatedStorage = createCoordinatedStorage({
     pendingLessons = new Map(snapshot.pendingLessons.map((s) => [s.id, s]));
     orientationChanged ||=
       settings.orientation !== snapshot.settings.orientation ||
+      settings.scrambleOrientation !== snapshot.settings.scrambleOrientation ||
       settings.lessonOrientation !== snapshot.settings.lessonOrientation;
     settings = snapshot.settings;
   },
@@ -324,7 +331,6 @@ function setPage(p, { showList = false, immediate = false } = {}) {
     insights: 'Analysis',
     lessons: 'Lessons',
     practice: 'Practice',
-    splits: 'Splits',
     'not-found': 'Page not found',
   }[p];
   // Selection is immediate and stays outside the moving page snapshots.
@@ -640,7 +646,7 @@ function render() {
   renderRecent();
   if (page === 'history') renderHistory();
   if (page === 'insights') renderInsights();
-  if (page === 'splits') renderSplits();
+  if ($('#settings-dialog').open && !$('#settings-panel-splits').hidden) renderSplits();
   updateTimerHeight();
 }
 function renderSteps() {
@@ -779,7 +785,7 @@ function snapshotAttempt() {
       ? currentLesson()
       : null;
   return Object.freeze({
-    scramble,
+    scramble: displayedScramble(),
     context: lessonSession.context.kind,
     exercise: lesson ? lessonSession.context.exercise : null,
     note: lesson
@@ -942,7 +948,7 @@ function refreshOrientation() {
     const exercise = lessonExercise();
     if (exercise) {
       scramble = exercise.scramble;
-      scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
+      scrambleKind = lessonScrambleKind();
     }
     lessonDemo?.setOrientation(settings.lessonOrientation);
     renderLessonAssistance();
@@ -1091,7 +1097,7 @@ function requestLessonScramble() {
     },
     ready(demoExercise) {
       scramble = lessonExercise().scramble;
-      scrambleKind = `${exerciseCase()?.title} · White on ${settings.lessonOrientation === 'white-top' ? 'top' : 'bottom'}`;
+      scrambleKind = lessonScrambleKind();
       if (page === 'lessons' && !lessonDemo) {
         const lesson = currentLesson();
         const selected = lesson.cases.find(
@@ -1103,7 +1109,7 @@ function requestLessonScramble() {
             { ...selected, ...demoExercise },
             settings.lessonOrientation,
           ),
-        });
+        }, globalThis, { getScrambleOrientation: () => getScrambleOrientation(settings) });
       }
       showScramble();
       renderLessonAssistance();
@@ -1155,10 +1161,12 @@ async function newScramble() {
     }
   }
 }
-const layoutScramble = createScrambleLayout(() => scramble);
+const layoutScramble = createScrambleLayout(displayedScramble);
 function showScramble({ animate = true } = {}) {
   layoutScramble();
-  const instruction = `Scramble with ${cubeFrame(cubeOrientation()).label}. Moves follow the cube's U, F and R faces.`;
+  const instruction = `Scramble with ${cubeFrame(getScrambleOrientation(settings)).label}. Moves follow the cube's U, F and R faces.`;
+  const {top, front} = orientationColors(getScrambleOrientation(settings));
+  $('#scramble-frame').textContent = `Scramble: ${top} top · ${front} front`;
   $('#fullscreen-scramble').title = instruction;
   $('#fullscreen-scramble').setAttribute('aria-label', instruction);
   $('#scramble-type').textContent = scrambleKind;
@@ -1169,12 +1177,13 @@ function showScramble({ animate = true } = {}) {
   try {
     const exercise =
       lessonSession.context.kind === 'lesson' ? lessonExercise() : null;
+    const previewOrientation = getScrambleOrientation(settings);
     $('#cube-preview').innerHTML = cubeSVG(
-      exercise ? exercise.setup : scramble,
+      orientAlgorithm(exercise ? exercise.setup : scramble, cubeOrientation(), previewOrientation),
       {
-        orientation: cubeOrientation(),
+        orientation: previewOrientation,
         target:
-          exercise && lessonSession.context.assistance ? exercise.target : [],
+          exercise && lessonSession.context.assistance ? orientTargets(exercise.target, cubeOrientation(), previewOrientation) : [],
       },
     );
   } catch {
@@ -1200,11 +1209,13 @@ function openDialog(id) {
   $(id).showModal();
 }
 const settingsDialog = initSettingsDialog({
+  renderSplits: () => renderSplits(),
   getSettings: () => settings,
   busy: () => busy(),
   openDialog,
   toast,
   onOpen: () => recordRoute({ overlay: true }),
+  onTabChange: () => recordRoute({ replace: true, overlay: !!window.history.state?.cubeStudioRoute?.overlay }),
   save(next) {
     settings = next;
     timer.reset();
@@ -1299,7 +1310,10 @@ router = createRouter({
           setLessonTab(route.tab);
         }
       }
-      if (route.settings && !$('#settings-dialog').open) settingsDialog.open();
+      if (route.settings) {
+        if (!$('#settings-dialog').open) settingsDialog.open(route.settingsTab);
+        else settingsDialog.selectTab(route.settingsTab);
+      }
       recordRoute();
     } finally {
       applyingRoute = false;

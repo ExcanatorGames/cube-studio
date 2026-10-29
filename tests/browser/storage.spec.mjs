@@ -2,6 +2,7 @@ import {
   test,
   expect,
   openApp,
+  openSplitsSettings,
   startKeyboardSolve,
   finishKeyboardSolve,
   showHistory,
@@ -96,13 +97,14 @@ test('discarding an invalid split-list draft allows the next solve to persist', 
   server,
 }) => {
   await openApp(page, server);
-  await page.locator('.sidebar [data-page="splits"]').click();
+  await openSplitsSettings(page);
   await page.getByRole('button', { name: '+ New split list', exact: true }).click();
   await page.getByLabel('List name', { exact: true }).fill('Invalid draft');
   await page.getByLabel('Steps', { exact: true }).fill(Array.from({ length: 13 }, (_, i) => `Step ${i + 1}`).join(', '));
   await page.getByRole('button', { name: 'Save split list', exact: true }).click();
   await expect(page.locator('#split-editor-error')).toContainText('12 steps');
   await page.getByRole('button', { name: 'Close split editor', exact: true }).click();
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   await page.getByRole('link', { name: 'Timer', exact: true }).click();
   await expect(page.locator('#timer-page')).toBeVisible();
   await startKeyboardSolve(page);
