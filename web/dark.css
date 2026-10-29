@@ -6,6 +6,8 @@ body{background:#10141c}
 .storage-actions{display:flex;flex-wrap:wrap;gap:8px}
 body.focus-mode .storage-warning{position:fixed;top:env(safe-area-inset-top,0px);left:12px;right:12px;z-index:70;max-width:720px;margin:12px auto;box-shadow:0 8px 24px #0006}
 .sidebar{background:#131923}
+.nav-symbol{display:block}
+@media(max-width:740px),(orientation:landscape) and (max-height:500px) and (max-width:1100px){.nav-symbol{width:22px;height:22px}}
 input,textarea,select{background:#141c29;border-color:#354155;color:var(--ink)}
 input::placeholder,textarea::placeholder{color:#8290a5}
 .scramble-card,.steps-card,.session-card,.progress-card,.chart-card,.table-card,.stat,.puzzle-picker{background:#19212e;border-color:var(--line)}
