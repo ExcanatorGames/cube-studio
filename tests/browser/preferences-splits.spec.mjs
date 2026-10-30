@@ -157,6 +157,8 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await page.locator('#solve-colors').selectOption('neutral');
   await page.locator('#save-settings').click();
   await expect.poll(async () => (await storedState(page)).settings.solveColors).toBe('neutral');
+  await expect(page.locator('#settings-dialog')).not.toBeVisible();
+  await expect(page).toHaveURL(`${server.url}/timer`);
   await page.setViewportSize({width:390,height:844});
   await openSplitsSettings(page);
   await expect(page.locator('#settings-panel-splits')).toBeVisible();
