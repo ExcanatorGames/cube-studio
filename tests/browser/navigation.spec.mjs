@@ -79,7 +79,9 @@ test('phone toolbar sits at the card top and sync details open in Settings',asyn
   const card=await page.locator('#timer-card').boundingBox(),toolbar=await page.locator('.timer-toolbar').boundingBox();
   expect(toolbar.y-card.y).toBeLessThan(12);
   await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.getByRole('tab',{name:'App & data',exact:true}).click();
   await expect(page.locator('#mobile-sync')).toBeVisible();await expect(page.locator('#connect-sync')).toBeVisible();
+  await page.getByRole('tab',{name:'General',exact:true}).click();
   await expect(page.locator('#hold-duration')).toHaveValue('0.5');
   await page.locator('#hold-duration').fill('0.7');await page.locator('#save-settings').click();
   await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click();

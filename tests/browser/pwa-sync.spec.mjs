@@ -89,6 +89,7 @@ test('a rejected upload keeps its pending record until manual retry succeeds', a
   expect(server.solves()).toHaveLength(0);
   await page.locator('#focus').click();
   await page.getByRole('link', {name:'Settings',exact:true}).click();
+  await page.getByRole('tab', {name:'App & data',exact:true}).click();
   await page.getByRole('button', {name: 'Retry sync'}).click();
   await expect(page.locator('#sync-attention')).toBeHidden();
   expect((await storedState(page)).pending).toEqual([]);
