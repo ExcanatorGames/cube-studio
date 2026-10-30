@@ -147,14 +147,6 @@
  <label class="field">Hold to start (seconds)<input id="hold-duration" type="number" inputmode="decimal" min="0" max="1" step="any" value="0.5" required></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
-  <section class="settings-sync" aria-label="Cloud sync">
-  <h3>Cloud sync</h3>
-  <div id="sync-attention" class="sync-attention" hidden>
-   <span id="mobile-sync" role="status" hidden></span>
-   <button id="connect-sync" type="button" class="text-button" data-connect hidden>Connect ↗</button>
-   <button id="sync-mobile" type="button" class="icon-button" aria-label="Retry sync" title="Retry sync" hidden>↻</button>
-  </div>
- </section>
  </section>
  <section id="settings-panel-splits" role="tabpanel" aria-labelledby="settings-tab-splits" hidden>
   <div class="splits-heading"><div><h2>Your split lists</h2><p class="muted">Choose a list for the timer, or make your own sequence of steps.</p></div><button id="new-split-method" type="button" class="small-button">+ New split list</button></div>
@@ -169,6 +161,14 @@
   <h3>App</h3>
   <p id="settings-update-status" class="small muted" role="status">Checking offline availability…</p>
   <div class="settings-actions"><button id="install-app" type="button" class="small-button">Install app <span id="app-status" class="sr-only"></span></button><button id="update-app" type="button" class="small-button" hidden>Update and reopen</button></div>
+  <section class="settings-sync" aria-label="Cloud sync">
+   <h3>Cloud sync</h3>
+   <div id="sync-attention" class="sync-attention" hidden>
+    <span id="mobile-sync" role="status" hidden></span>
+    <button id="connect-sync" type="button" class="text-button" data-connect hidden>Connect ↗</button>
+    <button id="sync-mobile" type="button" class="icon-button" aria-label="Retry sync" title="Retry sync" hidden>↻</button>
+   </div>
+  </section>
  </section>
 </form></dialog>
 <dialog id="split-editor-dialog" aria-labelledby="split-editor-title"><form method="dialog">

@@ -84,6 +84,7 @@ export function storedState(page) {
 
 export async function connect(page) {
   await page.getByRole('link', {name:'Settings',exact:true}).click();
+  await page.getByRole('tab', {name:'App & data',exact:true}).click();
   await page.locator('#connect-sync').click();
   await page.getByLabel('Sync code', {exact: true}).fill(SYNC_CODE);
   await page.locator('#save-connection').click();

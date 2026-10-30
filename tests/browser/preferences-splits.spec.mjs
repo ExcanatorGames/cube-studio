@@ -10,6 +10,7 @@ for (const width of [320, 1280]) {
     const general = page.getByRole('tab',{name:'General',exact:true});
     const splits = page.getByRole('tab',{name:'Splits',exact:true});
     await expect(general).toHaveAttribute('aria-selected','true');
+    await expect(page.getByRole('region',{name:'Cloud sync',exact:true})).toBeHidden();
     await page.locator('#hold-duration').fill('1');
     await general.focus();
     await page.keyboard.press('ArrowRight');
@@ -28,6 +29,7 @@ for (const width of [320, 1280]) {
     await expect(app).toBeFocused();
     await expect(page.locator('#settings-panel-general')).toBeHidden();
     await expect(page.locator('#export')).toBeVisible();
+    await expect(page.locator('#settings-panel-app').getByRole('region',{name:'Cloud sync',exact:true})).toBeVisible();
     await expect(page.locator('#install-app')).toBeVisible();
     await expect(page.locator('#update-app')).toBeHidden();
     await expect(page.locator('.sidebar #update-app')).toHaveCount(0);
