@@ -1177,7 +1177,7 @@ function showScramble({ animate = true } = {}) {
   try {
     const exercise =
       lessonSession.context.kind === 'lesson' ? lessonExercise() : null;
-    const previewOrientation = getScrambleOrientation(settings);
+    const previewOrientation = exercise ? cubeOrientation() : getScrambleOrientation(settings);
     $('#cube-preview').innerHTML = cubeSVG(
       orientAlgorithm(exercise ? exercise.setup : scramble, cubeOrientation(), previewOrientation),
       {

@@ -40,22 +40,22 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrien
 }
 const expected=alg=>lessonCubeSVG(alg,options);
 
-test('lesson starts and resets in the scramble frame, then demonstrates the solution in the solving frame',()=>{
+test('lesson cube keeps the solving position at rest, during playback and after reset independently of scramble notation',()=>{
   const d=demo({reduced:true,getScrambleOrientation:()=>'white-top'});
-  assert.match(d.svg(), /white on top and green in front/);
+  assert.match(d.svg(), /yellow on top, white on bottom/);
   d.click({action:'next'});
   assert.match(d.svg(), /yellow on top, white on bottom/);
   d.click({action:'reset'});
-  assert.match(d.svg(), /white on top and green in front/);
+  assert.match(d.svg(), /yellow on top, white on bottom/);
 });
 
-test('white-up lesson moves physically produce the taught white-cross case and match its preview',()=>{
+test('white-up lesson moves physically produce the taught white-cross case while its preview uses white cross on bottom',()=>{
   const exercise=LESSONS[0].case;
   const d=demo({exercise,getScrambleOrientation:()=>'white-top'});
   const notation=d.get('.lesson-demo-setup code').textContent;
   assert.equal(notation,"L D L' D'");
   assert.equal(JSON.stringify(cubeStickers(notation+" D L D' L'")),JSON.stringify(cubeStickers()));
-  assert.match(d.svg(), /white on top and green in front/);
+  assert.match(d.svg(), /yellow on top, white on bottom/);
 });
 
 test('the two direct joining cases play exactly three moves and stop with the pair inserted',()=>{

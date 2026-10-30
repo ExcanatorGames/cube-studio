@@ -10,6 +10,21 @@ function pointers(h,type='mouse'){
   };
 }
 
+test('mouse and touch interaction with practice cases inside the timer never arm or start it',()=>{
+  for(const pointerType of ['mouse','touch']){
+    const h=harness();
+    h.run("setPage('practice');openLesson('13')");
+    for(const pointerId of [1,2]){
+      const event={pointerType,pointerId,button:0,target:{closest:selector=>selector==='#practice-case-picker'?{}:null},preventDefault(){}};
+      h.listeners.get('#timer-pad:pointerdown')(event);
+      assert.equal(h.run('timing.state'),'idle');
+      h.listeners.get('#timer-pad:pointerup')(event);
+    }
+    const pad=pointers(h);pad.down();h.arm();pad.up();
+    assert.equal(h.run('timing.state'),'running');
+  }
+});
+
 test('non-split mouse timing ignores an immediate second press and repeat presses after stopping',()=>{
   const h=harness(),p=pointers(h);
   p.down();h.arm();p.up();assert.equal(h.run('timing.state'),'running');

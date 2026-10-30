@@ -58,11 +58,12 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await expect(page.locator('#practice-case-list [data-practice-case]')).toHaveCount(10);
   const omitted=page.locator('#practice-case-list [data-practice-case]').nth(2);
   const omittedId=await omitted.getAttribute('data-practice-case');
-  await omitted.click();
+  await omitted.click({delay:650});
   await expect(omitted).toHaveAttribute('aria-pressed','false');
+  await expect(page.locator('#timer-card')).not.toHaveClass(/\b(arming|armed|running)\b/);
   await expect(page.locator('#practice-case-list [aria-pressed="true"]')).toHaveCount(9);
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
-  expect(await page.locator('#practice-case-picker').evaluate(el=>document.querySelector('#timer-card').contains(el)&&!document.querySelector('#timer-pad').contains(el))).toBe(true);
+  expect(await page.locator('#practice-case-picker').evaluate(el=>document.querySelector('#timer-pad').contains(el))).toBe(true);
   await page.screenshot({path:'test-results/desktop-practice-selectors.png'});
   await startKeyboardSolve(page);
   await expect(omitted).toBeDisabled();
@@ -205,11 +206,14 @@ test('desktop practice checkboxes are always available and open a saved mix with
   await page.waitForFunction(()=>!document.documentElement.dataset.motion);
   const layout=await page.evaluate(()=>{
     const rect=selector=>document.querySelector(selector).getBoundingClientRect();
-    return {picker:rect('#practice-case-picker').bottom,toolbar:rect('.timer-toolbar').top,
+    return {picker:rect('#practice-case-picker').bottom,pickerTop:rect('#practice-case-picker').top,
+      center:rect('.timer-center').top,toolbar:rect('.timer-toolbar').top,
       timer:rect('#timer-pad').top,bottom:rect('#timer-card').bottom,height:innerHeight};
   });
-  expect(layout.picker).toBeLessThanOrEqual(layout.toolbar);
   expect(layout.toolbar).toBeLessThan(layout.timer);
+  expect(layout.timer).toBeLessThan(layout.picker);
+  expect(Math.abs(layout.pickerTop-layout.timer)).toBeLessThanOrEqual(1);
+  expect(layout.picker).toBeLessThanOrEqual(layout.center);
   expect(layout.bottom).toBeLessThanOrEqual(layout.height);
   await page.screenshot({path:'test-results/desktop-practice-solve-box.png'});
   await pageControl(page,'All practices');

@@ -67,7 +67,7 @@ body.focus-mode #lesson-panel-practice .lesson-workspace{display:block;height:au
 .lesson-section h3{margin:0;font-size:18px;line-height:1.3}
 .lesson-section p{color:#acbad0;font-size:13px;line-height:1.4;margin:6px 0}
 .lesson-demo-setup code{display:block;font:600 clamp(13px,1.5vw,18px)/1.5 var(--mono);color:#dce7ff;text-align:center;text-wrap:balance}
-.lesson-scramble-frame,.lesson-view-frame{display:block;font-size:12px;line-height:1.5;color:var(--muted);text-align:center;margin:0 0 6px}
+.lesson-view-frame{display:block;font-size:12px;line-height:1.5;color:var(--muted);text-align:center;margin:0 0 6px}
 .lesson-demo-layout{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);align-items:center;gap:12px}
 .lesson-cube{min-width:0;min-height:0;height:100%;display:flex;align-items:center;justify-content:center}
 .lesson-cube svg{display:block;width:100%;height:100%;max-height:min(56dvh,600px)}
@@ -189,7 +189,7 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
  body:not(.focus-mode) #lesson-practice-mount .ranking-track,body:not(.focus-mode) #lesson-practice-mount .ranking-ends{display:none}
 }
 
-.practice-case-picker{display:none;min-width:0;margin:0;border:0;padding:10px;background:transparent;border-bottom:1px solid #35435b}
+.practice-case-picker{display:none;min-width:0;max-width:100%;width:100%;margin:0;border:0;padding:0;background:transparent;touch-action:pan-x}
 #lesson-case-row{min-width:0;width:100%}
 .case-selection-mark{position:absolute;top:4px;right:6px;color:#dce7ff;visibility:hidden}
 .case-strip-tile{position:relative}
@@ -198,11 +198,12 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
 #lesson-case-row .lesson-case-tile,.case-strip-tile{flex:0 0 88px;width:88px;padding:6px;gap:2px}
 #lesson-case-row .lesson-case-thumbnail,.case-strip-tile .lesson-case-thumbnail{width:76px}
 @media(min-width:741px){
- #lesson-practice-mount .practice-case-picker{display:block;grid-row:1;padding:4px 0 8px}
- body:not(.focus-mode) #lesson-practice-mount #timer-card{grid-template-rows:auto auto minmax(0,1fr) auto}
- body:not(.focus-mode) #lesson-practice-mount .timer-toolbar{grid-row:2}
- body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-row:3}
- body:not(.focus-mode) #lesson-practice-mount .solve-ranking:not([hidden]){grid-row:4}
+ #lesson-practice-mount .practice-case-picker{display:block;padding-bottom:8px}
+ body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-template-rows:auto minmax(0,1fr)}
+ body:not(.focus-mode) #lesson-practice-mount .practice-case-picker{grid-column:1;grid-row:1;align-self:start}
+ body:not(.focus-mode) #lesson-practice-mount .timer-center{grid-row:2}
+ #lesson-practice-mount #timer-pad,#lesson-practice-mount .timer-center{touch-action:pan-x}
+ #lesson-practice-mount .fullscreen-scramble,#lesson-practice-mount .cube-preview,#lesson-practice-mount .timer-readout{touch-action:none}
  .practice-case-picker:disabled{opacity:.6}
  #lesson-demo{justify-content:center;gap:14px}
  .lesson-section .lesson-demo-setup{margin:0}
