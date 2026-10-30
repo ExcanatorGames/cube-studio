@@ -197,14 +197,14 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
 #lesson-case-row #lesson-case-list,#practice-case-list{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-padding-inline:4px;padding:4px;min-width:0;max-width:100%;justify-content:safe center}
 #lesson-case-row .lesson-case-tile,.case-strip-tile{flex:0 0 88px;width:88px;padding:6px;gap:2px}
 #lesson-case-row .lesson-case-thumbnail,.case-strip-tile .lesson-case-thumbnail{width:76px}
+#lesson-practice-mount .practice-case-picker{display:block;padding-bottom:8px}
+body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-template-rows:auto minmax(0,1fr)}
+body:not(.focus-mode) #lesson-practice-mount .practice-case-picker{grid-column:1;grid-row:1;align-self:start}
+body:not(.focus-mode) #lesson-practice-mount .timer-center{grid-row:2}
+#lesson-practice-mount #timer-pad,#lesson-practice-mount .timer-center{touch-action:pan-x}
+#lesson-practice-mount .fullscreen-scramble,#lesson-practice-mount .cube-preview,#lesson-practice-mount .timer-readout{touch-action:none}
+.practice-case-picker:disabled{opacity:.6}
 @media(min-width:741px){
- #lesson-practice-mount .practice-case-picker{display:block;padding-bottom:8px}
- body:not(.focus-mode) #lesson-practice-mount #timer-pad{grid-template-rows:auto minmax(0,1fr)}
- body:not(.focus-mode) #lesson-practice-mount .practice-case-picker{grid-column:1;grid-row:1;align-self:start}
- body:not(.focus-mode) #lesson-practice-mount .timer-center{grid-row:2}
- #lesson-practice-mount #timer-pad,#lesson-practice-mount .timer-center{touch-action:pan-x}
- #lesson-practice-mount .fullscreen-scramble,#lesson-practice-mount .cube-preview,#lesson-practice-mount .timer-readout{touch-action:none}
- .practice-case-picker:disabled{opacity:.6}
  #lesson-demo{justify-content:center;gap:14px}
  .lesson-section .lesson-demo-setup{margin:0}
  .lesson-demo-setup code{font-size:clamp(22px,1.8vw,32px);line-height:1.5;max-width:1100px;margin:0 auto;text-wrap:balance}
@@ -215,8 +215,8 @@ body.focus-mode #lesson-panel-practice{display:block}
 
 @media(max-width:740px) and (max-height:700px){
  .lesson-section{grid-template-rows:auto minmax(350px,1fr);overflow-y:auto}
- #lesson-case-row .lesson-case-tile{flex-basis:60px;width:60px;padding:4px;font-size:10px}
- #lesson-case-row .lesson-case-thumbnail{width:48px}
+ #lesson-case-row .lesson-case-tile,.case-strip-tile{flex-basis:60px;width:60px;padding:4px;font-size:10px}
+ #lesson-case-row .lesson-case-thumbnail,.case-strip-tile .lesson-case-thumbnail{width:48px}
  .lesson-demo-guide{gap:4px}
  .lesson-moves{font-size:16px;gap:2px;margin:0}
  .lesson-moves span{min-width:22px;padding:2px}
