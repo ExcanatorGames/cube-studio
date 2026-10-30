@@ -58,11 +58,12 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await expect(page.locator('#practice-case-list [data-practice-case]')).toHaveCount(10);
   const omitted=page.locator('#practice-case-list [data-practice-case]').nth(2);
   const omittedId=await omitted.getAttribute('data-practice-case');
-  await omitted.click();
+  await omitted.click({delay:650});
   await expect(omitted).toHaveAttribute('aria-pressed','false');
+  await expect(page.locator('#timer-card')).not.toHaveClass(/\b(arming|armed|running)\b/);
   await expect(page.locator('#practice-case-list [aria-pressed="true"]')).toHaveCount(9);
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
-  expect(await page.locator('#practice-case-picker').evaluate(el=>document.querySelector('#timer-card').contains(el)&&!document.querySelector('#timer-pad').contains(el))).toBe(true);
+  expect(await page.locator('#practice-case-picker').evaluate(el=>document.querySelector('#timer-pad').contains(el))).toBe(true);
   await page.screenshot({path:'test-results/desktop-practice-selectors.png'});
   await startKeyboardSolve(page);
   await expect(omitted).toBeDisabled();
@@ -205,11 +206,14 @@ test('desktop practice checkboxes are always available and open a saved mix with
   await page.waitForFunction(()=>!document.documentElement.dataset.motion);
   const layout=await page.evaluate(()=>{
     const rect=selector=>document.querySelector(selector).getBoundingClientRect();
-    return {picker:rect('#practice-case-picker').bottom,toolbar:rect('.timer-toolbar').top,
+    return {picker:rect('#practice-case-picker').bottom,pickerTop:rect('#practice-case-picker').top,
+      center:rect('.timer-center').top,toolbar:rect('.timer-toolbar').top,
       timer:rect('#timer-pad').top,bottom:rect('#timer-card').bottom,height:innerHeight};
   });
-  expect(layout.picker).toBeLessThanOrEqual(layout.toolbar);
   expect(layout.toolbar).toBeLessThan(layout.timer);
+  expect(layout.timer).toBeLessThan(layout.picker);
+  expect(Math.abs(layout.pickerTop-layout.timer)).toBeLessThanOrEqual(1);
+  expect(layout.picker).toBeLessThanOrEqual(layout.center);
   expect(layout.bottom).toBeLessThanOrEqual(layout.height);
   await page.screenshot({path:'test-results/desktop-practice-solve-box.png'});
   await pageControl(page,'All practices');
@@ -271,8 +275,9 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect(page.locator('#fullscreen-track')).toBeVisible();
 });
 
-test('mobile practices have a selectable list and a separate timer that fits above navigation',async({page,server})=>{
-  await page.setViewportSize({width:390,height:844});
+for (const viewport of [{width:320,height:568},{width:390,height:844},{width:472,height:1100}]) {
+test(`mobile practices keep case cubes at the top and fit above navigation at ${viewport.width}px`,async({page,server})=>{
+  await page.setViewportSize(viewport);
   await openApp(page,server);
   await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.locator('#timer-card')).toBeHidden();
@@ -283,19 +288,35 @@ test('mobile practices have a selectable list and a separate timer that fits abo
   await page.screenshot({path:'test-results/practice-list-mobile.png',fullPage:true});
   await page.locator('[data-practice-open="f2l-0"]').click();
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
+  await expect(page.locator('#practice-case-picker')).toBeVisible();
+  await expect(page.locator('#practice-case-list [data-practice-case]')).toHaveCount(14);
+  const omitted=page.locator('#practice-case-list [data-practice-case]').first();
+  await page.waitForFunction(()=>!document.documentElement.dataset.motion);
+  const rect=await omitted.boundingBox();
+  const touch=await page.context().newCDPSession(page);
+  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:rect.x+rect.width/2,y:rect.y+rect.height/2,id:1}]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await touch.detach();
+  await expect(omitted).toHaveAttribute('aria-pressed','false');
+  await expect(page.locator('#timer-card')).not.toHaveClass(/\b(arming|armed|running)\b/);
   const layout=await page.evaluate(()=>{
     const card=document.querySelector('#timer-card').getBoundingClientRect();
     const nav=document.querySelector('.sidebar').getBoundingClientRect();
     const clock=document.querySelector('#clock').getBoundingClientRect();
-    return {width:document.documentElement.scrollWidth,bottom:card.bottom,navTop:nav.top,clockTop:clock.top,clockBottom:clock.bottom,cardTop:card.top};
+    const picker=document.querySelector('#practice-case-picker').getBoundingClientRect();
+    const pad=document.querySelector('#timer-pad').getBoundingClientRect();
+    return {width:document.documentElement.scrollWidth,bottom:card.bottom,navTop:nav.top,clockTop:clock.top,clockBottom:clock.bottom,cardTop:card.top,pickerTop:picker.top,padTop:pad.top,pickerBottom:picker.bottom};
   });
-  expect(layout.width).toBeLessThanOrEqual(390);
+  expect(layout.width).toBeLessThanOrEqual(viewport.width);
+  expect(Math.abs(layout.pickerTop-layout.padTop)).toBeLessThanOrEqual(1);
+  expect(layout.pickerBottom).toBeLessThanOrEqual(layout.clockTop);
   expect(layout.bottom).toBeLessThanOrEqual(layout.navTop);
   expect(layout.clockTop).toBeGreaterThanOrEqual(layout.cardTop);
   expect(layout.clockBottom).toBeLessThanOrEqual(layout.bottom);
-  await page.screenshot({path:'test-results/practice-timer-mobile.png'});
+  await page.screenshot({path:`test-results/practice-timer-mobile-${viewport.width}.png`});
   await pageControl(page,'All practices');
-  await expect(page.getByRole('checkbox',{name:'Include F2L · Easy Inserts',exact:true})).toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Include F2L · Easy Inserts',exact:true})).toBeChecked({indeterminate:true});
   const tabs=await page.locator('.sidebar .nav').evaluateAll(items=>items.map(item=>item.getBoundingClientRect().toJSON()));
   expect(new Set(tabs.map(tab=>Math.round(tab.top))).size).toBe(1);
 });
+}

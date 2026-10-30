@@ -19,6 +19,7 @@ export function initTimerInput({
     gesture = false;
   }
   pad.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#practice-case-picker')) return;
     if (e.target.closest('#fullscreen-splits') && getState() !== 'running')
       return;
     if (e.pointerType === 'touch') {
@@ -47,6 +48,7 @@ export function initTimerInput({
     }
   });
   pad.addEventListener('pointerup', (e) => {
+    if (e.target.closest('#practice-case-picker')) return;
     if (e.pointerType === 'touch') {
       e.preventDefault();
       touches.delete(e.pointerId);

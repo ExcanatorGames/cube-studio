@@ -1,11 +1,11 @@
 import {lessonCubeSVG} from './lesson-cube.js';
-import {cubeFrame,orientAlgorithm,orientTargets,orientationColors} from './cube.js';
+import {cubeFrame,orientAlgorithm,orientationColors} from './cube.js';
 import {orientLessonCase} from './lessons.js';
 
 export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrientation}={}){
   let {setup,scramble,solution,orientation,target}=orientLessonCase(lesson.case,lesson.case.orientation);
   let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
-  root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><span class="lesson-scramble-frame"></span><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide"><p class="lesson-view-frame"></p>
+  root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide"><p class="lesson-view-frame"></p>
     <div class="lesson-moves" aria-label="Moves"></div>
   <div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
     <label class="lesson-speed" for="lesson-animation-speed"><span class="lesson-speed-heading"><span>Animation speed</span><output for="lesson-animation-speed">1×</output></span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="1"></label></div></div>`;
@@ -18,12 +18,10 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
     const frame=scrambleFrame();
     find('.lesson-demo-setup code').textContent=orientAlgorithm(scramble,orientation,frame);
     find('.lesson-demo-setup').title=`Scramble with ${cubeFrame(frame).label}. Moves follow the cube's U, F and R faces.`;
-    find('.lesson-scramble-frame').textContent=`Scramble: ${frameLabel(frame)}`;
   }
   function paint(){
-    const initial=step===0&&!playing,frame=initial?scrambleFrame():orientation;
-    find('.lesson-cube').innerHTML=lessonCubeSVG(orientAlgorithm(algorithm(),orientation,frame),{orientation:frame,target:orientTargets(target,orientation,frame)});
-    find('.lesson-view-frame').textContent=`${initial?'Scramble':'Solve'}: ${frameLabel(frame)}`;
+    find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});
+    find('.lesson-view-frame').textContent=`Solve: ${frameLabel(orientation)}`;
     paintScramble();
   }
   function renderControls(){
@@ -52,7 +50,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
     if(to<0||to>moves().length)return;
     const index=direction>0?step:step-1,token=moves()[index];
     const move=direction>0||token.endsWith('2')?token:token.endsWith("'")?token.slice(0,-1):token+"'";
-      const active={move,index,to,alg:algorithm(),lastFrame:runtime.performance.now(),elapsed:0};
+    const active={move,index,to,alg:algorithm(),lastFrame:runtime.performance.now(),elapsed:0};
     turn=active;
     find('.lesson-view-frame').textContent=`Solve: ${frameLabel(orientation)}`;
     renderControls();
