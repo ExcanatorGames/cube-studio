@@ -1,8 +1,9 @@
 import {test, expect, openApp, openSplitsSettings, storedState, startKeyboardSolve, finishKeyboardSolve} from './fixtures.mjs';
 import {orientAlgorithm,cubeSVG} from '../../web/cube.js';
+import {getLesson} from '../../web/lessons.js';
 
 for (const width of [320, 1280]) {
-  test(`settings contains accessible General, Splits and App & data tabs at ${width}px`, async ({page,server}) => {
+  test(`settings contains accessible General, Lessons, Splits and App & data tabs at ${width}px`, async ({page,server}) => {
     await page.setViewportSize({width,height:900});
     await openApp(page,server);
     await expect(page.locator('.sidebar [data-page="splits"]')).toHaveCount(0);
@@ -13,6 +14,12 @@ for (const width of [320, 1280]) {
     await expect(page.getByRole('region',{name:'Cloud sync',exact:true})).toBeHidden();
     await page.locator('#hold-duration').fill('1');
     await general.focus();
+    await page.keyboard.press('ArrowRight');
+    const lessons = page.getByRole('tab',{name:'Lessons',exact:true});
+    await expect(lessons).toBeFocused();
+    await expect(page.locator('#lesson-scramble-mode')).toBeVisible();
+    await expect(page).toHaveURL(/tab=lessons/);
+    expect(await page.locator('#settings-dialog').evaluate(dialog=>dialog.scrollWidth<=dialog.clientWidth)).toBe(true);
     await page.keyboard.press('ArrowRight');
     await expect(splits).toBeFocused();
     await expect(splits).toHaveAttribute('aria-selected','true');
@@ -52,6 +59,37 @@ for (const width of [320, 1280]) {
     await expect(page.locator('#install-help')).not.toBeEmpty();
   });
 }
+
+test('Lessons preparation changes the current demo, persists on reload and keeps four-pair practice',async({page,server})=>{
+  await openApp(page,server);
+  await page.getByRole('link',{name:'Lessons',exact:true}).click();
+  await page.locator('[data-lesson-group="f2l-0"]').click();
+  const code=page.locator('.lesson-demo-setup code');
+  await expect(page.locator('#lesson-demo [data-action="play"]')).toBeEnabled({timeout:20000});
+  const random=await code.innerText();
+  const source=getLesson('f2l').cases.find(item=>item.group==='Easy Inserts');
+  const setup=orientAlgorithm(source.setup,'white-bottom','white-top');
+  expect(random).not.toBe(setup);
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.getByRole('tab',{name:'Lessons',exact:true}).click();
+  await expect(page.locator('#lesson-scramble-mode')).toHaveValue('random');
+  await page.locator('#lesson-scramble-mode').selectOption('setup');
+  await page.locator('#save-lesson-settings').click();
+  await expect(code).toHaveText(setup);
+  await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('aria-label','Setup moves');
+  await expect.poll(async()=>(await storedState(page)).settings.lessonScrambleMode).toBe('setup');
+  await page.reload();
+  await expect(code).toHaveText(setup,{timeout:20000});
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.getByRole('tab',{name:'Lessons',exact:true}).click();
+  await expect(page.locator('#lesson-scramble-mode')).toHaveValue('setup');
+  await page.locator('#lesson-scramble-mode').selectOption('random');
+  await page.locator('#save-lesson-settings').click();
+  await expect(code).not.toHaveText(setup);
+  await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('aria-label','Demo scramble');
+  await page.getByRole('tab',{name:'Practice',exact:true}).click();
+  await expect(page.locator('#scramble-type')).toContainText('4 pairs');
+});
 
 test('scramble orientation changes notation and preview together, and follows the default position after reopening offline', async ({page,context,server}) => {
   await openApp(page,server);

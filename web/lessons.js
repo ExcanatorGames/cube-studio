@@ -1,5 +1,11 @@
 import {orientAlgorithm,cubeStickers} from './cube.js';
 
+export const PRACTICE_COMPLETION='four-insertions';
+export function freezeLessonExercise(exercise){
+  return Object.freeze({...exercise,target:Object.freeze([...exercise.target]),
+    ...(exercise.steps?{steps:Object.freeze(exercise.steps.map(freezeLessonExercise))}:{})});
+}
+
 const target=Object.freeze(['1,-1,1','1,0,1']);
 const inverse=algorithm=>algorithm.split(' ').reverse().map(move=>move.endsWith('2')?move:move.endsWith("'")?move.slice(0,-1):move+"'").join(' ');
 function defineCase(id,title,setupInsertion,description,group='Ready pairs',solution=setupInsertion,alignmentSolutions={}){
@@ -57,9 +63,9 @@ function defineLesson(id,title,summary,introduction,cases){
 }
 export const LESSONS=Object.freeze([
   defineLesson('13','Use one F2L pair','Insert a ready pair · Either direction',
-    "Recognize and insert a matching corner-edge block using U R U' R' or U' F' U F. Practice ends when that pair is inserted; no full solve is required.",[readyRight,readyLeft]),
+    "Recognize and insert a matching corner-edge block using U R U' R' or U' F' U F. Each practice scramble gives you four pairs to insert; no full solve is required.",[readyRight,readyLeft]),
   defineLesson('14','Build an F2L pair','22 top-layer cases · Pair and insert',
-    "Start with a solved white cross and both matching pieces in the top layer. Join and insert the pair using simple slot triggers. Some cases pair as they enter the slot. Practice ends once the pair is slotted in and the white cross is restored.",pairingCases),
+    "Start with a solved white cross. Join and insert each pair using simple slot triggers. Some cases pair as they enter the slot. Practice ends after four insertions with the white cross restored.",pairingCases),
 ]);
 
 // The original IDs remain valid for saved attempts and selections. The visible
@@ -108,7 +114,7 @@ const topCases=LESSONS.flatMap(lesson=>lesson.cases.map(item=>{
 const f2lCases=F2L_GROUPS.flatMap(group=>[...topCases,...slotCases].filter(item=>item.group===group));
 export const LESSON_CATALOG=Object.freeze([
   defineLesson('f2l','F2L','41 cases · 6 practice groups',
-    'Learn to pair and insert a corner and edge. Practice any group, or mix groups together.',f2lCases),
+    'Learn to pair and insert a corner and edge. Each practice scramble gives you four pairs from your enabled cases. Practice any group, or mix groups together.',f2lCases),
 ]);
 export function getLesson(id){
   if(id==='mixed')return defineLesson('mixed','Mixed practice','Choose lessons and groups','',LESSON_CATALOG.flatMap(lesson=>lesson.cases));
@@ -123,12 +129,17 @@ export function changeLessonFrame(algorithm){
 
 // Keep the same physical exercise when turning the cube over, including its
 // move notation and the identities of the two marked pieces. Green stays front.
-export function orientLessonCase(exercise,orientation){
+function orientLessonStep(exercise,orientation){
   const flip=exercise.orientation!==orientation;
-  const setup=flip?changeLessonFrame(exercise.setup):exercise.setup;
-  return {...exercise,orientation,setup,scramble:setup,
+  return {...exercise,orientation,
     solution:flip?changeLessonFrame(exercise.solution):exercise.solution,
     target:flip?exercise.target.map(cubie=>{const [x,y,z]=cubie.split(',').map(Number);return [-x,-y,z].join(',');}):exercise.target,
     slot:flip?exercise.slot?.replace(/right|left/g,side=>side==='right'?'left':'right'):exercise.slot,
+  };
+}
+export function orientLessonCase(exercise,orientation){
+  const setup=exercise.orientation!==orientation?changeLessonFrame(exercise.setup):exercise.setup;
+  return {...orientLessonStep(exercise,orientation),setup,scramble:setup,
+    ...(exercise.steps?{steps:exercise.steps.map(step=>orientLessonStep(step,orientation))}:{}),
   };
 }

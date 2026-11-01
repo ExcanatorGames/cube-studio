@@ -1,10 +1,10 @@
 import {Cube} from './cube-solver.js';
-import {getLesson,changeLessonFrame} from './lessons.js';
+import {getLesson,changeLessonFrame,freezeLessonExercise,PRACTICE_COMPLETION} from './lessons.js';
 
 // cubejs order: URF UFL ULB UBR DFR DLF DBL DRB;
-// UR UF UL UB DR DF DL DB FR FL BL BR. Fix D cross edges and the FR pair.
-const corners=[0,1,2,3,5,6,7],edges=[0,1,2,3,9,10,11];
+// UR UF UL UB DR DF DL DB FR FL BL BR. Keep D cross edges fixed.
 const slots=['Front right','Back right','Back left','Front left'];
+const slotCorners=[4,7,6,5],slotEdges=[8,11,10,9];
 const topTurns=['','U','U2',"U'"],undoTop=['',"U'",'U2','U'];
 function simplify(algorithm){
   const moves=[];
@@ -41,12 +41,51 @@ function orient(array,positions,modulus,random){
   for(const position of positions.slice(0,-1)){array[position]=Math.floor(random()*modulus);sum+=array[position];}
   array[positions.at(-1)]=(modulus-sum%modulus)%modulus;
 }
-function randomBackground(random){
+function randomBackground(random,fixedSlots=[0]){
+  const corners=Array.from({length:8},(_,i)=>i).filter(i=>!fixedSlots.some(slot=>slotCorners[slot]===i));
+  const edges=[0,1,2,3,8,9,10,11].filter(i=>!fixedSlots.some(slot=>slotEdges[slot]===i));
   const state=new Cube().toJSON();
   shuffle(state.cp,corners,random);shuffle(state.ep,edges,random);
   if(parity(state.cp)!==parity(state.ep))[state.ep[edges[0]],state.ep[edges[1]]]=[state.ep[edges[1]],state.ep[edges[0]]];
   orient(state.co,corners,3,random);orient(state.eo,edges,2,random);
   return new Cube(state);
+}
+
+/** Work backwards from four solved slots. Each inverse insertion exposes an
+ * enabled case; solving it restores the exact state for the following pair.
+ * Only the remaining pieces form the random background, so earlier slots and
+ * the cross are restored after every insertion, regardless of the case mix.
+ */
+export function createPracticeExercise(lessonId='f2l',{previousScramble='',random=Math.random,caseIds}={}){
+  const lesson=getLesson(lessonId);
+  if(!lesson)throw Error('Unknown lesson');
+  const cases=caseIds===undefined?lesson.cases:caseIds.map(id=>lesson.cases.find(item=>item.id===id));
+  if(!cases.length||cases.some(item=>!item))throw Error('Select valid lesson cases');
+  if(!initialized){Cube.initSolver();initialized=true;}
+  const availableSlots=[0,1,2,3];
+  const steps=Array.from({length:slots.length},()=>{
+    const slot=availableSlots.splice(Math.floor(random()*availableSlots.length),1)[0];
+    const auf=Math.floor(random()*4),selected=cases[Math.floor(random()*cases.length)];
+    return {
+      lessonId:selected.sourceLessonId||lessonId,caseId:selected.id,
+      solution:rotateSlot(selected.alignmentSolutions[auf]||simplify([undoTop[auf],selected.solution].filter(Boolean).join(' ')),slot),
+      orientation:selected.orientation,target:rotateTarget(selected.target,slot),
+      slot:slots[slot],auf,completion:selected.completion,
+    };
+  });
+  const background=randomBackground(random,steps.map(step=>slots.indexOf(step.slot)));
+  const reverse=steps.toReversed().map(step=>Cube.inverse(step.solution)).join(' ');
+  const solve=state=>Cube.inverse(state.move(reverse).solve());
+  let setup=solve(background.clone()),scramble=changeLessonFrame(setup);
+  if(scramble===previousScramble){
+    setup=solve(background.move('U'));
+    scramble=changeLessonFrame(setup);
+  }
+  return freezeLessonExercise({
+    ...steps[0],scramble,setup,steps,
+    solution:steps.map(step=>step.solution).join(' '),
+    target:steps.flatMap(step=>step.target),completion:PRACTICE_COMPLETION,
+  });
 }
 
 /** Sample legal random backgrounds, then expose the lesson's pair.

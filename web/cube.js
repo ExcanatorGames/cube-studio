@@ -104,7 +104,7 @@ export function cubeSVG(alg,{orientation='white-top',target=[]}={}){
   const faces=stickerFaces(cubeStickers(alg)),{colors,label}=cubeFrame(orientation);
   // Each face is a subdivided parallelogram in the same isometric projection.
   const planes={U:[[90,8],[78,39],[-78,39]],F:[[12,47],[78,39],[0,90]],R:[[90,86],[78,-39],[0,90]]};
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 188" role="img" aria-label="Cube: top, front and right. Start with ${label}.${target.length?' Dots mark the target corner and edge.':''}"><title>Cube · ${label}</title>`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 188" role="img" aria-label="Cube: top, front and right. Start with ${label}.${target.length?` Dots mark the target ${target.length>2?'corners and edges':'corner and edge'}.`:''}"><title>Cube · ${label}</title>`;
   for(const [face,[origin,right,down]] of Object.entries(planes)){
     const point=(x,y)=>origin.map((v,i)=>(v+right[i]*x/3+down[i]*y/3).toFixed(2)).join(',');
     svg+=`<g data-face="${face}">`;

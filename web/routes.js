@@ -32,7 +32,7 @@ export function parseRoute(input) {
     const background = from?.startsWith('/') && !from.startsWith('//') && !from.startsWith('/settings')
       ? parseRoute(from) : { page: 'timer' };
     const tab = url.searchParams.get('tab');
-    return { ...background, settings: true, ...(['splits','app'].includes(tab) ? {settingsTab:tab} : {}) };
+    return { ...background, settings: true, ...(['lessons','splits','app'].includes(tab) ? {settingsTab:tab} : {}) };
   }
   if (path === '/' || path === '/index.html') return { page: 'timer' };
   for (const [page, value] of Object.entries(pagePaths)) if (value === path) return { page };
@@ -76,7 +76,7 @@ export function routePath(route) {
     const from = routePath({ ...route, settings: false });
     const query = new URLSearchParams();
     if (from !== '/timer') query.set('from',from);
-    if (['splits','app'].includes(route.settingsTab)) query.set('tab',route.settingsTab);
+    if (['lessons','splits','app'].includes(route.settingsTab)) query.set('tab',route.settingsTab);
     return '/settings' + (query.size ? '?' + query : '');
   }
   if (route.page === 'not-found') return route.path || '/not-found';

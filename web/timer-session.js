@@ -1,3 +1,5 @@
+import { freezeLessonExercise } from './lessons.js';
+
 export function createTimerSession({
   now = () => performance.now(),
   wallNow = () => Date.now(),
@@ -76,8 +78,7 @@ export function createTimerSession({
       unschedule(holdTimeout);
       const copy = structuredClone(value);
       if (copy.exercise) {
-        Object.freeze(copy.exercise.target);
-        Object.freeze(copy.exercise);
+        copy.exercise = freezeLessonExercise(copy.exercise);
       }
       attempt = Object.freeze({
         ...copy,

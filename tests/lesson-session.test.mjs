@@ -17,12 +17,12 @@ test('a lesson opened from a group card keeps demonstration and practice inside 
   assert.equal(session.lesson.cases.length,41);
 });
 
-test('unified F2L restores old selections and includes legacy records without rewriting their IDs',()=>{
+test('unified F2L restores old selections and compares four-pair records using original source IDs',()=>{
   const session=createLessonSession({getSettings:()=>({lessonCaseSelections:{'13':['ready-left'],'14':['pair-1-3-0']}})});
   session.open('f2l');
   assert.equal(session.context.caseIds.length,19,'two old selected cases plus 17 newly available cases');
   assert.ok(!session.context.caseIds.includes('ready-right'));
-  const attempt={id:'old',lessonId:'13',caseId:'ready-left',completion:'insertion',date:'2026-01-01'};
+  const attempt={id:'practice',lessonId:'13',caseId:'ready-left',completion:'four-insertions',date:'2026-01-01'};
   assert.deepEqual(session.times([attempt,{...attempt,id:'wrong-source',lessonId:'f2l'}]),[attempt]);
 });
 
@@ -32,7 +32,7 @@ test('mixed practice restores an exact cross-group subset and records its source
   const session=createLessonSession({getSettings:()=>({lessonCaseSelections:{mixed:ids}})});
   session.open('mixed');
   assert.deepEqual(session.context.caseIds,ids);
-  const attempts=ids.map((caseId,i)=>({id:String(i),caseId,lessonId:i?'f2l':'13',completion:'insertion',date:'2026-01-01'}));
+  const attempts=ids.map((caseId,i)=>({id:String(i),caseId,lessonId:i?'f2l':'13',completion:'four-insertions',date:'2026-01-01'}));
   assert.deepEqual(session.times(attempts),attempts);
   assert.equal(session.selectCases(['removed']),false);
   session.open('f2l');assert.equal(session.context.caseIds.length,41,'lesson-specific selection stays independent');
@@ -47,7 +47,7 @@ test('lesson selection restores valid saved cases and cannot select an empty pra
   assert.deepEqual(session.context.caseIds, ['ready-left']);
   assert.equal(session.setTab('practice'), true);
   assert.equal(session.selectDemo('ready-left'), true);
-  const attempt = { id: 'practice', lessonId: '13', caseId: 'ready-left', completion: 'insertion', date: '2026-01-01' };
+  const attempt = { id: 'practice', lessonId: '13', caseId: 'ready-left', completion: 'four-insertions', date: '2026-01-01' };
   assert.deepEqual(session.times([attempt, { ...attempt, id: 'other', caseId: 'ready-right' }]), [attempt]);
   session.leave(); assert.equal(session.context.kind, 'normal');
 });

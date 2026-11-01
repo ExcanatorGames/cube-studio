@@ -13,6 +13,7 @@ const defaults = () => ({
   orientation: 'white-top',
   scrambleOrientation: 'default',
   lessonOrientation: 'white-bottom',
+  lessonScrambleMode: 'random',
   crossPosition: 'bottom',
   solveColors: 'white',
 });
@@ -141,6 +142,7 @@ export function validateSnapshot(value) {
     orientation: (v) => typeof v === 'string' && validOrientation(...Object.values(orientationColors(v))),
     scrambleOrientation: (v) => v === 'default' || (typeof v === 'string' && validOrientation(...Object.values(orientationColors(v)))),
     lessonOrientation: (v) => ['white-top', 'white-bottom'].includes(v),
+    lessonScrambleMode: (v) => ['random', 'setup'].includes(v),
     crossPosition: (v) => ['top', 'bottom'].includes(v),
     solveColors: (v) => ['neutral', 'white-yellow', 'white'].includes(v),
   };

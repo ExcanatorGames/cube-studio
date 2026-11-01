@@ -100,8 +100,8 @@ test('selected case metadata is saved, locked during timing, and used to filter 
   h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('lessonSession.context.caseIds.length'),1);
   h.advance(7100);h.run('stop()');
   assert.equal(h.run('practiceTimes()[0].caseId'),id);
-  assert.match(h.run('practiceTimes()[0].note'),/^Build an F2L pair.*Pair inserted$/);
-  assert.equal(h.run('practiceTimes()[0].completion'),'insertion');
+  assert.match(h.run('practiceTimes()[0].note'),/^Build an F2L pair.*4 pairs inserted$/);
+  assert.equal(h.run('practiceTimes()[0].completion'),'four-insertions');
   assert.equal(h.run('records.size'),0);assert.equal(h.run('pending.size'),0);assert.equal(h.run('pendingLessons.size'),1);
   h.run(`setPracticeCases(['${LESSONS[1].cases[1].id}'])`);assert.equal(h.run('practiceTimes().length'),0);
   h.run('setPracticeCases(currentLesson().cases.map(item=>item.id))');assert.equal(h.run('practiceTimes().length'),1);
@@ -144,7 +144,7 @@ test('lesson shares the actual timer card and restores the prepared normal scram
   h.element('#lesson-help').onclick();
   assert.equal(h.element('#lesson-help').getAttribute('aria-pressed'),'true');
   assert.equal(h.element('#lesson-solution').hidden,false);
-  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corner and edge/);
+  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corners and edges/);
   h.element('#lesson-help').onclick();
   assert.equal(h.element('#lesson-solution').hidden,true);
   assert.doesNotMatch(h.element('#cube-preview').innerHTML,/data-target=/);
@@ -165,6 +165,7 @@ test('busy lesson attempts lock context and finish on the first stop, with no sp
   h.run('arm()');h.arm();h.run('start()');
   assert.equal(h.run('timing.state'),'running');
   assert.ok(h.run('Object.isFrozen(timing.activeAttempt)&&Object.isFrozen(timing.activeAttempt.exercise)&&Object.isFrozen(timing.activeAttempt.splitNames)'));
+  assert.ok(h.run('Object.isFrozen(timing.activeAttempt.exercise.steps)&&timing.activeAttempt.exercise.steps.every(step=>Object.isFrozen(step)&&Object.isFrozen(step.target))'));
   assert.equal(h.element('#lesson-help').disabled,true);
   h.run("setPage('timer');newScramble();setTracking(false);openLesson('13')");
   assert.equal(h.run('scramble'),initial);
@@ -181,8 +182,8 @@ test('busy lesson attempts lock context and finish on the first stop, with no sp
   assert.equal(saved.scramble,orientAlgorithm(initial,'white-bottom','white-top'));
   assert.equal(saved.ms,6000);
   assert.deepEqual(saved.splits,[]);
-  assert.match(saved.note,/^Use one F2L pair.*Pair inserted$/);
-  assert.equal(saved.completion,'insertion');
+  assert.match(saved.note,/^Use one F2L pair.*4 pairs inserted$/);
+  assert.equal(saved.completion,'four-insertions');
   assert.notEqual(h.run('scramble'),initial);
   assert.equal(saved.source,'timer');
   assert.equal(h.run('timing.state'),'stopped');
@@ -217,7 +218,7 @@ test('a delayed normal scramble cannot replace an exercise after opening a lesso
   const exercise=h.run('scramble');
   complete('R2 U2 F2');await pending;
   assert.equal(h.run('scramble'),exercise);
-  assert.equal(h.run('scrambleKind'),'Ready right · white on top · green in front');
+  assert.equal(h.run('scrambleKind'),'4 pairs · white on top · green in front');
 });
 
 test('leaving a lesson regenerates an interrupted replacement scramble without reusing the finished solve',async()=>{
@@ -347,19 +348,23 @@ test('practice times survive reload, queue for lesson sync and stay out of norma
   assert.equal(reloaded.run('pending.size'),1);
 });
 
-test('older full-cube and recognition attempts are retained without becoming insertion comparison baselines',()=>{
+test('older full-cube, recognition, single-pair and three-pair attempts stay out of four-pair comparisons',()=>{
   const old={id:'legacy-full-cube',date:'2026-01-01T12:00:00Z',ms:60000,penalty:'none',scramble:'R U',splits:[],updatedAt:1,lessonId:'13',caseId:'ready-right',note:'Full cube'};
   const recognition={...old,id:'legacy-recognition',completion:'pair',ms:500};
-  const h=harness({saved:{lessonAttempts:[old,recognition]}});
+  const insertion={...old,id:'legacy-insertion',completion:'insertion',ms:1200};
+  const threePairs={...old,id:'legacy-three-pairs',completion:'three-insertions',ms:3600};
+  const h=harness({saved:{lessonAttempts:[old,recognition,insertion,threePairs]}});
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice')");
-  assert.equal(h.run('lessonAttempts.size'),2);
+  assert.equal(h.run('lessonAttempts.size'),4);
   assert.equal(h.run('practiceTimes().length'),0);
   h.run('arm()');h.arm();h.run('start()');h.advance(2300);h.run('stop()');
-  assert.equal(h.run('lessonAttempts.size'),3);
+  assert.equal(h.run('lessonAttempts.size'),5);
   assert.equal(h.run('practiceTimes().length'),1);
-  assert.equal(h.run('practiceTimes()[0].completion'),'insertion');
+  assert.equal(h.run('practiceTimes()[0].completion'),'four-insertions');
   const saved=JSON.parse(h.storage.get('cube-studio-v1'));
   assert.equal(saved.lessonAttempts.find(s=>s.id===old.id).completion,'full-cube');
+  assert.equal(saved.lessonAttempts.find(s=>s.id===insertion.id).completion,'insertion');
+  assert.equal(saved.lessonAttempts.find(s=>s.id===threePairs.id).completion,'three-insertions');
   const reloaded=harness({saved});reloaded.run("setPage('lessons');openLesson('13')");
   assert.equal(reloaded.run('practiceTimes().length'),1);
 });
@@ -393,7 +398,8 @@ test('toggling hints updates markers immediately without fading the cube or scra
     element.animate=(keyframes)=>{animations.push({selector,keyframes});return {finished:Promise.resolve(),cancel(){}};};
   }
   h.element('#lesson-help').onclick();
-  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corner and edge/);
+  assert.match(h.element('#cube-preview').innerHTML,/Dots mark the target corners and edges/);
+  assert.equal(h.element('#lesson-solution strong').textContent.split(' · ').length,4);
   assert.equal(h.element('#lesson-solution').hidden,false);
   assert.equal(animations.length,0,'enabling hints must not start an opacity-zero reveal');
   h.element('#lesson-help').onclick();

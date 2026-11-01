@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {LESSONS,LESSON_CATALOG,F2L_GROUPS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
-import {createExercise} from '../web/lesson-scrambler.js';
+import {createExercise,createPracticeExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
 import {Cube} from '../web/cube-solver.js';
@@ -212,6 +212,77 @@ function simulate(alg){
 const cross=['U1','B1','U3','L1','U5','R1','U7','F1'];
 const pair=['U6','F0','L2','F3','L5'];
 const solved=simulate('');
+
+test('four-pair scrambles expose enabled cases in sequence and preserve the cross and completed slots',()=>{
+  let seed=74685;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
+  const slots=['Front right','Back right','Back left','Front left'];
+  const physicalPairs=[pair,['U0','B2','L0','B5','L3'],['U2','B0','R2','B3','R5'],['U8','F2','R0','F5','R3']];
+  const backgrounds=new Set();
+  for(const item of LESSON_CATALOG[0].cases)for(let variation=0;variation<4;variation++){
+    const choices=[variation/4,variation/4,0];
+    const exercise=createPracticeExercise('f2l',{caseIds:[item.id],random:()=>choices.length?choices.shift():next()});
+    assert.equal(exercise.completion,'four-insertions');
+    assert.equal(exercise.steps.length,4);
+    assert.equal(new Set(exercise.steps.map(step=>step.slot)).size,4,'each insertion uses a different slot');
+    assert.equal(exercise.steps[0].slot,slots[variation]);
+    assert.ok(Object.isFrozen(exercise.steps));
+    let algorithm=exercise.setup,physicalAlgorithm=exercise.scramble;
+    const completed=[...cross];
+    for(const step of exercise.steps){
+      assert.equal(step.caseId,item.id,'a single enabled cube is repeated four times');
+      assert.equal(step.lessonId,item.sourceLessonId);
+      assert.ok(Object.isFrozen(step.target));
+      const slot=slots.indexOf(step.slot);
+      const expected=cubeStickers(rotateReference(item.setup,slot)+' '+['','U','U2',"U'"][step.auf]);
+      const before=cubeStickers(algorithm);
+      for(const sticker of before.filter(s=>step.target.includes(s.cubie))){
+        assert.equal(JSON.stringify(sticker),JSON.stringify(expected.find(s=>s.cubie===sticker.cubie&&s.face===sticker.face)),`${item.id}: next pair is the taught case`);
+      }
+      const physicalBefore=simulate(physicalAlgorithm);
+      for(const sticker of completed)assert.equal(physicalBefore[sticker],sticker,'cross and completed pairs start solved');
+      algorithm+=' '+step.solution;
+      physicalAlgorithm+=' '+changeLessonFrame(step.solution);
+      completed.push(...physicalPairs[slot]);
+      const physicalAfter=simulate(physicalAlgorithm);
+      for(const sticker of completed)assert.equal(physicalAfter[sticker],sticker,`${item.id}: cross and completed pairs stay solved`);
+    }
+    for(const orientation of ['white-bottom','white-top']){
+      const oriented=orientLessonCase(exercise,orientation);
+      let algorithm=oriented.setup;
+      for(const step of oriented.steps){
+        algorithm+=' '+step.solution;
+        assertInserted(cubeStickers(algorithm),step.target);
+      }
+      assertInserted(cubeStickers(oriented.setup+' '+oriented.solution),oriented.target);
+    }
+    backgrounds.add(JSON.stringify(cubeStickers(algorithm).filter(s=>!exercise.target.includes(s.cubie))));
+    assert.equal(exercise.target.length,8);
+    assert.equal(changeLessonFrame(exercise.scramble),exercise.setup);
+    assert.ok(exercise.scramble.split(' ').length<=22,'one solver-derived scramble, rather than four concatenated scrambles');
+  }
+  assert.ok(backgrounds.size>100,'unconstrained pieces vary');
+});
+
+test('mixed four-pair practice only exposes enabled cubes, with fresh refreshes and valid selections',()=>{
+  const ids=['ready-left','slot-4-1-8-0','pair-0-0-0','ready-right'];
+  const choices=[0,0,0,0,.25,.25,0,.5,.5,0,.75,.75];
+  const exercise=createPracticeExercise('mixed',{caseIds:ids,random:()=>choices.length?choices.shift():.3});
+  assert.deepEqual(exercise.steps.map(step=>step.caseId),ids);
+  let algorithm=exercise.setup;
+  for(const step of exercise.steps){
+    algorithm+=' '+step.solution;
+    assertInserted(cubeStickers(algorithm),step.target);
+  }
+  let previousScramble='';
+  for(let i=0;i<4;i++){
+    const exercise=createPracticeExercise('f2l',{caseIds:['ready-left'],previousScramble,random:()=>0});
+    assert.notEqual(exercise.scramble,previousScramble);
+    assertInserted(cubeStickers(exercise.setup+' '+exercise.solution),exercise.target);
+    previousScramble=exercise.scramble;
+  }
+  for(const caseIds of [[],['missing'],['ready-left','missing']])assert.throws(()=>createPracticeExercise('f2l',{caseIds}),/Select valid/);
+  assert.throws(()=>createPracticeExercise('missing'),/Unknown lesson/);
+});
 
 test('lesson orientation rotates the physical state, target pieces and solution together',()=>{
   const faces={U:'D',D:'U',R:'L',L:'R',F:'F',B:'B'};

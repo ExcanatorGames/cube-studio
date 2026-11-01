@@ -4,6 +4,16 @@ import {CUBE_COLORS, cubeFrame, cubeStickers, cubeOrientationId, validOrientatio
 import {validateSnapshot} from '../web/device-storage.js';
 import {splitMethods, selectedSplitSteps} from '../web/split-methods.js';
 
+test('lesson preparation defaults to random, persists setup mode and recovers invalid values',()=>{
+  assert.equal(validateSnapshot({}).snapshot.settings.lessonScrambleMode,'random');
+  const saved=validateSnapshot({settings:{lessonScrambleMode:'setup'}});
+  assert.deepEqual(saved.issues,[]);
+  assert.equal(saved.snapshot.settings.lessonScrambleMode,'setup');
+  const recovered=validateSnapshot({settings:{lessonScrambleMode:'unknown'}});
+  assert.equal(recovered.snapshot.settings.lessonScrambleMode,'random');
+  assert.ok(recovered.issues.includes('settings.lessonScrambleMode'));
+});
+
 test('all 24 top/front frames preserve the physical scramble and turn directions', () => {
   const vectors = {R:[1,0,0],L:[-1,0,0],U:[0,1,0],D:[0,-1,0],F:[0,0,1],B:[0,0,-1]};
   const algorithm = "R U2 F' D L2 B' U R' F2";

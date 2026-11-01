@@ -65,6 +65,7 @@ let settings = {
   orientation: 'white-top',
   scrambleOrientation: 'default',
   lessonOrientation: 'white-bottom',
+  lessonScrambleMode: 'random',
   crossPosition: 'bottom',
   solveColors: 'white',
   ...saved.settings,
@@ -127,7 +128,7 @@ const cubeOrientation = () =>
 const displayedScramble = () => orientAlgorithm(scramble, cubeOrientation(), getScrambleOrientation(settings));
 const lessonScrambleKind = () => {
   const {top, front} = orientationColors(getScrambleOrientation(settings));
-  return `${exerciseCase()?.title} · ${top} on top · ${front} in front`;
+  return `4 pairs · ${top} on top · ${front} in front`;
 };
 const lessonExercise = () => lessonSession.exercise;
 const timerVisible = () =>
@@ -177,7 +178,8 @@ const coordinatedStorage = createCoordinatedStorage({
     orientationChanged ||=
       settings.orientation !== snapshot.settings.orientation ||
       settings.scrambleOrientation !== snapshot.settings.scrambleOrientation ||
-      settings.lessonOrientation !== snapshot.settings.lessonOrientation;
+      settings.lessonOrientation !== snapshot.settings.lessonOrientation ||
+      settings.lessonScrambleMode !== snapshot.settings.lessonScrambleMode;
     settings = snapshot.settings;
   },
   onChange() {
@@ -534,9 +536,6 @@ function resetTimerContext() {
 function currentLesson() {
   return lessonSession.lesson;
 }
-function exerciseCase() {
-  return lessonSession.exerciseCase;
-}
 function setPracticeCases(caseIds) {
   if (busy() || lessonSession.context.kind !== 'lesson') return;
   if (!lessonSession.selectCases(caseIds)) {
@@ -789,7 +788,7 @@ function snapshotAttempt() {
     context: lessonSession.context.kind,
     exercise: lesson ? lessonSession.context.exercise : null,
     note: lesson
-      ? `${lesson.title} · ${exerciseCase()?.title || ''} · Pair inserted`
+      ? `${lesson.title} · ${lessonSession.context.exercise.steps.map(step => lesson.cases.find(item => item.id === step.caseId).title).join(' → ')} · 4 pairs inserted`
       : '',
     track: tracking(),
     splitNames: Object.freeze([...names()]),
@@ -1109,7 +1108,11 @@ function requestLessonScramble() {
             { ...selected, ...demoExercise },
             settings.lessonOrientation,
           ),
-        }, globalThis, { getScrambleOrientation: () => getScrambleOrientation(settings) });
+        }, globalThis, {
+          getScrambleOrientation: () => getScrambleOrientation(settings),
+          getScrambleMode: () => settings.lessonScrambleMode,
+          setupCase: selected,
+        });
       }
       showScramble();
       renderLessonAssistance();

@@ -5,7 +5,7 @@ import * as core from '../../web/core.js';
 import * as cube from '../../web/cube.js';
 import * as lessons from '../../web/lessons.js';
 import { lessonCubeSVG } from '../../web/lesson-cube.js';
-import { createExercise } from '../../web/lesson-scrambler.js';
+import { createExercise, createPracticeExercise } from '../../web/lesson-scrambler.js';
 import { createMotion } from '../../web/motion.js';
 
 const boundaryModules = new Set([
@@ -47,8 +47,8 @@ function lessonSamples(lessonId, caseId) {
   const key = lessonId + ':' + caseId;
   if (!exerciseCache.has(key))
     exerciseCache.set(key, [
-      createExercise(lessonId, { caseIds: [caseId] }),
-      createExercise(lessonId, { caseIds: [caseId] }),
+      createPracticeExercise(lessonId, { caseIds: [caseId] }),
+      createPracticeExercise(lessonId, { caseIds: [caseId] }),
     ]);
   return exerciseCache.get(key);
 }

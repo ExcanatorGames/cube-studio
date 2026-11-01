@@ -16,13 +16,13 @@ A lesson teaches one recognizable case or technique. Before implementing it, def
 - **Allowed variations:** changes in colors, destination, or alignment that still exercise the same skill.
 - **Completion condition:** whether an attempt ends after the target step or after finishing the cube.
 
-F2L practice starts with a solved white cross and ends after inserting the target pair. All solutions must preserve already solved other slots. The 24 top-layer cases normalize the corner above front-right: three corner orientations, four edge positions and two edge orientations. Easy Inserts contains the two ready pairs and the two direct three-move insertions. Of the remaining cases, ten have adjacent target pieces (Connected Pairs), and ten have separated pieces (Disconnected Pairs).
+F2L practice starts with a solved white cross and ends after inserting four target pairs on the same cube. Following each generated solution exposes the next enabled case in a different slot. With one cube enabled, its case repeats four times; with multiple enabled cubes, each step samples from that subset. All solutions must preserve already solved other slots. Demonstrations still teach one pair at a time. The 24 top-layer cases normalize the corner above front-right: three corner orientations, four edge positions and two edge orientations. Easy Inserts contains the two ready pairs and the two direct three-move insertions. Of the remaining cases, ten have adjacent target pieces (Connected Pairs), and ten have separated pieces (Disconnected Pairs).
 
 The other 17 cases include six with the corner in its slot (top edge normalized to UR), six with the edge in its slot (top corner normalized to URF), and five with both pieces in their slot but incorrectly oriented. Exclude the already solved pair. Use efficient full solutions with simple slot triggers. Pieces can join during insertion; do not force a separate ready-pair stage.
 
 Opening a group card passes `scopeCaseIds` to the lesson session. Both demonstration selection and practice are restricted to this scope, the first demonstration belongs to it, and the redundant group selector is hidden. The unscoped compatibility view retains its group selector. Use the existing Practice tab to open practice; do not add a redundant practice shortcut button. The main navigation's **Practice** opens a separate list of practice cards. Each recognition group has a card with a native checkbox and a button. Desktop checkboxes are always visible, while phone checkboxes start hidden. A normal tap with no selected mix opens that group. Holding a card on a phone reveals all checkboxes and includes the held group in the saved mix; tapping a card while selection is visible opens the selected mix. There is no separate start button. Returning to the list uses **All practices**; clicking an active navigation tab is a no-op, even from a detail screen.
 
-On desktop and phone, lesson cases appear as a horizontal row of canonical cube toggle buttons at the top. Selecting a cube updates the demonstration and active highlight; overflow scrolls horizontally only when cases do not fit. Keep the same case-picker fieldset across screen sizes, preserving selection across resizing. The demonstration has a larger scramble immediately above the cube and move controls. Keep the cube beside the controls when there is room and stack them in narrow panes. Keep the speed slider inside its pane, with its label and current value together above it and a divider separating it from playback controls. Practice hints show only solution moves, without case titles or slot labels. Canonical previews keep their marked targets and teaching orientation; actual practice backgrounds remain randomized. Insertion ends after the target pair is inserted with the cross restored; no full solve is required.
+On desktop and phone, lesson cases appear as a horizontal row of canonical cube toggle buttons at the top. Selecting a cube updates the demonstration and active highlight; overflow scrolls horizontally only when cases do not fit. Keep the same case-picker fieldset across screen sizes, preserving selection across resizing. The demonstration has a larger scramble immediately above the cube and move controls. Keep the cube beside the controls when there is room and stack them in narrow panes. Keep the speed slider inside its pane, with its label and current value together above it and a divider separating it from playback controls. Practice hints show only solution moves, without case titles or slot labels. Canonical previews keep their marked targets and teaching orientation; actual practice backgrounds remain randomized. Practice ends after four target pairs are inserted with the cross restored; no full solve is required.
 
 Future lessons should define their own starting conditions. A cross lesson, for example, would need different constraints from an F2L insertion lesson.
 
@@ -34,20 +34,21 @@ Each generated exercise contains:
 
 | Field | Meaning |
 | --- | --- |
-| `lessonId` | The lesson the exercise belongs to. |
-| `caseId` | The case or technique being practiced. |
+| `lessonId` | Source lesson of the first pair. |
+| `caseId` | Case of the first pair, used for practice comparisons. |
 | `scramble` | Moves applied from solved in the standard white-top scrambling frame. |
 | `setup` | The equivalent preparation algorithm in the lesson's solving frame. Used to reconstruct the exercise state. |
-| `solution` | The full moves for this variation, including final insertion. |
-| `completion` | `insertion`: target pair solved in its slot, with the cross restored. |
+| `solution` | Full moves for all four insertions in order; one insertion for a demo. |
+| `completion` | `four-insertions` for practice; `insertion` for a demonstration. |
 | `orientation` | The solving frame used to interpret the state and solution. |
-| `target` | The identities of the physical pieces involved in the case. |
+| `target` | All eight target cubies in practice; two for a demonstration. |
 | `slot` | The destination slot, where applicable. |
 | `auf` | The number of quarter turns used to vary top-layer alignment, where applicable. |
+| `steps` | Practice's four ordered cases, each with its own source lesson, case ID, solution, orientation, two targets, slot, and alignment. |
 
 `scramble` and `setup` describe the same physical preparation in different coordinate frames. They are not two algorithms to apply consecutively.
 
-The lesson example and practice exercises share the same case rules. The example uses a consistent canonical case, while practice varies the case within its allowed family. The surrounding scrambled pieces can be random in both.
+The lesson example and each practice step share the same case rules. The example uses a consistent canonical case, while practice varies the case within its allowed family. The surrounding scrambled pieces can be random in both. Practice hints separate the four solutions with middle dots and mark all four pairs. The scramble label says “4 pairs”.
 
 ## Scramble generation starts with a cube state
 
@@ -55,7 +56,7 @@ The goal is a random legal state that satisfies the lesson's conditions. Scrambl
 
 Do not assemble practice scrambles by repeating insertion triggers or appending a short case setup to an otherwise solved cube. A long move sequence alone does not establish useful randomness. Likewise, an unrestricted random scramble does not guarantee the lesson's prerequisites.
 
-The current F2L generator follows this process:
+Single-pair demonstrations follow this process:
 
 1. **Construct a constrained random background.** Keep the four white cross edges and the canonical target pair solved. Randomize the permutations and orientations of the remaining corners and edges.
 2. **Enforce physical legality.** Corner and edge permutation parity must match. Corner twists must sum to zero modulo three, and edge flips must sum to zero modulo two. Centers retain their fixed color relationships.
@@ -67,6 +68,17 @@ The current F2L generator follows this process:
 8. **Avoid an immediate duplicate.** Compare against the previous scramble and generate a different valid preparation if necessary.
 
 The existing implementation uses Fisher–Yates shuffles for the free piece permutations and balances the final free corner and edge orientations to satisfy the twist and flip constraints.
+
+**Settings → Lessons** (`/settings?tab=lessons`) offers Random scrambles and Setup moves for demonstrations. The validated device setting `lessonScrambleMode` is `random` by default or `setup`. In setup mode, `createLessonDemo` uses the selected case's canonical setup, solution, and targets, rather than its worker-generated random example. Both modes honor solving and scramble orientations. Switching modes cancels current playback and resets the demonstration immediately; switching back restores the same random example. Preserve the current four-pair practice exercise and canonical catalog previews. Invalid saved modes recover to `random`.
+
+`createPracticeExercise` constructs a four-pair state instead:
+
+1. Choose all four destination slots in random order. For each step, uniformly sample an enabled case and a top-layer alignment, then rotate its full insertion solution and targets into that slot.
+2. Construct a legal random background with the cross and all four slots solved. Randomize the remaining top-layer pieces, balancing parity, twists, and flips.
+3. Apply the inverse insertion solutions in reverse order to that background. Each forward insertion restores the exact state that exposes the next selected case, while preserving completed slots. Later pairs need only match their chosen case when their step begins.
+4. Solve that constructed state and invert the result to derive one scramble, then convert its notation to the standard scrambling frame. Do not concatenate four solver scrambles. If it duplicates the previous scramble, turn the background's free top layer before constructing the state again.
+
+The guarantee follows the generated solution sequence. A different insertion that changes other unsolved pieces can change subsequent cases. Practice does not receive physical move input or detect completed pairs automatically; the learner stops the timer after the fourth insertion. Each step's targets and moves must transform together when changing orientation, and worker responses and timer snapshots must freeze all steps and nested target arrays.
 
 ## Case variation must preserve the lesson
 
@@ -107,7 +119,7 @@ An exercise is usable only after generation completes successfully. Failed gener
 
 At the start of an attempt, capture an immutable copy of its exercise and scramble. Generating the next exercise must not alter the record for the attempt just completed.
 
-Practice records belong to the generated case and its actual source lesson ID, never the synthetic `mixed` ID. Notes include the unnumbered lesson title, case name, and “Pair inserted”; store `completion: 'insertion'`. They are saved separately on the device, excluded from normal solve history and statistics. They sync through the separate lesson collection and round-trip through CSV with lesson metadata. Practice comparisons match each selected case, its source lesson ID and completion goal, so unified and mixed selections include matching legacy records without rewriting them. Retain earlier records without a completion field as `full-cube`, and retain earlier recognition-only or pairing-only `pair` records, but exclude both from insertion comparisons. Current practice attempts record one elapsed duration and no split times.
+Practice records use the first generated case and its actual source lesson ID, never the synthetic `mixed` ID. Notes include the unnumbered lesson title, all four case names in execution order, and “4 pairs inserted”; store `completion: 'four-insertions'`. They are saved separately on the device, excluded from normal solve history and statistics. They sync through the separate lesson collection and round-trip through CSV with lesson metadata. Practice comparisons match the first case, its source lesson ID and the four-insertion completion goal. Retain earlier `full-cube`, `pair`, single-pair `insertion`, and `three-insertions` records unchanged, but exclude them from four-pair comparisons. Current practice attempts record one elapsed duration and no split times.
 
 ## Adding a future lesson
 
@@ -120,7 +132,7 @@ Practice records belong to the generated case and its actual source lesson ID, n
 7. Preserve the worker, offline, stale-request, and separate-record behavior.
 8. Add physical-state and integration tests before release.
 
-The current generator keeps the canonical cross and target pair solved in a random background, then exposes the case with its separate `setup`. This is valid only when that setup preserves the cross and places the target pieces in the intended case independently of the background. The displayed full solution must insert the target pair efficiently, including when pairing and insertion happen in one motion. Verify these properties independently and extend the generator deliberately for techniques with different prerequisites.
+The single-pair demonstration generator keeps the canonical cross and target pair solved in a random background, then exposes the case with its separate `setup`. This is valid only when that setup preserves the cross and places the target pieces in the intended case independently of the background. The displayed full solution must insert the target pair efficiently, including when pairing and insertion happen in one motion. Verify these properties independently and extend the generator deliberately for techniques with different prerequisites.
 
 Relevant files:
 

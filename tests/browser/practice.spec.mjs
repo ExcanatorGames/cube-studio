@@ -63,6 +63,10 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await expect(page.locator('#timer-card')).not.toHaveClass(/\b(arming|armed|running)\b/);
   await expect(page.locator('#practice-case-list [aria-pressed="true"]')).toHaveCount(9);
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
+  await expect(page.locator('#scramble-type')).toContainText('4 pairs');
+  await page.locator('#lesson-help').click();
+  await expect(page.locator('#lesson-solution')).toBeVisible();
+  expect((await page.locator('#lesson-solution strong').textContent()).split(' · ')).toHaveLength(4);
   expect(await page.locator('#practice-case-picker').evaluate(el=>document.querySelector('#timer-pad').contains(el))).toBe(true);
   await page.screenshot({path:'test-results/desktop-practice-selectors.png'});
   await startKeyboardSolve(page);
@@ -70,6 +74,8 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await finishKeyboardSolve(page);
   await expect.poll(async()=>(await storedState(page)).lessonAttempts.length).toBe(1);
   expect((await storedState(page)).lessonAttempts[0].caseId).not.toBe(omittedId);
+  expect((await storedState(page)).lessonAttempts[0].completion).toBe('four-insertions');
+  expect((await storedState(page)).lessonAttempts[0].note).toContain('4 pairs inserted');
   await page.keyboard.press('Escape');
   await page.getByRole('tab',{name:'Lesson',exact:true}).click();
   await page.setViewportSize({width:390,height:844});

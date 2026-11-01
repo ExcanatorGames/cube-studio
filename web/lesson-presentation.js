@@ -179,7 +179,9 @@ export function createLessonPresentation() {
     $('#lesson-solution').hidden = !enabled || locked;
     $('#timer-card').classList.toggle('lesson-assisted', enabled && !locked);
     if (lesson) {
-      $('#lesson-solution strong').textContent = exercise?.solution || '';
+      $('#lesson-solution strong').textContent = exercise?.steps
+        ? exercise.steps.map(step => step.solution).join(' · ')
+        : exercise?.solution || '';
     }
   }
   return {

@@ -1,4 +1,4 @@
-import { getLesson, orientLessonCase } from './lessons.js';
+import { getLesson, orientLessonCase, freezeLessonExercise, PRACTICE_COMPLETION } from './lessons.js';
 
 export function createLessonSession({
   getSettings,
@@ -109,7 +109,7 @@ export function createLessonSession({
             context.caseIds?.includes(s.caseId) &&
             lesson()?.cases.some(item => item.id === s.caseId &&
               (item.sourceLessonId || context.lessonId) === s.lessonId &&
-              item.completion === s.completion),
+              s.completion === PRACTICE_COMPLETION),
         )
         .sort(
           (a, b) =>
@@ -136,10 +136,7 @@ export function createLessonSession({
             return;
           }
           update({
-            exercise: Object.freeze({
-              ...data.exercise,
-              target: Object.freeze([...data.exercise.target]),
-            }),
+            exercise: freezeLessonExercise(data.exercise),
           });
           ready(data.demoExercise);
         };

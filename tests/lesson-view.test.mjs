@@ -9,7 +9,7 @@ import {cubeStickers} from '../web/cube.js';
 const playbackCase=LESSONS[1].cases.find(item=>item.id==='pair-0-3-0');
 const options={...playbackCase,...createExercise('14',{varied:false,caseIds:[playbackCase.id]})};
 
-function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrientation}={}){
+function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrientation,getScrambleMode,setupCase}={}){
   const elements=new Map(),timers=new Map(),frames=new Map(),listeners=new Map();let now=0,id=0;
   const runtime={
     performance:{now:()=>now},matchMedia:()=>({matches:reduced}),
@@ -21,7 +21,7 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrien
     return elements.get(selector);
   };
   const root={innerHTML:'',querySelector:get,querySelectorAll:()=>[],contains:()=>true,addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);},replaceChildren(){this.innerHTML='';}};
-  const view=createLessonDemo(root,{...lesson,case:exercise},runtime,{getScrambleOrientation});
+  const view=createLessonDemo(root,{...lesson,case:exercise},runtime,{getScrambleOrientation,getScrambleMode,setupCase});
   return {view,get,root,frames,timers,
     click(dataset){listeners.get('click')?.({target:{closest:()=>({dataset})}});},
     speed(value){const input=get('#lesson-animation-speed');input.value=String(value);listeners.get('input')?.({target:input});},
@@ -39,6 +39,28 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrien
   };
 }
 const expected=alg=>lessonCubeSVG(alg,options);
+
+test('lesson preparation switches between short canonical setup moves and the original random example',()=>{
+  let mode='setup';
+  const d=demo({exercise:options,setupCase:playbackCase,getScrambleMode:()=>mode});
+  assert.equal(d.svg(),lessonCubeSVG(playbackCase.setup,playbackCase));
+  assert.equal(d.get('.lesson-demo-setup code').textContent,playbackCase.setup);
+  assert.equal(d.get('.lesson-demo-setup').attrs['aria-label'],'Setup moves');
+  d.click({action:'play'});d.tick(100);
+  mode='random';d.view.setOrientation('white-bottom');
+  assert.equal(d.frames.size+d.timers.size,0,'changing preparation cancels the old playback');
+  assert.equal(d.svg(),expected(options.setup));
+  assert.equal(d.get('.lesson-demo-setup code').textContent,options.setup);
+  assert.equal(d.get('.lesson-demo-setup').attrs['aria-label'],'Demo scramble');
+  mode='setup';d.view.setOrientation('white-top');
+  const top=orientLessonCase(playbackCase,'white-top');
+  assert.equal(d.svg(),lessonCubeSVG(top.setup,top));
+  assert.equal(d.get('.lesson-demo-setup code').textContent,top.setup);
+  d.click({action:'next'});d.tick(480);
+  assert.equal(d.svg(),lessonCubeSVG(top.setup+' '+top.solution.split(' ')[0],top));
+  d.click({action:'reset'});
+  assert.equal(d.svg(),lessonCubeSVG(top.setup,top));
+});
 
 test('lesson cube keeps the solving position at rest, during playback and after reset independently of scramble notation',()=>{
   const d=demo({reduced:true,getScrambleOrientation:()=>'white-top'});

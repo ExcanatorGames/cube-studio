@@ -2,8 +2,10 @@ import {lessonCubeSVG} from './lesson-cube.js';
 import {cubeFrame,orientAlgorithm,orientationColors} from './cube.js';
 import {orientLessonCase} from './lessons.js';
 
-export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrientation}={}){
-  let {setup,scramble,solution,orientation,target}=orientLessonCase(lesson.case,lesson.case.orientation);
+export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrientation,getScrambleMode=()=>'random',setupCase=lesson.case}={}){
+  let scrambleMode=getScrambleMode();
+  const example=()=>scrambleMode==='setup'?setupCase:lesson.case;
+  let {setup,scramble,solution,orientation,target}=orientLessonCase(example(),lesson.case.orientation);
   let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
   root.innerHTML=`<p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-demo-layout"><div class="lesson-cube"></div><div class="lesson-demo-guide"><p class="lesson-view-frame"></p>
     <div class="lesson-moves" aria-label="Moves"></div>
@@ -16,8 +18,9 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
   const frameLabel=frame=>{const {top,front}=orientationColors(frame);return `${top} top · ${front} front`;};
   function paintScramble(){
     const frame=scrambleFrame();
+    find('.lesson-demo-setup').setAttribute('aria-label',scrambleMode==='setup'?'Setup moves':'Demo scramble');
     find('.lesson-demo-setup code').textContent=orientAlgorithm(scramble,orientation,frame);
-    find('.lesson-demo-setup').title=`Scramble with ${cubeFrame(frame).label}. Moves follow the cube's U, F and R faces.`;
+    find('.lesson-demo-setup').title=`${scrambleMode==='setup'?'Set up':'Scramble'} with ${cubeFrame(frame).label}. Moves follow the cube's U, F and R faces.`;
   }
   function paint(){
     find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});
@@ -105,9 +108,10 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
   return {
     setOrientation(next){
       if(destroyed)return;
-      if(next===orientation){if(!turn)paint();else paintScramble();return;}
+      if(next===orientation&&scrambleMode===getScrambleMode()){if(!turn)paint();else paintScramble();return;}
       cancel();step=0;
-      ({setup,scramble,solution,orientation,target}=orientLessonCase(lesson.case,next));
+      scrambleMode=getScrambleMode();
+      ({setup,scramble,solution,orientation,target}=orientLessonCase(example(),next));
       find('.lesson-demo-setup code').textContent=scramble;
       paint();renderControls();
     },

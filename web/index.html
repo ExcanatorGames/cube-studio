@@ -134,6 +134,7 @@
  <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button class="close" aria-label="Close settings" formnovalidate>×</button></div>
  <div class="settings-tabs" role="tablist" aria-label="Settings sections">
   <button id="settings-tab-general" type="button" role="tab" aria-selected="true" aria-controls="settings-panel-general">General</button>
+  <button id="settings-tab-lessons" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-lessons" tabindex="-1">Lessons</button>
   <button id="settings-tab-splits" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-splits" tabindex="-1">Splits</button>
   <button id="settings-tab-app" type="button" role="tab" aria-selected="false" aria-controls="settings-panel-app" tabindex="-1">App &amp; data</button>
  </div>
@@ -147,6 +148,11 @@
  <label class="field">Hold to start (seconds)<input id="hold-duration" type="number" inputmode="decimal" min="0" max="1" step="any" value="0.5" required></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>
+ </section>
+ <section id="settings-panel-lessons" role="tabpanel" aria-labelledby="settings-tab-lessons" hidden>
+  <label class="field">Lesson preparation<select id="lesson-scramble-mode" aria-describedby="lesson-scramble-mode-help"><option value="random">Random scrambles</option><option value="setup">Setup moves</option></select></label>
+  <p id="lesson-scramble-mode-help" class="small muted">Random scrambles vary the surrounding pieces. Setup moves give you a short sequence from a solved cube to learn the case.</p>
+  <button id="save-lesson-settings" type="button" class="primary-button">Save</button>
  </section>
  <section id="settings-panel-splits" role="tabpanel" aria-labelledby="settings-tab-splits" hidden>
   <div class="splits-heading"><div><h2>Your split lists</h2><p class="muted">Choose a list for the timer, or make your own sequence of steps.</p></div><button id="new-split-method" type="button" class="small-button">+ New split list</button></div>

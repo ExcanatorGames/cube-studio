@@ -4,7 +4,7 @@ test('direct page links and refresh restore the page and selected Analysis tab',
   for (const [path, selector] of [
     ['/timer', '#timer-page'], ['/analysis', '#insights-page'],
     ['/analysis/solves', '#history-page'], ['/lessons', '#lesson-list'],
-    ['/practice', '#practice-list'], ['/settings?tab=splits', '#settings-panel-splits'], ['/settings?tab=app', '#settings-panel-app'],
+    ['/practice', '#practice-list'], ['/settings?tab=lessons', '#settings-panel-lessons'], ['/settings?tab=splits', '#settings-panel-splits'], ['/settings?tab=app', '#settings-panel-app'],
   ]) {
     const response = await page.goto(server.url + path);
     expect(response.status()).toBe(200);

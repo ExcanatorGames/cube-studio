@@ -41,7 +41,7 @@ test('timer orientation updates the preview, persists, and stays separate from l
   assert.equal(h.run('settings.orientation'),'white-bottom');
   assert.equal(h.run('scramble'),h.run('lessonSession.context.exercise.scramble'));
   h.element('#lesson-help').onclick();
-  assert.equal(h.element('#lesson-solution strong').textContent,orientAlgorithm(h.run('lessonSession.context.exercise.solution'),'white-bottom','white-top'));
+  assert.equal(h.element('#lesson-solution strong').textContent,h.run('lessonSession.context.exercise.steps').map(step=>orientAlgorithm(step.solution,'white-bottom','white-top')).join(' · '));
   assert.ok(h.run('lessonSession.context.exercise.solution').length);
   assert.match(h.element('#cube-preview').innerHTML,/white on top and green in front/);
   h.run("setPage('timer')");

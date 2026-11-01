@@ -12,7 +12,7 @@ export function initSettingsDialog({
   onTabChange,
   renderSplits,
 }) {
-  const tabs = ['general', 'splits', 'app'];
+  const tabs = ['general', 'lessons', 'splits', 'app'];
   let activeTab = 'general';
   function selectTab(name) {
     name = tabs.includes(name) ? name : 'general';
@@ -60,6 +60,7 @@ export function initSettingsDialog({
     preview();
     $('#hold-duration').value = getSettings().hold / 1000;
     $('#lesson-orientation').value = getSettings().lessonOrientation;
+    $('#lesson-scramble-mode').value = getSettings().lessonScrambleMode || 'random';
     $('#solve-colors').value = getSettings().solveColors || 'white';
     $('#scramble-orientation').value = getSettings().scrambleOrientation || 'default';
     selectTab(tab);
@@ -69,15 +70,17 @@ export function initSettingsDialog({
   $('#open-settings').onclick = event => { if (routeClick(event)) open(); };
   $('#cube-top').onchange = preview;
   $('#cube-front').onchange = preview;
-  $('#save-settings').onclick = () => {
+  function saveSettings() {
     if (busy()) return;
     const top = $('#cube-top').value, front = $('#cube-front').value;
     if (!validOrientation(top, front)) {
+      selectTab('general');
       toast('Choose adjacent colors for the top and front.');
       return;
     }
     const hold = String($('#hold-duration').value).trim();
     if (hold === '' || !Number.isFinite(Number(hold)) || Number(hold) < 0 || Number(hold) > 1) {
+      selectTab('general');
       toast('Enter a hold time from 0 to 1 second.');
       $('#hold-duration').focus();
       return;
@@ -89,11 +92,14 @@ export function initSettingsDialog({
       hold: Math.round(Number(hold) * 1000),
       scrambleOrientation: $('#scramble-orientation').value,
       lessonOrientation,
+      lessonScrambleMode: $('#lesson-scramble-mode').value === 'setup' ? 'setup' : 'random',
       crossPosition: lessonOrientation === 'white-top' ? 'top' : 'bottom',
       solveColors: $('#solve-colors').value,
     };
     save(next);
     $('#settings-dialog').close();
-  };
+  }
+  $('#save-settings').onclick = saveSettings;
+  $('#save-lesson-settings').onclick = saveSettings;
   return { open, selectTab, get tab() { return activeTab; } };
 }
