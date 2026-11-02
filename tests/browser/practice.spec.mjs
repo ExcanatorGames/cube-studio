@@ -42,14 +42,16 @@ test('desktop cube rows choose lesson demos and filter practice cases inside the
   await expect(page.locator('#lesson-demo [data-action="play"]')).toBeEnabled({timeout:20_000});
   const demoLayout=await page.evaluate(()=>{
     const code=document.querySelector('.lesson-demo-setup code');
-    const scramble=code.getBoundingClientRect();
+    const scramble=code.getBoundingClientRect(),cube=document.querySelector('.lesson-cube').getBoundingClientRect();
     return {rowBottom:document.querySelector('#lesson-case-row').getBoundingClientRect().bottom,
       scrambleTop:scramble.top,scrambleBottom:scramble.bottom,fontSize:parseFloat(getComputedStyle(code).fontSize),
-      layoutTop:document.querySelector('.lesson-demo-layout').getBoundingClientRect().top};
+      cubeTop:cube.top,centerOffset:Math.abs(scramble.x+scramble.width/2-cube.x-cube.width/2)};
   });
   expect(demoLayout.rowBottom).toBeLessThanOrEqual(demoLayout.scrambleTop);
   expect(demoLayout.fontSize).toBeGreaterThanOrEqual(22);
-  expect(demoLayout.layoutTop-demoLayout.scrambleBottom).toBeLessThanOrEqual(20);
+  expect(demoLayout.cubeTop-demoLayout.scrambleBottom).toBeGreaterThanOrEqual(0);
+  expect(demoLayout.cubeTop-demoLayout.scrambleBottom).toBeLessThanOrEqual(20);
+  expect(demoLayout.centerOffset).toBeLessThan(1);
   await page.setViewportSize({width:1920,height:1080});
   await expect.poll(()=>row.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   await page.screenshot({path:'test-results/desktop-lesson-selectors.png'});

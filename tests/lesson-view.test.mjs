@@ -40,6 +40,23 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrien
 }
 const expected=alg=>lessonCubeSVG(alg,options);
 
+test('setup moves always use the displayed cube perspective regardless of scramble preferences',()=>{
+  for(const orientation of ['white-bottom','white-top'])for(const scrambleOrientation of ['white-top','white-bottom','blue-red']){
+    const exercise=orientLessonCase(options,orientation);
+    const source=orientLessonCase(playbackCase,orientation);
+    const d=demo({reduced:true,exercise,setupCase:playbackCase,getScrambleMode:()=>'setup',getScrambleOrientation:()=>scrambleOrientation});
+    assert.equal(d.get('.lesson-demo-setup code').textContent,source.setup);
+    assert.equal(d.svg(),lessonCubeSVG(source.setup,source));
+    d.click({action:'next'});
+    assert.equal(d.get('.lesson-demo-setup code').textContent,source.setup);
+    d.click({action:'reset'});
+    assert.equal(d.svg(),lessonCubeSVG(source.setup,source));
+    d.view.setOrientation(orientation==='white-top'?'white-bottom':'white-top');
+    const flipped=orientLessonCase(playbackCase,orientation==='white-top'?'white-bottom':'white-top');
+    assert.equal(d.get('.lesson-demo-setup code').textContent,flipped.setup);
+  }
+});
+
 test('lesson preparation switches between short canonical setup moves and the original random example',()=>{
   let mode='setup';
   const d=demo({exercise:options,setupCase:playbackCase,getScrambleMode:()=>mode});

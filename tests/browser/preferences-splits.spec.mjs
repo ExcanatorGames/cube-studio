@@ -68,7 +68,7 @@ test('Lessons preparation changes the current demo, persists on reload and keeps
   await expect(page.locator('#lesson-demo [data-action="play"]')).toBeEnabled({timeout:20000});
   const random=await code.innerText();
   const source=getLesson('f2l').cases.find(item=>item.group==='Easy Inserts');
-  const setup=orientAlgorithm(source.setup,'white-bottom','white-top');
+  const setup=source.setup;
   expect(random).not.toBe(setup);
   await page.getByRole('link',{name:'Settings',exact:true}).click();
   await page.getByRole('tab',{name:'Lessons',exact:true}).click();
@@ -77,7 +77,12 @@ test('Lessons preparation changes the current demo, persists on reload and keeps
   await page.locator('#save-lesson-settings').click();
   await expect(code).toHaveText(setup);
   await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('aria-label','Setup moves');
+  await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('title',/yellow on top, white on bottom/);
   await expect.poll(async()=>(await storedState(page)).settings.lessonScrambleMode).toBe('setup');
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.locator('#scramble-orientation').selectOption('blue-red');
+  await page.locator('#save-settings').click();
+  await expect(code).toHaveText(setup);
   await page.reload();
   await expect(code).toHaveText(setup,{timeout:20000});
   await page.getByRole('link',{name:'Settings',exact:true}).click();
