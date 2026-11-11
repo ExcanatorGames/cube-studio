@@ -128,7 +128,7 @@ for (const width of [390, 1920]) {
     await openApp(page,server);
     await page.getByRole('link',{name:'Practice',exact:true}).click();
     await expect(page.locator('#practice-list h2,#practice-list h3,#practice-list p,.lesson-card-arrow')).toHaveCount(0);
-    await expect(page.locator('#practice-cards .catalog-case-preview')).toHaveCount(41);
+    await expect(page.locator('#practice-cards .catalog-case-preview')).toHaveCount(57);
     const inspect=()=>page.locator('.practice-card:visible,.catalog-lesson-card:visible').evaluateAll(cards=>cards.map(card=>{
       const rect=card.getBoundingClientRect(),parent=card.parentElement.getBoundingClientRect();
       const strip=card.querySelector('.catalog-case-previews').getBoundingClientRect();
@@ -137,7 +137,7 @@ for (const width of [390, 1920]) {
       return {width:rect.width,parentWidth:parent.width,previews:previews.length,visible:visible.length,stripWidth:strip.width};
     }));
     const verify=rows=>{
-      expect(rows).toHaveLength(6);
+      expect(rows).toHaveLength(10);
       for(const row of rows){
         expect(Math.abs(row.width-row.parentWidth)).toBeLessThan(2);
         expect(row.visible).toBeGreaterThan(0);
@@ -148,8 +148,8 @@ for (const width of [390, 1920]) {
     verify(await inspect());
     await page.screenshot({path:`test-results/practice-cards-${width}.png`,fullPage:true});
     await page.getByRole('link',{name:'Lessons',exact:true}).click();
-    await expect(page.locator('[data-lesson-group]')).toHaveCount(6);
-    await expect(page.locator('#lesson-cards .catalog-case-preview')).toHaveCount(41);
+    await expect(page.locator('[data-lesson-group]')).toHaveCount(10);
+    await expect(page.locator('#lesson-cards .catalog-case-preview')).toHaveCount(57);
     verify(await inspect());
     await page.screenshot({path:`test-results/lesson-cards-${width}.png`,fullPage:true});
     await page.locator('[data-lesson-group="f2l-3"]').click();
@@ -167,10 +167,10 @@ test('Practice lists groups first, opens one directly, and ignores clicks on the
   await openApp(page,server);
   await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.locator('#practice-list')).toBeVisible();
-  await expect(page.locator('.practice-card')).toHaveCount(6);
+  await expect(page.locator('.practice-card')).toHaveCount(10);
   await expect(page.locator('#timer-card')).toBeHidden();
   await expect(page.locator('#start-practice-mix')).toHaveCount(0);
-  await expect(page.getByRole('checkbox')).toHaveCount(6);
+  await expect(page.getByRole('checkbox')).toHaveCount(10);
   await countTransitions(page);
   await page.getByRole('link',{name:'Practice',exact:true}).click();
   expect(await page.evaluate(()=>pageTransitions)).toBe(0);
@@ -196,10 +196,10 @@ test('desktop practice checkboxes are always available and open a saved mix with
   await page.getByRole('link',{name:'Practice',exact:true}).click();
   const corners=page.getByRole('checkbox',{name:'Include F2L · Corner in Slot',exact:true});
   const edges=page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true});
-  await expect(page.getByRole('checkbox')).toHaveCount(6);
+  await expect(page.getByRole('checkbox')).toHaveCount(10);
   await corners.check();await edges.check();
   await corners.uncheck();await edges.uncheck();
-  await expect(page.getByRole('checkbox')).toHaveCount(6);
+  await expect(page.getByRole('checkbox')).toHaveCount(10);
   await corners.check();await edges.check();
   await page.setViewportSize({width:390,height:844});
   await expect(page.getByRole('checkbox')).toHaveCount(0);
@@ -241,7 +241,7 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect(page.locator('#practice-list')).toBeVisible();
   await expect(page.getByRole('checkbox',{name:'Include F2L · Corner in Slot',exact:true})).toBeChecked();
   await page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true}).check();
-  await expect(page.getByRole('checkbox')).toHaveCount(6);
+  await expect(page.getByRole('checkbox')).toHaveCount(10);
   await expect(page.locator('#timer-card')).toBeHidden();
   await expect.poll(async()=> (await storedState(page)).settings.practiceGroups).toEqual(['f2l-2','f2l-3']);
   await page.reload();
@@ -333,3 +333,40 @@ test(`mobile practices keep case cubes at the top and fit above navigation at ${
   expect(new Set(tabs.map(tab=>Math.round(tab.top))).size).toBe(1);
 });
 }
+
+test('last-layer practice keeps yellow on top with the cross on top and saves its steps',async({page,server})=>{
+  test.setTimeout(60_000);
+  await openApp(page,server);
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.locator('#lesson-orientation').selectOption('white-top');
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
+  await page.getByRole('link',{name:'Practice',exact:true}).click();
+  await page.getByRole('link',{name:'Practice Last Layer · PLL Edges',exact:true}).click();
+  await expect(page).toHaveURL(/\/practice\/ll\/pll-edges$/);
+  await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
+  await expect(page.locator('#scramble-type')).toContainText('Last layer');
+  await expect(page.locator('#solve-frame')).toHaveText('Solve: yellow top · green front');
+  await expect(page.locator('#practice-case-list [data-practice-case]')).toHaveCount(4);
+  await page.locator('#lesson-help').click();
+  expect((await page.locator('#lesson-solution strong').textContent()).split(' · ')).toHaveLength(1);
+  await page.locator('#lesson-help').click();
+  await startKeyboardSolve(page);
+  await finishKeyboardSolve(page);
+  await expect.poll(async()=>(await storedState(page)).lessonAttempts.length).toBe(1);
+  const attempt=(await storedState(page)).lessonAttempts[0];
+  expect(attempt.lessonId).toBe('ll');
+  expect(attempt.completion).toBe('practice-steps');
+  expect(attempt.caseIds).toHaveLength(1);
+  expect(attempt.caseIds[0]).toMatch(/^pll-edges-/);
+  expect(attempt.note).toContain('Last Layer · PLL Edges');
+  expect(attempt.note).toContain('1 last-layer step');
+  expect((await storedState(page)).solves).toHaveLength(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('link',{name:'Lessons',exact:true}).click();
+  await page.getByRole('link',{name:/Last Layer · OLL Corners/}).click();
+  await expect(page.locator('#lesson-title')).toHaveText('Last Layer · OLL Corners');
+  await expect(page.locator('[data-lesson-case]')).toHaveCount(7);
+  await expect(page.locator('#lesson-demo .lesson-view-frame')).toHaveText('Solve: yellow top · green front',{timeout:20_000});
+  await expect(page.locator('#lesson-demo .lesson-moves span').first()).toHaveText('R');
+  await page.screenshot({path:'test-results/last-layer-lesson.png'});
+});

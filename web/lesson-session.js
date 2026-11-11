@@ -1,4 +1,4 @@
-import { getLesson, orientLessonCase, freezeLessonExercise, PRACTICE_COMPLETION } from './lessons.js';
+import { getLesson, orientLessonCase, freezeLessonExercise, PRACTICE_COMPLETIONS, practiceStage } from './lessons.js';
 
 /** Cases turned off for practice, remembered per case on this device. */
 export const disabledCaseIds = (settings) =>
@@ -158,16 +158,21 @@ export function createLessonSession({
       update({ assistance: !context.assistance });
       return true;
     },
-    /** Earlier practice attempts comparable with the enabled cases: every pair
-     * of the attempt came from a case that is enabled now. */
+    /** Earlier practice attempts comparable with the enabled cases: every step
+     * of the attempt came from a case that is enabled now, and the attempt
+     * covered the same kinds of step (F2L pairs, each last-layer stage) that
+     * the enabled cases produce now. */
     times(attempts) {
       const cases = lesson()?.cases || [];
+      const stages = (ids) => [...new Set(ids.map(id => practiceStage(cases.find(item => item.id === id))))].sort().join();
+      const current = stages(context.caseIds || []);
       return [...attempts]
         .filter((s) => {
-          if (s.deleted || s.completion !== PRACTICE_COMPLETION) return false;
+          if (s.deleted || !PRACTICE_COMPLETIONS.includes(s.completion)) return false;
           if (Array.isArray(s.caseIds) && s.caseIds.length)
-            return s.caseIds.every(id => context.caseIds?.includes(id) && cases.some(item => item.id === id));
-          return context.caseIds?.includes(s.caseId) &&
+            return s.caseIds.every(id => context.caseIds?.includes(id) && cases.some(item => item.id === id)) &&
+              stages(s.caseIds) === current;
+          return current === 'f2l' && context.caseIds?.includes(s.caseId) &&
             cases.some(item => item.id === s.caseId &&
               (item.sourceLessonId || context.lessonId) === s.lessonId);
         })
@@ -176,7 +181,7 @@ export function createLessonSession({
             Date.parse(a.date) - Date.parse(b.date) || a.id.localeCompare(b.id),
         );
     },
-    /** New four-pair practice exercise. With withDemo, the same worker reply
+    /** New practice exercise: four F2L pairs and/or last-layer steps. With withDemo, the same worker reply
      * also carries a demonstration for the selected demo case. */
     prepare({ withDemo, ready, failed }) {
       if (context.kind !== 'lesson') return;

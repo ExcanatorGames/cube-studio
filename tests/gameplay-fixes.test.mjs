@@ -126,7 +126,7 @@ test('old shared case lists become per-case choices and checked practice groups'
 test('case labels are numbered inside their group and stay the same in every list', () => {
   const cases = getLesson('f2l').cases;
   assert.equal(new Set(cases.map(caseLabel)).size, 41);
-  for (const group of lessonGroups)
+  for (const group of lessonGroups.filter((item) => item.lessonId === 'f2l'))
     group.cases.forEach((item, i) => assert.match(caseLabel(item), new RegExp(` ${i + 1}$`)));
   assert.equal(caseLabel(getLesson('13').cases[1]), 'Easy 2', 'legacy lessons use the same labels');
 });
