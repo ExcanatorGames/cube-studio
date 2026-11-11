@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LESSONS,LESSON_CATALOG,F2L_GROUPS,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
+import {LESSONS,LESSON_CATALOG,F2L_GROUPS,caseLabel,changeLessonFrame,orientLessonCase} from '../web/lessons.js';
 import {createExercise,createPracticeExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers,cubeSVG,cubeFaces} from '../web/cube.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
@@ -74,6 +74,31 @@ test('one F2L lesson covers all 41 standard cases in the video groups without du
   }
   assert.equal(seen.size,41);
   assert.ok(!seen.has('4,0,8,0'),'solved pair is not a practice case');
+});
+
+test('setup moves and the displayed solution cancel exactly for every F2L case',()=>{
+  const solved=new Cube().asString();
+  for(const item of LESSON_CATALOG[0].cases){
+    assert.equal(item.setup,Cube.inverse(item.solution),`${caseLabel(item)} setup is the inverse of its solution`);
+    assert.equal(new Cube().move(item.setup+' '+item.solution).asString(),solved,`${caseLabel(item)} returns to solved`);
+  }
+});
+
+test('each F2L group lists mirror cases next to each other, right-hand version first',()=>{
+  const mirror=algorithm=>algorithm.split(' ').map(move=>({R:'F',F:'R',U:'U'})[move[0]]+(move.endsWith('2')?'2':move.endsWith("'")?'':"'")).join(' ');
+  const key=algorithm=>['','U','U2',"U'"].map(turn=>targetStateKey(new Cube().move(algorithm+' '+turn))).sort().join('|');
+  const cases=LESSON_CATALOG[0].cases;
+  for(const group of F2L_GROUPS){
+    const items=cases.filter(item=>item.group===group);
+    for(let i=0;i<items.length;){
+      const twin=items.findIndex(other=>key(other.setup)===key(mirror(items[i].setup)));
+      assert.ok(twin>=0,`${caseLabel(items[i])} has its mirror in ${group}`);
+      if(twin===i){i++;continue;}
+      assert.equal(twin,i+1,`${caseLabel(items[i])} is followed by its mirror`);
+      assert.match(items[i].solution,/R U(2|')? R'$/,`${caseLabel(items[i])} is the right-hand version`);
+      i+=2;
+    }
+  }
 });
 
 test('every pairing solution is as short as an independently searched route using basic slot triggers',()=>{
