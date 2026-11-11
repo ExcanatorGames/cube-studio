@@ -42,7 +42,7 @@ test('navigation, opening and leaving lessons show only the matching header grou
   h.element('#insight-period').value='7';h.element('#insight-period').onchange();
   h.element('nav-lessons').onclick();assertContext(h,null);
   assert.match(h.element('#lesson-cards').innerHTML,/<strong>F2L · Easy Inserts<\/strong>/);
-  assert.equal((h.element('#lesson-cards').innerHTML.match(/data-lesson=/g)||[]).length,6);
+  assert.equal((h.element('#lesson-cards').innerHTML.match(/data-lesson=/g)||[]).length,10);
   assert.doesNotMatch(h.element('#lesson-cards').innerHTML,/<strong>\d/);
   h.element('#lesson-cards').onclick({target:{closest:()=>({dataset:{lesson:'13'}})}});
   assertContext(h,'lesson');assert.equal(h.element('#lesson-title').textContent,'Use one F2L pair');

@@ -123,7 +123,7 @@ export function createLessonPresentation() {
 
   function renderLessonCases(lesson, timerContext, orientation) {
     const list = $('#lesson-case-list');
-    const grouped = ['f2l', 'mixed'].includes(lesson.id);
+    const grouped = ['f2l', 'll', 'mixed'].includes(lesson.id);
     const selected = lesson.cases.find(item => item.id === timerContext.demoCaseId);
     const groups = [...new Set(lesson.cases.map(item => item.group))];
     $('#lesson-group-field').hidden = !grouped || groups.length === 1;

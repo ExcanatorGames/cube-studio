@@ -15,7 +15,7 @@ import { initPWA } from './pwa.js';
 import { cubeSVG, cubeFrame, orientAlgorithm, orientTargets, orientationColors, validOrientation, getScrambleOrientation } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
-import { orientLessonCase, caseLabel } from './lessons.js';
+import { orientLessonCase, caseLabel, exerciseContents, exerciseCompletion } from './lessons.js';
 import { createLessonDemo } from './lesson-view.js';
 import { initMobileNavigation } from './mobile-navigation.js';
 import { createMotion } from './motion.js';
@@ -120,14 +120,15 @@ const tracking = () =>
   timing.state === 'running'
     ? timing.activeAttempt.track
     : lessonSession.context.kind !== 'lesson' && settings.track;
+// Last-layer practice keeps yellow on top whatever the cross position.
 const cubeOrientation = () =>
   lessonSession.context.kind === 'lesson'
-    ? settings.lessonOrientation
+    ? lessonSession.exercise?.orientation ?? settings.lessonOrientation
     : settings.orientation;
 const displayedScramble = () => orientAlgorithm(scramble, cubeOrientation(), getScrambleOrientation(settings));
 const lessonScrambleKind = () => {
   const {top, front} = orientationColors(getScrambleOrientation(settings));
-  return `4 pairs · ${top} on top · ${front} in front`;
+  return `${exerciseContents(lessonSession.context.exercise)} · ${top} on top · ${front} in front`;
 };
 const lessonExercise = () => lessonSession.exercise;
 const timerVisible = () =>
@@ -829,7 +830,7 @@ function snapshotAttempt() {
     context: lessonSession.context.kind,
     exercise: lesson ? lessonSession.context.exercise : null,
     note: lesson
-      ? `${lessonSession.context.title} · ${lessonSession.context.exercise.steps.map(step => caseLabel(lesson.cases.find(item => item.id === step.caseId))).join(' → ')} · 4 pairs inserted`
+      ? `${lessonSession.context.title} · ${lessonSession.context.exercise.steps.map(step => caseLabel(lesson.cases.find(item => item.id === step.caseId))).join(' → ')} · ${exerciseCompletion(lessonSession.context.exercise)}`
       : '',
     track: tracking(),
     splitNames: Object.freeze([...names()]),

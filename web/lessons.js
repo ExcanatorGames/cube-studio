@@ -1,6 +1,9 @@
 import {orientAlgorithm,cubeStickers} from './cube.js';
 
 export const PRACTICE_COMPLETION='four-insertions';
+// Practice that includes last-layer steps, alone or after four F2L pairs.
+export const PRACTICE_STEPS_COMPLETION='practice-steps';
+export const PRACTICE_COMPLETIONS=Object.freeze([PRACTICE_COMPLETION,PRACTICE_STEPS_COMPLETION]);
 export function freezeLessonExercise(exercise){
   return Object.freeze({...exercise,target:Object.freeze([...exercise.target]),
     ...(exercise.steps?{steps:Object.freeze(exercise.steps.map(freezeLessonExercise))}:{})});
@@ -139,7 +142,42 @@ const f2lCases=F2L_GROUPS.flatMap(group=>CASE_ORDER[group].map((id,index)=>{
   return Object.freeze({...item,label:`${GROUP_LABELS[group]} ${index+1}`});
 }));
 if(f2lCases.length!==allCases.size)throw Error('Every F2L case needs a place in CASE_ORDER');
-const caseLabels=new Map(f2lCases.map(item=>[item.id,item.label]));
+
+// Last layer, taught as 2-look OLL then 2-look PLL with yellow on top. Each
+// group is one solving step; a step's cases are recognized after the earlier
+// steps are done. Every algorithm uses face turns only and keeps the first two
+// layers solved. Step order matters: practice presents one enabled case per
+// step, in this order, on the same cube.
+export const LAST_LAYER_STAGES=Object.freeze(['oll-edges','oll-corners','pll-corners','pll-edges']);
+const LAST_LAYER_GROUPS=Object.freeze({'oll-edges':'OLL Edges','oll-corners':'OLL Corners','pll-corners':'PLL Corners','pll-edges':'PLL Edges'});
+const lastLayerAlgorithms=[
+  ['oll-edges','line','Line','Two opposite edges show yellow',"F R U R' U' F'",'Hold the line left to right, then orient the other two edges.'],
+  ['oll-edges','l','L','Two adjacent edges show yellow',"F U R U' R' F'",'Hold the L at the back left, then orient the other two edges.'],
+  ['oll-edges','dot','Dot','No edges show yellow',"F R U R' U' F' U2 F U R U' R' F'",'Make a line, then finish with the L algorithm.'],
+  ['oll-corners','sune','Sune','One corner yellow up',"R U R' U R U2 R'",'Put the yellow corner at the front left; the front right corner shows yellow at the front.'],
+  ['oll-corners','anti-sune','Anti-Sune','One corner yellow up, mirrored',"R U2 R' U' R U' R'",'Put the yellow corner at the back right; the front left corner shows yellow at the front.'],
+  ['oll-corners','h','H','No corners up, two pairs of headlights',"R U R' U R U' R' U R U2 R'",'Hold the headlights on the left and right.'],
+  ['oll-corners','pi','Pi','No corners up, one pair of headlights',"R U2 R2 U' R2 U' R2 U2 R",'Hold the headlights on the left.'],
+  ['oll-corners','headlights','Headlights','Two adjacent corners up, headlights',"R2 D R' U2 R D' R' U2 R'",'Hold the headlights at the front.'],
+  ['oll-corners','t','T','Two adjacent corners up, no headlights',"L F R' F' L' F R F'",'Hold the yellow corners on the right; the left corners show yellow at the front and back.'],
+  ['oll-corners','bowtie','Bowtie','Two diagonal corners up',"R' F R B' R' F' R B",'Hold the yellow corners at the front right and back left, with the front left corner showing yellow at the front.'],
+  ['pll-corners','adjacent','Adjacent swap','Headlights on one side',"R U R' U' R' F R2 U' R' U' R U R' F'",'Hold the headlights on the left and swap the two right corners.'],
+  ['pll-corners','diagonal','Diagonal swap','No headlights',"F R U' R' U' R U R' F' R U R' U' R' F R F'",'Swap the front right and back left corners.'],
+  ['pll-edges','ua','Ua perm','Three edges cycle counterclockwise',"R U' R U R U R U' R' U' R2",'Hold the solved side at the back.'],
+  ['pll-edges','ub','Ub perm','Three edges cycle clockwise',"R2 U R U R' U' R' U' R' U R'",'Hold the solved side at the back.'],
+  ['pll-edges','h-perm','H perm','Opposite edges swap',"R2 U2 R U2 R2 U2 R2 U2 R U2 R2",'Either side can face you.'],
+  ['pll-edges','z-perm','Z perm','Adjacent edges swap in two pairs',"R' U' R2 U R U R' U' R U R U' R U' R' U2",'Hold one swapped pair at the front and right.'],
+];
+const lastLayerCases=lastLayerAlgorithms.map(([stage,key,label,title,solution,description])=>Object.freeze({
+  ...defineCase(`${stage}-${key}`,title,solution,description,LAST_LAYER_GROUPS[stage]),
+  // The last layer is always solved on top; the cross position only applies
+  // to F2L, so these cases keep yellow up in every preference.
+  fixedOrientation:true,target:Object.freeze([]),completion:'last-layer-step',
+  stage,label,sourceLessonId:'ll',
+}));
+// Practice steps and cases without a last-layer stage are F2L pairs.
+export const practiceStage=item=>item?.stage||'f2l';
+const caseLabels=new Map([...f2lCases,...lastLayerCases].map(item=>[item.id,item.label]));
 /** Short, stable case name such as "Easy 3"; the same in every list and mix. */
 export function caseLabel(item){return caseLabels.get(item.id)||item.title;}
 /** Full case name for tooltips, notes and screen readers. */
@@ -147,6 +185,8 @@ export function caseName(item){const label=caseLabel(item);return label===item.t
 export const LESSON_CATALOG=Object.freeze([
   defineLesson('f2l','F2L','41 cases · 6 practice groups',
     'Learn to pair and insert a corner and edge. Each practice scramble gives you four pairs from your enabled cases. Practice any group, or mix groups together.',f2lCases),
+  defineLesson('ll','Last Layer','2-look OLL and PLL · 16 cases',
+    'Orient the last layer in two steps, then permute it in two steps, with yellow on top. Each practice scramble gives you one enabled case for each step, in solving order.',lastLayerCases),
 ]);
 export function getLesson(id){
   if(id==='mixed')return defineLesson('mixed','Mixed practice','Choose lessons and groups','',LESSON_CATALOG.flatMap(lesson=>lesson.cases));
@@ -161,7 +201,9 @@ export function changeLessonFrame(algorithm){
 
 // Keep the same physical exercise when turning the cube over, including its
 // move notation and the identities of the two marked pieces. Green stays front.
+// Last-layer cases keep yellow on top whatever the cross position.
 function orientLessonStep(exercise,orientation){
+  if(exercise.fixedOrientation)orientation=exercise.orientation;
   const flip=exercise.orientation!==orientation;
   return {...exercise,orientation,
     solution:flip?changeLessonFrame(exercise.solution):exercise.solution,
@@ -173,10 +215,28 @@ function orientLessonStep(exercise,orientation){
   };
 }
 export function orientLessonCase(exercise,orientation){
-  const setup=exercise.orientation!==orientation?changeLessonFrame(exercise.setup):exercise.setup;
-  return {...orientLessonStep(exercise,orientation),setup,scramble:setup,
-    ...(exercise.steps?{steps:exercise.steps.map(step=>orientLessonStep(step,orientation))}:{}),
-  };
+  const oriented=orientLessonStep(exercise,orientation);
+  const setup=oriented.orientation!==exercise.orientation?changeLessonFrame(exercise.setup):exercise.setup;
+  // A practice cube held with the cross on top is turned over (z2) before
+  // its last layer, which is always solved with yellow on top.
+  const steps=exercise.steps?.map(step=>orientLessonStep(step,orientation))
+    .map((step,i,all)=>i&&step.orientation!==all[i-1].orientation?{...step,rotation:'z2'}:step);
+  return {...oriented,setup,scramble:setup,...(steps?{steps}:{})};
+}
+/** Short description of what a practice exercise contains, such as
+ * "4 pairs", "Last layer" or "4 pairs + last layer". */
+export function exerciseContents(exercise){
+  const steps=exercise?.steps||[];
+  const pairs=steps.filter(step=>practiceStage(step)==='f2l').length;
+  const lastLayer=steps.length>pairs;
+  return [pairs?`${pairs} pairs`:'',lastLayer?(pairs?'last layer':'Last layer'):''].filter(Boolean).join(' + ');
+}
+/** Note ending for a finished practice attempt. */
+export function exerciseCompletion(exercise){
+  const steps=exercise?.steps||[];
+  const pairs=steps.filter(step=>practiceStage(step)==='f2l').length;
+  const lastLayer=steps.length-pairs;
+  return [pairs?`${pairs} pairs inserted`:'',lastLayer?`${lastLayer} last-layer ${lastLayer===1?'step':'steps'}`:''].filter(Boolean).join(' + ');
 }
 
 /** Hint text for one pair: a cube rotation that brings its slot to the front

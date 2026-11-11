@@ -51,7 +51,7 @@ function shortestTriggerCosts(){
 const triggerCosts=shortestTriggerCosts();
 
 test('one F2L lesson covers all 41 standard cases in the video groups without duplicates',()=>{
-  assert.equal(LESSON_CATALOG.length,1);
+  assert.deepEqual(LESSON_CATALOG.map(lesson=>lesson.id),['f2l','ll']);
   const lesson=LESSON_CATALOG[0];
   assert.deepEqual(F2L_GROUPS.map(group=>lesson.cases.filter(item=>item.group===group).length),[4,10,6,6,10,5]);
   const seen=new Set();
@@ -144,7 +144,7 @@ test('the two lessons cover all 24 top-layer configurations exactly once',()=>{
 test('every case supports all slots and alignments with random backgrounds and independently verified hints',()=>{
   let seed=235178;const next=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
   const solvedStickers=cubeStickers(),crossCubies=['0,-1,1','1,-1,0','0,-1,-1','-1,-1,0'];
-  for(const lesson of LESSON_CATALOG)for(const item of lesson.cases){
+  for(const lesson of LESSON_CATALOG.filter(lesson=>lesson.id==='f2l'))for(const item of lesson.cases){
     const backgrounds=new Set();
     for(let slot=0;slot<4;slot++)for(let auf=0;auf<4;auf++){
       const choices=[slot/4,auf/4];
