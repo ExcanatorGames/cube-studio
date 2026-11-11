@@ -41,7 +41,11 @@ test('timer orientation updates the preview, persists, and stays separate from l
   assert.equal(h.run('settings.orientation'),'white-bottom');
   assert.equal(h.run('scramble'),h.run('lessonSession.context.exercise.scramble'));
   h.element('#lesson-help').onclick();
-  assert.equal(h.element('#lesson-solution strong').textContent,h.run('lessonSession.context.exercise.steps').map(step=>orientAlgorithm(step.solution,'white-bottom','white-top')).join(' · '));
+  // Hints turn each slot to the front, so the moves match the taught front slot
+  // (front left with the cross on top) and rotations reverse direction.
+  const flipY={y:"y'","y'":'y'};
+  assert.equal(h.element('#lesson-solution strong').textContent,h.run('lessonSession.context.exercise.steps').map(step=>[flipY[step.rotation]??step.rotation,orientAlgorithm(step.insert,'white-bottom','white-top')].filter(Boolean).join(' ')).join(' · '));
+  assert.ok(!/[RB]/.test(h.element('#lesson-solution strong').textContent),'front-left inserts only use L, F and D');
   assert.ok(h.run('lessonSession.context.exercise.solution').length);
   assert.match(h.element('#cube-preview').innerHTML,/white on top and green in front/);
   h.run("setPage('timer')");

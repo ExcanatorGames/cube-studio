@@ -6,6 +6,8 @@ import {getLesson,changeLessonFrame,freezeLessonExercise,PRACTICE_COMPLETION} fr
 const slots=['Front right','Back right','Back left','Front left'];
 const slotCorners=[4,7,6,5],slotEdges=[8,11,10,9];
 const topTurns=['','U','U2',"U'"],undoTop=['',"U'",'U2','U'];
+// Whole-cube turns that bring slot 1, 2 or 3 to the front right (slot 0).
+const rotations=['','y','y2',"y'"];
 function simplify(algorithm){
   const moves=[];
   for(const token of algorithm.split(/\s+/).filter(Boolean)){
@@ -63,12 +65,18 @@ export function createPracticeExercise(lessonId='f2l',{previousScramble='',rando
   if(!cases.length||cases.some(item=>!item))throw Error('Select valid lesson cases');
   if(!initialized){Cube.initSolver();initialized=true;}
   const availableSlots=[0,1,2,3];
+  let facing=0;
   const steps=Array.from({length:slots.length},()=>{
     const slot=availableSlots.splice(Math.floor(random()*availableSlots.length),1)[0];
     const auf=Math.floor(random()*4),selected=cases[Math.floor(random()*cases.length)];
+    const insert=selected.alignmentSolutions[auf]||simplify([undoTop[auf],selected.solution].filter(Boolean).join(' '));
+    // Hints turn the cube so each slot is solved at the front right, as taught.
+    // Rotations are relative to where the previous pair left the cube.
+    const rotation=rotations[(slot-facing+4)%4];
+    facing=slot;
     return {
       lessonId:selected.sourceLessonId||lessonId,caseId:selected.id,
-      solution:rotateSlot(selected.alignmentSolutions[auf]||simplify([undoTop[auf],selected.solution].filter(Boolean).join(' ')),slot),
+      solution:rotateSlot(insert,slot),insert,rotation,
       orientation:selected.orientation,target:rotateTarget(selected.target,slot),
       slot:slots[slot],auf,completion:selected.completion,
     };

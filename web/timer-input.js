@@ -2,6 +2,7 @@ import { $$ } from './dom.js';
 
 export function initTimerInput({
   pad,
+  surface,
   getState,
   timerVisible,
   arm,
@@ -18,14 +19,11 @@ export function initTimerInput({
     touches.clear();
     gesture = false;
   }
-  pad.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('#practice-case-picker')) return;
-    if (e.target.closest('#fullscreen-splits') && getState() !== 'running')
-      return;
+  function down(e, capture) {
     if (e.pointerType === 'touch') {
       e.preventDefault();
       touches.add(e.pointerId);
-      pad.setPointerCapture(e.pointerId);
+      capture.setPointerCapture(e.pointerId);
       if (getState() === 'running') {
         if (!gesture) {
           gesture = true;
@@ -33,22 +31,24 @@ export function initTimerInput({
         }
         return;
       }
-      if (touches.size === 2) {
+      // Fingers left down from the tap that stopped the timer never arm it;
+      // a new hold starts once every finger has been lifted.
+      if (touches.size === 2 && !gesture) {
         gesture = true;
         arm();
       }
     } else if (e.button === 0) {
       if (getState() === 'running') {
+        e.preventDefault();
         mark();
         return;
       }
       keyboardHeld = true;
-      pad.setPointerCapture(e.pointerId);
+      capture.setPointerCapture(e.pointerId);
       arm();
     }
-  });
-  pad.addEventListener('pointerup', (e) => {
-    if (e.target.closest('#practice-case-picker')) return;
+  }
+  function up(e) {
     if (e.pointerType === 'touch') {
       e.preventDefault();
       touches.delete(e.pointerId);
@@ -62,12 +62,38 @@ export function initTimerInput({
       if (getState() === 'armed') start();
       else disarm();
     }
-  });
-  pad.addEventListener('pointercancel', () => {
+  }
+  function cancelPointers() {
     touches.clear();
     gesture = false;
     keyboardHeld = false;
     disarm();
+  }
+  // Case buttons inside the pad keep their own clicks and never arm the timer.
+  const control = (e) => e.target.closest('#practice-case-picker');
+  pad.addEventListener('pointerdown', (e) => {
+    if (control(e)) return;
+    if (e.target.closest('#fullscreen-splits') && getState() !== 'running')
+      return;
+    down(e, pad);
+  });
+  pad.addEventListener('pointerup', (e) => {
+    if (control(e)) return;
+    up(e);
+  });
+  pad.addEventListener('pointercancel', cancelPointers);
+  // While a solve runs, the whole timer card (including its toolbar) stops
+  // the timer or marks a split. Outside a solve only the pad starts timing.
+  surface?.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#timer-pad') || getState() !== 'running') return;
+    down(e, surface);
+  });
+  surface?.addEventListener('pointerup', (e) => {
+    if (e.target.closest('#timer-pad')) return;
+    up(e);
+  });
+  surface?.addEventListener('pointercancel', (e) => {
+    if (!e.target.closest('#timer-pad')) cancelPointers();
   });
   window.addEventListener('keydown', (e) => {
     if (
@@ -83,12 +109,16 @@ export function initTimerInput({
     }
     if (!timerVisible()) return;
     if (e.code === 'Space') {
-      if (e.target.tagName === 'BUTTON') return;
-      e.preventDefault();
       if (getState() === 'running') {
+        e.preventDefault();
         mark();
         return;
       }
+      // Space belongs to the timer inside the timer card, even when one of its
+      // buttons has focus after a click. Other buttons keep their default.
+      if (e.target.tagName === 'BUTTON' && !e.target.closest?.('#timer-card'))
+        return;
+      e.preventDefault();
       keyboardHeld = true;
       arm();
     }
@@ -109,5 +139,9 @@ export function initTimerInput({
     reset();
     disarm();
   });
-  return { reset };
+  return {
+    reset,
+    // A key, mouse button or two fresh fingers are still holding the timer.
+    held: () => keyboardHeld || (gesture && touches.size >= 2),
+  };
 }

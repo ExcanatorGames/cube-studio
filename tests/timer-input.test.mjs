@@ -57,14 +57,17 @@ test('non-split keyboard timing applies the same protection to Space and Enter',
   }
 });
 
-test('split timing still accepts rapid consecutive split and finish taps',()=>{
+test('split timing ignores a stray tap after starting, then accepts rapid split and finish taps',()=>{
   const h=harness();h.run('setTracking(true)');
   const p=pointers(h);p.down();h.arm();p.up();
+  h.advance(100);p.down();p.up();
+  assert.equal(h.run('timing.splitMarks.length'),0,'a tap right after the start is not a split');
+  h.advance(250);
   const count=h.run('timing.activeAttempt.splitNames.length');
   for(let i=1;i<=count;i++){
     h.advance(50);p.down();p.up();
     assert.equal(h.run('timing.state'),i===count?'stopped':'running');
   }
-  assert.equal(h.run('all()[0].ms'),50*count);
-  assert.deepEqual(Array.from(h.run('all()[0].splits'),s=>s.ms),Array.from({length:count},(_,i)=>(i+1)*50));
+  assert.equal(h.run('all()[0].ms'),350+50*count);
+  assert.deepEqual(Array.from(h.run('all()[0].splits'),s=>s.ms),Array.from({length:count},(_,i)=>350+(i+1)*50));
 });

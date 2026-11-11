@@ -62,6 +62,10 @@ export function createTimerSession({
     reset,
     disarm,
     stop,
+    // Time left before a new hold may begin after a stop or cancel.
+    cooldownRemaining() {
+      return Math.max(0, 700 - (wallNow() - lastFinished));
+    },
     arm(hold, ready) {
       if (busy() || wallNow() - lastFinished < 700) return false;
       reset();
@@ -92,7 +96,9 @@ export function createTimerSession({
     },
     mark() {
       if (state !== 'running') return null;
-      if (!attempt.track && now() - started < 350) return null;
+      // Ignore a stray tap just after the starting release. Later split taps
+      // may be rapid so skipped steps can still be marked.
+      if (now() - started < 350) return null;
       if (!attempt.track || marks.length >= attempt.splitNames.length - 1)
         return { finished: stop() };
       marks = [

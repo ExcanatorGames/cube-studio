@@ -28,7 +28,7 @@
  <section id="timer-page" class="page">
   <div class="timer-card" id="timer-card">
    <div class="timer-toolbar">
-    <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button></div>
+    <div class="timer-actions"><button id="new-scramble" class="icon-button" title="New scramble" aria-label="New scramble">↻</button><button id="edit-result" type="button" class="small-button edit-result" title="Add a penalty or note, or delete this result" aria-label="Edit result" hidden>Edit</button></div>
     <button id="lesson-help" type="button" class="small-button" aria-label="Toggle pair indicators and solution" title="Show or hide pair indicators and solution" aria-pressed="false" aria-controls="lesson-solution" hidden>Hints</button>
     <div id="timer-split-control" class="timer-split-control">
      <button id="fullscreen-track" type="button" class="small-button" aria-pressed="false" title="Enable or disable split timing">Splits</button>
@@ -45,6 +45,7 @@
      <span id="scramble-frame" class="scramble-frame muted"></span>
      <div id="fullscreen-scramble" class="fullscreen-scramble" aria-label="Scramble" aria-live="polite">…</div>
      <div id="cube-preview" class="cube-preview"></div>
+     <span id="solve-frame" class="scramble-frame solve-frame muted" hidden></span>
      <div id="lesson-solution" class="lesson-solution" hidden><strong></strong></div>
      <div class="timer-readout">
       <div id="timer-hint" class="timer-hint" aria-live="polite" hidden></div>
@@ -144,7 +145,6 @@
  <p id="scramble-orientation-help" class="small muted">The position to hold your cube when following scramble moves in the timer, lessons and practice.</p>
  <label class="field">Cross position<select id="lesson-orientation" aria-describedby="cross-position-help"><option value="white-bottom">Cross on bottom</option><option value="white-top">Cross on top</option></select></label>
  <p id="cross-position-help" class="small muted">Your solving preference. White-cross lessons use this position.</p>
- <label class="field">Solving colors<select id="solve-colors"><option value="neutral">Color neutral · any color</option><option value="white-yellow">White and yellow</option><option value="white">Always white</option></select></label>
  <label class="field">Hold to start (seconds)<input id="hold-duration" type="number" inputmode="decimal" min="0" max="1" step="any" value="0.5" required></label>
  <div class="keyboard-help"><span><kbd>space</kbd> Start / stop</span><span><kbd>↵</kbd> Split</span><span><kbd>esc</kbd> Cancel</span></div>
  <button id="save-settings" type="button" class="primary-button">Save</button>

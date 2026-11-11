@@ -56,7 +56,7 @@ test('legacy lessons expose their demos and restore practice subsets independent
   assert.equal(h.run('lessonSession.context.demoCaseId'),'ready-left');
   assert.equal(h.element('#lesson-case-ready-left').getAttribute('aria-current'),'true');
   assert.equal(h.element('#lesson-case-ready-right').getAttribute('aria-current'),'false');
-  assert.equal(h.element('#lesson-case-title').textContent,'Ready left');
+  assert.equal(h.element('#lesson-case-title').textContent,'Easy 2 · Ready left');
   h.run("setPracticeCases(['ready-left'])");
   assert.equal(h.run('lessonSession.context.caseIds.join()'),'ready-left');
   assert.equal(h.run('lessonSession.context.exercise.caseId'),'ready-left');
@@ -85,9 +85,14 @@ test('changing selected cases or lessons ignores every superseded worker result'
   h.run("openLesson('14')");
   const selected=LESSONS[1].cases[3].id;
   h.element('#lesson-case-list').onclick({target:{closest:()=>({dataset:{lessonCase:selected}})}});
+  // Choosing a demonstration only requests a new demonstration.
   assert.equal(h.lessonMessages.at(-1).demoCaseId,selected);
-  h.lessonRequests[2]();assert.equal(h.run('lessonSession.context.exercise'),null);
-  h.lessonRequests[3]();assert.equal(h.run('lessonSession.context.exercise.lessonId'),'14');
+  assert.equal(h.lessonMessages.at(-1).demoOnly,true);
+  assert.equal(h.lessonMessages.length,4);
+  h.lessonRequests[2]();assert.equal(h.run('lessonSession.context.exercise.lessonId'),'14','the practice scramble is kept');
+  const destroys=h.demoDestroys;
+  h.lessonRequests[3]();assert.equal(h.run('lessonDemo !== null'),true);
+  assert.equal(h.demoDestroys,destroys);
 });
 
 test('selected case metadata is saved, locked during timing, and used to filter practice comparisons',()=>{

@@ -54,7 +54,7 @@ const pairingCases=pairingAlgorithms.map(([key,setupInsertion,solution,alignment
   const joinedWrong=twist!==0&&edge<2;
   const group=twist===0?'White on top':joinedWrong?'Incorrectly joined':topCorner.face===topEdge.face?'Matching top colors':'Different top colors';
   const facing=white.normal[1]===1?'up':white.normal[0]===1?'right':'front';
-  const title=`${index+1}. White ${facing} · edge ${['right','front','left','back'][edge]} · ${flip?'right':'front'} color up`;
+  const title=`White ${facing} · edge ${['right','front','left','back'][edge]} · ${flip?'right':'front'} color up`;
   const description=`${joinedWrong?'Separate the incorrectly joined pieces. ':''}Join and insert the matching pieces with simple slot triggers, preserving the white cross.`;
   return defineCase(`pair-${twist}-${edge}-${flip}`,title,setupInsertion,description,group,solution,alignmentSolutions);
 });
@@ -100,7 +100,7 @@ const slotCases=slotAlgorithms.map(([key,solution,alignments])=>{
   const group=corner===4?(edge===8?'Both Pieces in Slot':'Corner in Slot'):'Edge in Slot';
   const white=cubeStickers(inverse(solution)).find(s=>s.cubie===target[0]&&s.face==='D');
   const facing=white.normal[1]===1?'up':white.normal[1]===-1?'down':white.normal[0]===1?'right':'front';
-  const title=`${group} · white ${facing} · ${flip?'flipped edge':'oriented edge'}`;
+  const title=`White ${facing} · ${flip?'flipped edge':'oriented edge'}`;
   const alignmentSolutions=Object.fromEntries((alignments||(corner===4&&edge===8?[solution,solution,solution]:[])).map((alg,i)=>[i+1,alg]));
   return Object.freeze({...defineCase('slot-'+key.replaceAll(',','-'),title,solution,
     'Free the target pieces, then pair and insert them while preserving the cross.',group,solution,alignmentSolutions),sourceLessonId:'f2l'});
@@ -111,7 +111,16 @@ const topCases=LESSONS.flatMap(lesson=>lesson.cases.map(item=>{
   return Object.freeze({...item,sourceLessonId:lesson.id,
     group:easy?'Easy Inserts':edge<2?'Connected Pairs':'Disconnected Pairs'});
 }));
-const f2lCases=F2L_GROUPS.flatMap(group=>[...topCases,...slotCases].filter(item=>item.group===group));
+// Each case keeps one number inside its F2L group, wherever it is shown.
+const GROUP_LABELS=Object.freeze({'Easy Inserts':'Easy','Disconnected Pairs':'Disc.','Corner in Slot':'Corner',
+  'Edge in Slot':'Edge','Connected Pairs':'Conn.','Both Pieces in Slot':'Both'});
+const f2lCases=F2L_GROUPS.flatMap(group=>[...topCases,...slotCases].filter(item=>item.group===group)
+  .map((item,index)=>Object.freeze({...item,label:`${GROUP_LABELS[group]} ${index+1}`})));
+const caseLabels=new Map(f2lCases.map(item=>[item.id,item.label]));
+/** Short, stable case name such as "Easy 3"; the same in every list and mix. */
+export function caseLabel(item){return caseLabels.get(item.id)||item.title;}
+/** Full case name for tooltips, notes and screen readers. */
+export function caseName(item){const label=caseLabel(item);return label===item.title?label:`${label} · ${item.title}`;}
 export const LESSON_CATALOG=Object.freeze([
   defineLesson('f2l','F2L','41 cases · 6 practice groups',
     'Learn to pair and insert a corner and edge. Each practice scramble gives you four pairs from your enabled cases. Practice any group, or mix groups together.',f2lCases),
@@ -133,6 +142,9 @@ function orientLessonStep(exercise,orientation){
   const flip=exercise.orientation!==orientation;
   return {...exercise,orientation,
     solution:flip?changeLessonFrame(exercise.solution):exercise.solution,
+    ...(exercise.insert!==undefined?{insert:flip?changeLessonFrame(exercise.insert):exercise.insert}:{}),
+    // Turning the cube over reverses the direction of a y rotation.
+    ...(exercise.rotation!==undefined?{rotation:flip?{y:"y'","y'":'y'}[exercise.rotation]??exercise.rotation:exercise.rotation}:{}),
     target:flip?exercise.target.map(cubie=>{const [x,y,z]=cubie.split(',').map(Number);return [-x,-y,z].join(',');}):exercise.target,
     slot:flip?exercise.slot?.replace(/right|left/g,side=>side==='right'?'left':'right'):exercise.slot,
   };
@@ -142,4 +154,10 @@ export function orientLessonCase(exercise,orientation){
   return {...orientLessonStep(exercise,orientation),setup,scramble:setup,
     ...(exercise.steps?{steps:exercise.steps.map(step=>orientLessonStep(step,orientation))}:{}),
   };
+}
+
+/** Hint text for one pair: a cube rotation that brings its slot to the front
+ * right (relative to the previous pair), followed by the front-slot moves. */
+export function stepHint(step){
+  return step.insert===undefined?step.solution:[step.rotation,step.insert].filter(Boolean).join(' ');
 }

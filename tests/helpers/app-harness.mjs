@@ -78,9 +78,8 @@ export function harness({
     constructor() { latestLessonWorker = this; }
     postMessage(data) {
       lessonMessages.push(data);
-      const caseId = data.caseIds[0],
-        samples = lessonSamples(data.lessonId, caseId);
-      const demoExercise = data.withDemo
+      const samples = data.demoOnly ? [] : lessonSamples(data.lessonId, data.caseIds[0]);
+      const demoExercise = data.withDemo || data.demoOnly
         ? createExercise(data.lessonId, {
             varied: false,
             caseIds: [data.demoCaseId],
@@ -90,7 +89,7 @@ export function harness({
         this.onmessage({
           data: {
             request: data.request,
-            exercise: samples.find((e) => e.scramble !== data.previousScramble),
+            ...(data.demoOnly ? {} : { exercise: samples.find((e) => e.scramble !== data.previousScramble) }),
             demoExercise,
           },
         });

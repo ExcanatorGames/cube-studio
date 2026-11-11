@@ -186,7 +186,6 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   expect(await page.locator('#cube-front option').evaluateAll(options => options.map(option => option.value))).not.toContain('blue');
   await page.getByRole('combobox', {name:'Color in front',exact:true}).selectOption('red');
   await page.locator('#lesson-orientation').selectOption('white-top');
-  await page.getByRole('combobox', {name:'Solving colors',exact:true}).selectOption('white-yellow');
   await page.locator('#save-settings').click();
   await expect(page.locator('#cube-preview svg')).toHaveAttribute('aria-label', /green on top and red in front/);
   await expect.poll(async () => (await storedState(page)).settings.orientation).toBe('green-red');
@@ -198,10 +197,9 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await expect(page.locator('#cube-top')).toHaveValue('green');
   await expect(page.locator('#cube-front')).toHaveValue('red');
   await expect(page.locator('#lesson-orientation')).toHaveValue('white-top');
-  await expect(page.locator('#solve-colors')).toHaveValue('white-yellow');
-  await page.locator('#solve-colors').selectOption('neutral');
+  await expect(page.locator('#solve-colors')).toHaveCount(0);
   await page.locator('#save-settings').click();
-  await expect.poll(async () => (await storedState(page)).settings.solveColors).toBe('neutral');
+  await expect.poll(async () => (await storedState(page)).settings.solveColors).toBeUndefined();
   await expect(page.locator('#settings-dialog')).not.toBeVisible();
   await expect(page).toHaveURL(`${server.url}/timer`);
   await page.setViewportSize({width:390,height:844});
@@ -256,6 +254,8 @@ test('split lists drive the timer, preserve recorded steps after editing, and su
   await expect(picker).toBeDisabled();
   await expect(page.locator('#fullscreen-track')).toBeDisabled();
   await expect(page.locator('#fullscreen-splits .split-name')).toHaveText(['Plan','Build','Finish']);
+  // A split within 0.35 s of starting counts as a stray tap.
+  await page.waitForTimeout(400);
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');

@@ -55,6 +55,15 @@ export function mergeSnapshots(base, local, remote) {
         if (!equal(ids, base.settings?.[key]?.[lesson]))
           merged.settings[key][lesson] = ids;
       }
+    } else if (key === 'disabledCases' && Array.isArray(value)) {
+      // Each case is its own choice: apply only this tab's changes since its
+      // base, so tabs editing different cases or groups keep both edits.
+      const before = new Set(base.settings?.[key] || []),
+        now = new Set(value),
+        result = new Set(remote.settings?.[key] || []);
+      for (const id of now) if (!before.has(id)) result.add(id);
+      for (const id of before) if (!now.has(id)) result.delete(id);
+      merged.settings[key] = [...result];
     } else if (!equal(value, base.settings?.[key]))
       merged.settings[key] = value;
   }

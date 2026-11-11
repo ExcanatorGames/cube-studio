@@ -61,7 +61,6 @@ export function initSettingsDialog({
     $('#hold-duration').value = getSettings().hold / 1000;
     $('#lesson-orientation').value = getSettings().lessonOrientation;
     $('#lesson-scramble-mode').value = getSettings().lessonScrambleMode || 'random';
-    $('#solve-colors').value = getSettings().solveColors || 'white';
     $('#scramble-orientation').value = getSettings().scrambleOrientation || 'default';
     selectTab(tab);
     openDialog('#settings-dialog');
@@ -94,7 +93,6 @@ export function initSettingsDialog({
       lessonOrientation,
       lessonScrambleMode: $('#lesson-scramble-mode').value === 'setup' ? 'setup' : 'random',
       crossPosition: lessonOrientation === 'white-top' ? 'top' : 'bottom',
-      solveColors: $('#solve-colors').value,
     };
     save(next);
     $('#settings-dialog').close();

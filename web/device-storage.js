@@ -1,5 +1,7 @@
 import { orientationColors, validOrientation } from './cube.js';
 import { splitMethods, validSplitMethod } from './split-methods.js';
+import { getLesson } from './lessons.js';
+import { lessonGroups } from './routes.js';
 
 const isObject = (value) =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -15,8 +17,29 @@ const defaults = () => ({
   lessonOrientation: 'white-bottom',
   lessonScrambleMode: 'random',
   crossPosition: 'bottom',
-  solveColors: 'white',
 });
+
+// Older versions kept one list of selected cases per lesson key, which
+// different groups overwrote. Keep the choices that list still expresses:
+// unselected cases in groups it covered, and groups checked for a mix.
+function migrateCaseSelections(old) {
+  const ids = (key) => (Array.isArray(old[key]) ? old[key] : null);
+  const disabled = new Set();
+  if (ids('f2l')) {
+    for (const group of lessonGroups)
+      if (group.cases.some((item) => ids('f2l').includes(item.id)))
+        for (const item of group.cases)
+          if (!ids('f2l').includes(item.id)) disabled.add(item.id);
+  } else
+    for (const key of ['13', '14'])
+      if (ids(key))
+        for (const item of getLesson(key).cases)
+          if (!ids(key).includes(item.id)) disabled.add(item.id);
+  const practiceGroups = ids('mixed')
+    ? lessonGroups.filter((group) => group.cases.some((item) => ids('mixed').includes(item.id))).map((group) => group.id)
+    : [];
+  return { disabledCases: [...disabled], practiceGroups };
+}
 
 function record(value, path, issues, lesson, checks) {
   if (
@@ -144,8 +167,9 @@ export function validateSnapshot(value) {
     lessonOrientation: (v) => ['white-top', 'white-bottom'].includes(v),
     lessonScrambleMode: (v) => ['random', 'setup'].includes(v),
     crossPosition: (v) => ['top', 'bottom'].includes(v),
-    solveColors: (v) => ['neutral', 'white-yellow', 'white'].includes(v),
   };
+  // Retired setting: it never changed anything.
+  delete snapshot.settings.solveColors;
   for (const [name, valid] of Object.entries(rules))
     if (settings[name] !== undefined && !valid(settings[name])) {
       issues.push(`settings.${name}`);
@@ -175,6 +199,17 @@ export function validateSnapshot(value) {
         }),
       );
     }
+  }
+  const migrated = migrateCaseSelections(snapshot.settings.lessonCaseSelections || {});
+  for (const name of ['disabledCases', 'practiceGroups']) {
+    if (settings[name] === undefined) {
+      snapshot.settings[name] = migrated[name];
+      continue;
+    }
+    const valid = Array.isArray(settings[name]) ? settings[name].filter(nonempty) : [];
+    if (!Array.isArray(settings[name]) || valid.length !== settings[name].length)
+      issues.push(`settings.${name}`);
+    snapshot.settings[name] = [...new Set(valid)];
   }
   return { snapshot, issues, checks };
 }

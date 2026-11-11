@@ -1,4 +1,4 @@
-import { LESSON_CATALOG, getLesson } from './lessons.js';
+import { LESSON_CATALOG, getLesson, caseLabel, caseName, orientLessonCase, stepHint } from './lessons.js';
 import { lessonCubeSVG } from './lesson-cube.js';
 import { $, esc } from './dom.js';
 import { lessonGroups, routePath } from './routes.js';
@@ -57,22 +57,29 @@ export function initPracticeSelection({ root, onHold, view = window }) {
 
 export function createLessonPresentation() {
   const lessonCasePreviews = new Map();
-  function casePreview(item) {
-    if (!lessonCasePreviews.has(item.id))
-      lessonCasePreviews.set(item.id, lessonCubeSVG(item.setup, item));
-    return lessonCasePreviews.get(item.id);
+  // Catalog cards show the canonical teaching view. Inside a lesson or
+  // practice, thumbnails follow the selected cross position.
+  function casePreview(item, orientation = item.orientation) {
+    const key = item.id + ':' + orientation;
+    if (!lessonCasePreviews.has(key)) {
+      const view = orientLessonCase(item, orientation);
+      lessonCasePreviews.set(key, lessonCubeSVG(view.setup, view));
+    }
+    return lessonCasePreviews.get(key);
   }
   function casePreviews(cases) {
-    return `<span class="catalog-case-previews" style="--case-count:${cases.length}" aria-hidden="true">${cases.map(item => `<span class="catalog-case-preview" title="${esc(item.title)}">${casePreview(item)}</span>`).join('')}</span>`;
+    return `<span class="catalog-case-previews" style="--case-count:${cases.length}" aria-hidden="true">${cases.map(item => `<span class="catalog-case-preview" title="${esc(caseName(item))}">${casePreview(item)}</span>`).join('')}</span>`;
   }
   let practiceCardsRendered = false;
-  function renderPracticeCards(caseIds, selecting = false) {
-    const selected = new Set(caseIds);
+  // groupIds: practice groups checked for a mix. hrefFor(option) gives the
+  // address a card opens, so links match what a click does.
+  function renderPracticeCards(groupIds, selecting = false, hrefFor = () => null) {
+    const selected = new Set(groupIds);
     $('#practice-cards').classList.toggle('practice-selecting', selecting);
     if (!practiceCardsRendered) $('#practice-cards').innerHTML = LESSON_CATALOG.map(lesson => `
       <section class="practice-catalog-section" aria-label="${esc(lesson.title)} practices">
         ${practiceOptions.filter(option => option.lessonId === lesson.id).map(option => {
-          const checked = option.cases.every(item => selected.has(item.id));
+          const checked = selected.has(option.id);
           return `<article class="lesson-card practice-card">
             <label class="practice-select" data-practice-selection-control="${option.id}" hidden><input type="checkbox" data-practice-select="${option.id}" aria-label="Include ${esc(option.fullTitle)}" ${checked ? 'checked' : ''}></label>
             <a href="/practice/${option.lessonId}/${option.slug}" class="practice-card-open" data-practice-open="${option.id}" aria-label="Practice ${esc(option.fullTitle)}" aria-keyshortcuts="Shift+F10">
@@ -84,13 +91,11 @@ export function createLessonPresentation() {
       </section>`).join('');
     practiceCardsRendered = true;
     for (const option of practiceOptions) {
-      const count = option.cases.filter(item => selected.has(item.id)).length;
       $(`[data-practice-selection-control="${option.id}"]`).hidden = !selecting;
-      $(`[data-practice-select="${option.id}"]`).checked = count === option.cases.length;
-      $(`[data-practice-select="${option.id}"]`).indeterminate = count > 0 && count < option.cases.length;
-      const ids = selecting && caseIds.length ? caseIds : option.cases.map(item => item.id);
-      const scopeCaseIds = practiceOptions.filter(item => item.cases.some(c => ids.includes(c.id))).flatMap(item => item.cases.map(c => c.id));
-      $(`[data-practice-open="${option.id}"]`).setAttribute('href', routePath({ page: 'practice', lessonId: 'mixed', tab: 'practice', caseIds: ids, scopeCaseIds }));
+      $(`[data-practice-select="${option.id}"]`).checked = selected.has(option.id);
+      $(`[data-practice-select="${option.id}"]`).indeterminate = false;
+      const route = hrefFor(option);
+      if (route) $(`[data-practice-open="${option.id}"]`).setAttribute('href', routePath(route));
     }
   }
   function renderLessonCards() {
@@ -112,7 +117,7 @@ export function createLessonPresentation() {
     }
   }
 
-  function renderLessonCases(lesson, timerContext) {
+  function renderLessonCases(lesson, timerContext, orientation) {
     const list = $('#lesson-case-list');
     const grouped = ['f2l', 'mixed'].includes(lesson.id);
     const selected = lesson.cases.find(item => item.id === timerContext.demoCaseId);
@@ -121,15 +126,11 @@ export function createLessonPresentation() {
     $('#lesson-group').hidden = groups.length === 1;
     $('label[for="lesson-group"]').hidden = groups.length === 1;
     $('#lesson-group').innerHTML = groups.map(group => `<option value="${esc(group)}" ${group === selected.group ? 'selected' : ''}>${esc(group)} (${lesson.cases.filter(item => item.group === group).length})</option>`).join('');
-    const caseListKey = lesson.id + ':' + lesson.cases.map(item => item.id).join(',');
+    const caseListKey = lesson.id + ':' + (orientation || '') + ':' + lesson.cases.map(item => item.id).join(',');
     if (list.dataset.lessonId !== caseListKey) {
       list.innerHTML = lesson.cases
-        .map((item, index) => {
-          if (!lessonCasePreviews.has(item.id))
-            lessonCasePreviews.set(item.id, lessonCubeSVG(item.setup, item));
-          const label = lesson.id === '13' ? item.title : `Case ${index + 1}`;
-          return `<a href="${esc(routePath({ ...timerContext, page: 'lessons', demoCaseId: item.id }))}" id="lesson-case-${item.id}" class="lesson-case-tile" data-lesson-case="${item.id}" aria-label="${esc(item.title)}" aria-current="false" title="${esc(item.group + ' · ' + item.title)}"><span class="lesson-case-thumbnail" aria-hidden="true">${lessonCasePreviews.get(item.id)}</span><span>${esc(label)}</span></a>`;
-        })
+        .map((item) =>
+          `<a href="${esc(routePath({ ...timerContext, page: 'lessons', demoCaseId: item.id }))}" id="lesson-case-${item.id}" class="lesson-case-tile" data-lesson-case="${item.id}" aria-label="${esc(caseName(item))}" aria-current="false" title="${esc(item.group + ' · ' + caseName(item))}"><span class="lesson-case-thumbnail" aria-hidden="true">${casePreview(item, orientation)}</span><span>${esc(caseLabel(item))}</span></a>`)
         .join('');
       list.dataset.lessonId = caseListKey;
     }
@@ -141,11 +142,11 @@ export function createLessonPresentation() {
       $('#lesson-case-' + item.id).setAttribute('href', routePath({ ...timerContext, page: 'lessons', demoCaseId: item.id }));
       $('#lesson-case-' + item.id).hidden = grouped && item.group !== selected.group;
     }
-    $('#lesson-case-title').textContent = selected.title;
+    $('#lesson-case-title').textContent = caseName(selected);
     const practiceList = $('#practice-case-list');
     if (practiceList.dataset.lessonId !== caseListKey) {
-      practiceList.innerHTML = lesson.cases.map((item, index) =>
-        `<button type="button" class="lesson-case-tile case-strip-tile" id="practice-case-${item.id}" data-practice-case="${item.id}" aria-label="${esc(item.title)}" aria-pressed="false"><span class="lesson-case-thumbnail" aria-hidden="true">${casePreview(item)}</span><span>Case ${index + 1}</span><span class="case-selection-mark" aria-hidden="true">✓</span></button>`,
+      practiceList.innerHTML = lesson.cases.map((item) =>
+        `<button type="button" class="lesson-case-tile case-strip-tile" id="practice-case-${item.id}" data-practice-case="${item.id}" aria-label="${esc(caseName(item))}" title="${esc(item.group + ' · ' + caseName(item))}" aria-pressed="false"><span class="lesson-case-thumbnail" aria-hidden="true">${casePreview(item, orientation)}</span><span>${esc(caseLabel(item))}</span><span class="case-selection-mark" aria-hidden="true">✓</span></button>`,
       ).join('');
       practiceList.dataset.lessonId = caseListKey;
     }
@@ -180,7 +181,7 @@ export function createLessonPresentation() {
     $('#timer-card').classList.toggle('lesson-assisted', enabled && !locked);
     if (lesson) {
       $('#lesson-solution strong').textContent = exercise?.steps
-        ? exercise.steps.map(step => step.solution).join(' · ')
+        ? exercise.steps.map(stepHint).join(' · ')
         : exercise?.solution || '';
     }
   }

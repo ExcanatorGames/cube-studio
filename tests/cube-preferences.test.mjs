@@ -51,7 +51,7 @@ test('legacy custom splits migrate without loss and new preferences survive vali
   assert.deepEqual(reloaded.issues, []);
   assert.deepEqual(selectedSplitSteps(reloaded.snapshot.settings), ['One']);
   assert.equal(reloaded.snapshot.settings.orientation, 'blue-red');
-  assert.equal(reloaded.snapshot.settings.solveColors, 'neutral');
+  assert.equal(reloaded.snapshot.settings.solveColors, undefined, 'the retired solving colors setting is dropped');
 });
 
 test('scramble orientation follows the default position unless explicitly chosen and recovers invalid preferences', () => {
@@ -74,7 +74,7 @@ test('damaged split lists and impossible cube frames recover while valid lists s
   assert.deepEqual(snapshot.settings.splitMethods, [good]);
   assert.equal(snapshot.settings.preset, 'good');
   assert.equal(snapshot.settings.orientation, 'white-top');
-  assert.equal(snapshot.settings.solveColors, 'white');
+  assert.equal(snapshot.settings.solveColors, undefined);
   assert.ok(issues.length >= 4);
   const empty = validateSnapshot({settings:{splitMethods:[],track:true}}).snapshot.settings;
   assert.equal(empty.track, false);

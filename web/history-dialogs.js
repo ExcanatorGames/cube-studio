@@ -13,6 +13,7 @@ export function initHistoryDialogs({
   getLessons,
   importRecords,
   updateSolve,
+  updateLessonAttempt,
   addManual,
   allowManual,
   busy,
@@ -20,7 +21,10 @@ export function initHistoryDialogs({
   toast,
 }) {
   let selected = null,
+    selectedLesson = false,
     imported = [];
+  // Practice attempts are edited like solves but saved to their own history.
+  const save = (s) => (selectedLesson ? updateLessonAttempt : updateSolve)(s);
   function openImport() {
     $('#settings-dialog').close();
     imported = [];
@@ -58,10 +62,12 @@ export function initHistoryDialogs({
   };
   function openSolve(id) {
     if (busy()) return;
-    const s = getRecords().get(id);
+    const lesson = !getRecords().has(id) && getLessons().has(id);
+    const s = (lesson ? getLessons() : getRecords()).get(id);
     if (!s || s.deleted) return;
     selected = { ...s, splits: s.splits.map((x) => ({ ...x })) };
-    $('#solve-title').textContent = 'Solve';
+    selectedLesson = lesson;
+    $('#solve-title').textContent = lesson ? 'Practice attempt' : 'Solve';
     $('#solve-note').value = s.note || '';
     renderSolveDetails();
     openDialog('#solve-dialog');
@@ -89,16 +95,17 @@ export function initHistoryDialogs({
   );
   $('#save-solve').onclick = () => {
     if (!selected) return;
-    updateSolve({ ...selected, note: $('#solve-note').value });
+    save({ ...selected, note: $('#solve-note').value });
     $('#solve-dialog').close();
-    toast('Solve updated.');
+    toast(selectedLesson ? 'Attempt updated.' : 'Solve updated.');
   };
   $('#delete-solve').onclick = () => {
     if (!selected) return;
-    const old = { ...selected };
-    updateSolve({ ...selected, deleted: true });
+    const old = { ...selected },
+      restore = selectedLesson ? updateLessonAttempt : updateSolve;
+    save({ ...selected, deleted: true });
     $('#solve-dialog').close();
-    toast('Solve deleted.', () => updateSolve({ ...old, deleted: false }));
+    toast(selectedLesson ? 'Attempt deleted.' : 'Solve deleted.', () => restore({ ...old, deleted: false }));
   };
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-id]');

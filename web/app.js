@@ -15,7 +15,7 @@ import { initPWA } from './pwa.js';
 import { cubeSVG, cubeFrame, orientAlgorithm, orientTargets, orientationColors, validOrientation, getScrambleOrientation } from './cube.js';
 import { initSolveFeedback, formatDifference } from './solve-feedback.js';
 import { initConnection, syncHeaders } from './connect.js';
-import { getLesson, orientLessonCase } from './lessons.js';
+import { orientLessonCase, caseLabel } from './lessons.js';
 import { createLessonDemo } from './lesson-view.js';
 import { initMobileNavigation } from './mobile-navigation.js';
 import { createMotion } from './motion.js';
@@ -24,7 +24,7 @@ import { createSolveViews } from './solve-views.js';
 import { createSync } from './sync.js';
 import { createLessonPresentation, lessonTabs, practiceOptions, initPracticeSelection } from './lesson-presentation.js';
 import { createTimerSession } from './timer-session.js';
-import { createLessonSession } from './lesson-session.js';
+import { createLessonSession, disabledCaseIds, withEnabledCases } from './lesson-session.js';
 import { initTimerInput } from './timer-input.js';
 import { createScrambler } from './scrambler.js';
 import { createIndexedStorage } from './indexed-storage.js';
@@ -67,7 +67,6 @@ let settings = {
   lessonOrientation: 'white-bottom',
   lessonScrambleMode: 'random',
   crossPosition: 'bottom',
-  solveColors: 'white',
   ...saved.settings,
 };
 if (!validOrientation(...Object.values(orientationColors(settings.orientation)))) settings.orientation = 'white-top';
@@ -288,6 +287,8 @@ function saveAttempt(s, attempt) {
     ...s,
     lessonId: exercise.lessonId,
     caseId: exercise.caseId,
+    // Every pair of the attempt, so comparisons can match the cases practiced.
+    ...(exercise.steps ? { caseIds: exercise.steps.map((step) => step.caseId) } : {}),
     completion: exercise.completion,
   };
   lessonAttempts.set(s.id, practice);
@@ -296,6 +297,18 @@ function saveAttempt(s, attempt) {
   render();
   sync();
   return practice;
+}
+function updateLessonAttempt(s) {
+  s = normalizeSolve({
+    ...s,
+    updatedAt: Math.max(Date.now(), (lessonAttempts.get(s.id)?.updatedAt || 0) + 1),
+  });
+  lessonAttempts.set(s.id, s);
+  pendingLessons.set(s.id, s);
+  persist();
+  render();
+  sync();
+  return s;
 }
 function practiceTimes() {
   return lessonSession.times(lessonAttempts.values());
@@ -412,36 +425,46 @@ const practiceSelectionVisible = () => practiceSelecting || practiceDesktop.matc
 practiceDesktop.addEventListener?.('change', () => {
   if (page === 'practice' && lessonSession.context.kind !== 'lesson') renderPracticeList();
 });
+const checkedPracticeGroups = () =>
+  practiceOptions.filter(option => (settings.practiceGroups || []).includes(option.id));
+// A card opens the checked groups when a mix is visible, otherwise its own
+// group. Cases turned off during practice stay off in either case.
+function practiceRoute(option) {
+  const checked = practiceSelectionVisible() ? checkedPracticeGroups() : [];
+  const groups = checked.length ? checked : [option];
+  const scopeCaseIds = groups.flatMap(item => item.cases.map(c => c.id));
+  const disabled = disabledCaseIds(settings);
+  const enabled = scopeCaseIds.filter(id => !disabled.has(id));
+  return { page: 'practice', lessonId: 'mixed', tab: 'practice', scopeCaseIds,
+    caseIds: enabled.length ? enabled : scopeCaseIds,
+    title: groups.length === 1 ? groups[0].fullTitle : undefined };
+}
+function setPracticeGroups(ids) {
+  settings = { ...settings, practiceGroups: ids };
+  persist();
+  renderPracticeList();
+}
 function renderPracticeList() {
   $('#practice-list').hidden = false;
-  const ids = settings.lessonCaseSelections?.mixed || [];
-  if (!ids.length) practiceSelecting = false;
-  lessonPresentation.renderPracticeCards(ids, practiceSelectionVisible());
+  if (!checkedPracticeGroups().length) practiceSelecting = false;
+  lessonPresentation.renderPracticeCards(checkedPracticeGroups().map(option => option.id), practiceSelectionVisible(), practiceRoute);
 }
 initPracticeSelection({ root: $('#practice-cards'), onHold(id) {
   if (busy() || page !== 'practice' || lessonSession.context.kind === 'lesson') return;
   const option = practiceOptions.find(item => item.id === id);
   if (!option) return;
   practiceSelecting = true;
-  const selected = new Set(settings.lessonCaseSelections?.mixed || []);
-  option.cases.forEach(item => selected.add(item.id));
-  settings.lessonCaseSelections = { ...settings.lessonCaseSelections, mixed: [...selected] };
-  persist();
-  renderPracticeList();
+  setPracticeGroups([...new Set([...checkedPracticeGroups().map(item => item.id), option.id])]);
 } });
 $('#practice-cards').onchange = (event) => {
   if (busy()) return;
   const checkbox = event.target.closest('[data-practice-select]');
   const option = practiceOptions.find(item => item.id === checkbox?.dataset.practiceSelect);
   if (!option) return;
-  const selected = new Set(settings.lessonCaseSelections?.mixed || []);
-  for (const item of option.cases) {
-    if (checkbox.checked) selected.add(item.id);
-    else selected.delete(item.id);
-  }
-  settings.lessonCaseSelections = { ...settings.lessonCaseSelections, mixed: [...selected] };
-  persist();
-  renderPracticeList();
+  const selected = new Set(checkedPracticeGroups().map(item => item.id));
+  if (checkbox.checked) selected.add(option.id);
+  else selected.delete(option.id);
+  setPracticeGroups([...selected]);
   if (!selected.size) $(`[data-practice-open="${option.id}"]`).focus();
 };
 $('#practice-cards').onclick = (event) => {
@@ -449,12 +472,8 @@ $('#practice-cards').onclick = (event) => {
   const option = practiceOptions.find(item => item.id === button?.dataset.practiceOpen);
   if (!option) return;
   if (!routeClick(event)) return;
-  const selected = practiceSelectionVisible() ? settings.lessonCaseSelections?.mixed : null;
-  const ids = selected?.length ? selected : option.cases.map(item => item.id);
-  const scope = practiceOptions.filter(item => item.cases.some(c => ids.includes(c.id)))
-    .flatMap(item => item.cases.map(c => c.id));
-  openLesson('mixed', { caseIds: ids, scopeCaseIds: scope,
-    title: selected?.length ? undefined : option.fullTitle });
+  const { caseIds, scopeCaseIds, title } = practiceRoute(option);
+  openLesson('mixed', { caseIds, scopeCaseIds, title });
 };
 function renderLessonTabs() {
   lessonPresentation.renderTabs(lessonSession.context, busy());
@@ -464,7 +483,7 @@ function renderLessonTabs() {
   $('.lesson-tabs').hidden = page === 'practice';
 }
 function renderLessonCases() {
-  lessonPresentation.renderCases(currentLesson(), lessonSession.context);
+  lessonPresentation.renderCases(currentLesson(), lessonSession.context, settings.lessonOrientation);
 }
 function renderLessonAssistance() {
   lessonPresentation.renderAssistance(
@@ -543,10 +562,12 @@ function setPracticeCases(caseIds) {
     toast('Keep at least one practice case selected.');
     return;
   }
-  settings.lessonCaseSelections = {
-    ...settings.lessonCaseSelections,
-    [lessonSession.context.lessonId]: lessonSession.context.caseIds,
-  };
+  // Remember each case on its own, so other groups keep their choices.
+  settings = withEnabledCases(
+    settings,
+    currentLesson().cases.map((item) => item.id),
+    lessonSession.context.caseIds,
+  );
   persist();
   resetTimerContext();
   renderLessonCases();
@@ -576,7 +597,8 @@ function selectDemoCase(id) {
   lessonDemo = null;
   $('#lesson-demo').innerHTML = '<p role="status">Preparing scramble…</p>';
   renderLessonCases();
-  newScramble();
+  // Only the demonstration changes; the practice scramble stays.
+  requestLessonDemo();
   recordRoute();
 }
 function openLesson(id, options) {
@@ -658,8 +680,10 @@ function renderSteps() {
     ? solveFeedback(lesson ? practiceTimes() : all(), currentSolve)
     : null;
   feedbackView.render(feedback);
-  if (currentSolve && !currentSolve.deleted)
-    $('#clock').textContent = formatTime(result(currentSolve));
+  if (currentSolve)
+    $('#clock').textContent = currentSolve.deleted ? '0.00' : formatTime(result(currentSolve));
+  // The latest result can be opened for a penalty, note or deletion.
+  $('#edit-result').hidden = !currentSolve || !!currentSolve.deleted;
   const labels =
     timing.state === 'running' ||
     (timing.state === 'stopped' && timing.splitMarks.length)
@@ -748,6 +772,7 @@ function timerVisual() {
     'lesson-busy',
     lessonSession.context.kind === 'lesson' && busy(),
   );
+  $('#focus').disabled = busy();
   $('#lesson-case-picker').disabled = busy();
   $('#practice-case-picker').disabled = busy();
   $('#lesson-group').disabled = busy();
@@ -755,15 +780,26 @@ function timerVisual() {
   renderLessonAssistance();
   renderSteps();
 }
+let armRetry = null;
 function arm() {
+  clearTimeout(armRetry);
+  armRetry = null;
   if (!timerVisible() || !scramble) return;
   if (
     !timer.arm(settings.hold, () => {
       timerVisual();
       navigator.vibrate?.(20);
     })
-  )
+  ) {
+    // A hold that begins just after a stop counts once the restart pause ends.
+    const wait = timer.cooldownRemaining();
+    if (wait > 0 && !busy())
+      armRetry = setTimeout(() => {
+        armRetry = null;
+        if (timerInput.held()) arm();
+      }, wait);
     return;
+  }
   motion.clear();
   lastSolveId = null;
   lessonDemo?.reset();
@@ -771,6 +807,8 @@ function arm() {
   timerVisual();
 }
 function disarm() {
+  clearTimeout(armRetry);
+  armRetry = null;
   if (timer.disarm()) timerVisual();
 }
 async function keepAwake() {
@@ -788,7 +826,7 @@ function snapshotAttempt() {
     context: lessonSession.context.kind,
     exercise: lesson ? lessonSession.context.exercise : null,
     note: lesson
-      ? `${lesson.title} · ${lessonSession.context.exercise.steps.map(step => lesson.cases.find(item => item.id === step.caseId).title).join(' → ')} · 4 pairs inserted`
+      ? `${lessonSession.context.title} · ${lessonSession.context.exercise.steps.map(step => caseLabel(lesson.cases.find(item => item.id === step.caseId))).join(' → ')} · 4 pairs inserted`
       : '',
     track: tracking(),
     splitNames: Object.freeze([...names()]),
@@ -814,7 +852,8 @@ function tick() {
   frame = requestAnimationFrame(tick);
 }
 function makeSolve(ms, splits = [], manual = false) {
-  const attempt = manual ? snapshotAttempt() : timing.activeAttempt;
+  // Manual times come from elsewhere: they never take the timer's scramble.
+  const attempt = manual ? { scramble: '', note: '' } : timing.activeAttempt;
   return normalizeSolve({
     id: crypto.randomUUID(),
     date: new Date().toISOString(),
@@ -899,6 +938,7 @@ function cancel() {
 }
 const timerInput = initTimerInput({
   pad: $('#timer-pad'),
+  surface: $('#timer-card'),
   getState: () => timing.state,
   timerVisible,
   arm,
@@ -922,7 +962,6 @@ function setTracking(enabled) {
   motion.layout([$('.timer-center')], () => {
     settings.track = enabled;
     persist();
-    timer.reset();
     timerVisual();
   });
   if (enabled) motion.reveal($('#fullscreen-splits'), { distance: 5 });
@@ -937,7 +976,6 @@ const splitPicker = initTimerSplitPicker({ select(id) {
   if (!selected) return;
   motion.layout([$('.timer-center')], () => {
     settings.preset = selected.id;
-    timer.reset();
     persist();
     timerVisual();
   });
@@ -950,6 +988,7 @@ function refreshOrientation() {
       scrambleKind = lessonScrambleKind();
     }
     lessonDemo?.setOrientation(settings.lessonOrientation);
+    renderLessonCases();
     renderLessonAssistance();
   } else if (normalScramble) {
     scramble = orientAlgorithm(
@@ -1079,41 +1118,53 @@ chromeObserver.observe($('.sidebar'));
 addEventListener('resize', updateTimerHeight);
 let officialScrambler = createScrambler();
 $('#lesson-demo').onclick = (e) => {
-  if (e.target.closest('[data-lesson-retry]')) newScramble();
+  if (!e.target.closest('[data-lesson-retry]')) return;
+  if (lessonSession.context.exercise) requestLessonDemo();
+  else newScramble();
 };
+function showDemoFailure() {
+  if (!lessonDemo)
+    $('#lesson-demo').innerHTML =
+      '<p role="status">Could not prepare a scramble.</p><button type="button" class="small-button" data-lesson-retry>Try again</button>';
+}
+function showDemo(demoExercise) {
+  if (page !== 'lessons' || lessonDemo || !demoExercise) return;
+  const lesson = currentLesson();
+  const selected = lesson.cases.find(
+    (item) => item.id === lessonSession.context.demoCaseId,
+  );
+  lessonDemo = createLessonDemo($('#lesson-demo'), {
+    ...lesson,
+    case: orientLessonCase(
+      { ...selected, ...demoExercise },
+      settings.lessonOrientation,
+    ),
+  }, globalThis, {
+    getScrambleOrientation: () => getScrambleOrientation(settings),
+    getScrambleMode: () => settings.lessonScrambleMode,
+    setupCase: selected,
+  });
+}
+function requestLessonDemo() {
+  if (page !== 'lessons') return;
+  lessonSession.prepareDemo({ ready: showDemo, failed: showDemoFailure });
+}
 function requestLessonScramble() {
+  const withDemo = page === 'lessons' && !lessonDemo;
   lessonSession.prepare({
-    withDemo: page === 'lessons' && !lessonDemo,
+    withDemo,
     failed() {
       scramble = '';
       scrambleKind = 'Scramble unavailable';
       $('#fullscreen-scramble').textContent = 'Could not prepare a scramble.';
       $('#scramble-type').textContent = scrambleKind;
       $('#new-scramble').disabled = false;
-      if (!lessonDemo)
-        $('#lesson-demo').innerHTML =
-          '<p role="status">Could not prepare a scramble.</p><button type="button" class="small-button" data-lesson-retry>Try again</button>';
+      showDemoFailure();
     },
     ready(demoExercise) {
       scramble = lessonExercise().scramble;
       scrambleKind = lessonScrambleKind();
-      if (page === 'lessons' && !lessonDemo) {
-        const lesson = currentLesson();
-        const selected = lesson.cases.find(
-          (item) => item.id === lessonSession.context.demoCaseId,
-        );
-        lessonDemo = createLessonDemo($('#lesson-demo'), {
-          ...lesson,
-          case: orientLessonCase(
-            { ...selected, ...demoExercise },
-            settings.lessonOrientation,
-          ),
-        }, globalThis, {
-          getScrambleOrientation: () => getScrambleOrientation(settings),
-          getScrambleMode: () => settings.lessonScrambleMode,
-          setupCase: selected,
-        });
-      }
+      showDemo(demoExercise);
       showScramble();
       renderLessonAssistance();
       renderSteps();
@@ -1181,6 +1232,10 @@ function showScramble({ animate = true } = {}) {
     const exercise =
       lessonSession.context.kind === 'lesson' ? lessonExercise() : null;
     const previewOrientation = exercise ? cubeOrientation() : getScrambleOrientation(settings);
+    // Practice cubes are shown in the solving position, not the scrambling one.
+    const solving = orientationColors(cubeOrientation());
+    $('#solve-frame').hidden = !exercise;
+    $('#solve-frame').textContent = exercise ? `Solve: ${solving.top} top · ${solving.front} front` : '';
     $('#cube-preview').innerHTML = cubeSVG(
       orientAlgorithm(exercise ? exercise.setup : scramble, cubeOrientation(), previewOrientation),
       {
@@ -1221,7 +1276,6 @@ const settingsDialog = initSettingsDialog({
   onTabChange: () => recordRoute({ replace: true, overlay: !!window.history.state?.cubeStudioRoute?.overlay }),
   save(next) {
     settings = next;
-    timer.reset();
     persist();
     refreshOrientation();
   },
@@ -1233,7 +1287,6 @@ const renderSplits = initSplitsPage({
   toast,
   save(next) {
     settings = next;
-    timer.reset();
     const saving = persist();
     timerVisual();
     render();
@@ -1248,7 +1301,8 @@ const { openSolve } = initHistoryDialogs({
   toast,
   updateSolve,
   allowManual: () => lessonSession.context.kind !== 'lesson',
-  addManual: (ms) => saveAttempt(makeSolve(ms, [], true), snapshotAttempt()),
+  addManual: (ms) => updateSolve(makeSolve(ms, [], true)),
+  updateLessonAttempt,
   importRecords(imported) {
     let count = 0;
     for (const solve of imported) {
@@ -1263,6 +1317,9 @@ const { openSolve } = initHistoryDialogs({
     return count;
   },
 });
+$('#edit-result').onclick = () => {
+  if (lastSolveId) openSolve(lastSolveId);
+};
 $('#sync-mobile').onclick = () => {
   sync();
 };
@@ -1307,9 +1364,8 @@ router = createRouter({
       if (changingBackground) {
         setPage(route.page, { showList: true, immediate: true });
         if (route.lessonId) {
-          const source = getLesson(route.lessonId);
-          openLesson(route.lessonId, { ...route, caseIds: route.caseIds ||
-            source.cases.filter(item => !route.scopeCaseIds || route.scopeCaseIds.includes(item.id)).map(item => item.id) });
+          // Without cases in the address, the cases saved on this device apply.
+          openLesson(route.lessonId, route);
           setLessonTab(route.tab);
         }
       }

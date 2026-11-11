@@ -223,3 +223,14 @@ body.focus-mode #lesson-panel-practice{display:block}
  .lesson-moves span{min-width:22px;padding:2px}
  .lesson-speed{margin-top:2px;padding-top:6px}
 }
+/* Solving position under a practice cube, separate from the scramble label. */
+.solve-frame{margin:4px 0 0}
+/* Latest result can be edited (penalty, note, delete). */
+.timer-actions{display:flex;align-items:center;gap:6px}
+.edit-result{min-height:30px;padding:4px 10px}
+#timer-card.running .edit-result{visibility:hidden}
+.lesson-case-tile>span:not([class]){white-space:nowrap}
+/* During a solve every tap on the card stops the timer or marks a split. */
+#timer-card.running{touch-action:none}
+#timer-card.running .timer-toolbar *{pointer-events:none}
+#timer-card.running .solve-frame{display:none}

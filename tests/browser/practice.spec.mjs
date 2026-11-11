@@ -243,8 +243,7 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true}).check();
   await expect(page.getByRole('checkbox')).toHaveCount(6);
   await expect(page.locator('#timer-card')).toBeHidden();
-  await expect.poll(async()=> (await storedState(page)).settings.lessonCaseSelections?.mixed?.length).toBe(12);
-  const selected=(await storedState(page)).settings.lessonCaseSelections.mixed;
+  await expect.poll(async()=> (await storedState(page)).settings.practiceGroups).toEqual(['f2l-2','f2l-3']);
   await page.reload();
   await page.getByRole('link',{name:'Practice',exact:true}).click();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
@@ -255,6 +254,8 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect(page.getByRole('checkbox',{name:'Include F2L · Edge in Slot',exact:true})).toBeChecked();
   await page.locator('[data-practice-open="f2l-2"]').click();
   await expect(page.locator('#new-scramble')).toBeEnabled({timeout:20_000});
+  const selected=await page.locator('#practice-case-list [aria-pressed="true"]').evaluateAll(items=>items.map(item=>item.dataset.practiceCase));
+  expect(selected).toHaveLength(12);
   const scramble=await page.locator('#fullscreen-scramble').innerText();
   await startKeyboardSolve(page);
   await expect(page.locator('#practice-back')).toHaveAttribute('aria-disabled','true');
@@ -263,6 +264,8 @@ test('selected practices persist, start an exact mix, and save the generated sou
   await expect.poll(async()=> (await storedState(page)).lessonAttempts.length).toBe(1);
   const state=await storedState(page),attempt=state.lessonAttempts[0];
   expect(selected).toContain(attempt.caseId);
+  expect(attempt.caseIds).toHaveLength(4);
+  for (const id of attempt.caseIds) expect(selected).toContain(id);
   expect(attempt.lessonId).toBe('f2l');
   expect(attempt.scramble.replace(/\s+/g,' ')).toBe(scramble.replace(/\s+/g,' '));
   expect(state.solves).toHaveLength(0);
@@ -323,7 +326,9 @@ test(`mobile practices keep case cubes at the top and fit above navigation at ${
   expect(layout.clockBottom).toBeLessThanOrEqual(layout.bottom);
   await page.screenshot({path:`test-results/practice-timer-mobile-${viewport.width}.png`});
   await pageControl(page,'All practices');
-  await expect(page.getByRole('checkbox',{name:'Include F2L · Easy Inserts',exact:true})).toBeChecked({indeterminate:true});
+  // Turning a case off while practicing never changes the checked groups.
+  await expect(page.getByRole('checkbox',{name:'Include F2L · Easy Inserts',exact:true})).toBeChecked();
+  await expect.poll(async()=> (await storedState(page)).settings.disabledCases).toHaveLength(1);
   const tabs=await page.locator('.sidebar .nav').evaluateAll(items=>items.map(item=>item.getBoundingClientRect().toJSON()));
   expect(new Set(tabs.map(tab=>Math.round(tab.top))).size).toBe(1);
 });
