@@ -28,7 +28,9 @@ Future lessons should define their own starting conditions. A cross lesson, for 
 
 ## What a lesson contains
 
-A lesson definition has a stable ID, title, summary, introduction, and a `cases` array. The `case` property aliases the first case for thumbnails and compatibility. Each case has its own stable ID, descriptive name, recognition group and description, canonical setup and solution, solving orientation, and target cubie identities. A case's optional `alignmentSolutions` map supplies shorter full solutions for specific top-layer alignments (`1`: U, `2`: U2, `3`: U'). Keep existing IDs and setups stable when improving a solution, so saved attempts and practice selections remain usable and the physical case does not silently change.
+A lesson definition has a stable ID, title, summary, introduction, and a `cases` array. The `case` property aliases the first case for thumbnails and compatibility. Each case has its own stable ID, descriptive name, recognition group and description, canonical setup and solution, solving orientation, and target cubie identities. A case's optional `alignmentSolutions` map supplies shorter full solutions for specific top-layer alignments (`1`: U, `2`: U2, `3`: U'). A case's `setup` is always the exact inverse of its canonical `solution`, so performing the setup moves and then the solution on a solved cube returns it to solved. Keep existing IDs and the physical case stable when improving a solution: the new solution may change the setup moves, but the setup must still place both target pieces exactly as before, so saved attempts and practice selections remain usable.
+
+Within each group, `CASE_ORDER` lists cases in mirror pairs: the right-hand version (finishing with an `R` trigger) comes directly before its left-hand mirror, and self-mirrored cases stand alone. Cases with the white corner sticker on a side come first, then white up, then white down, each from the shortest solution to the longest. Labels such as “Disc. 3” follow this order. Add every new case to `CASE_ORDER`.
 
 Each generated exercise contains:
 
@@ -62,7 +64,7 @@ Single-pair demonstrations follow this process:
 
 1. **Construct a constrained random background.** Keep the four white cross edges and the canonical target pair solved. Randomize the permutations and orientations of the remaining corners and edges.
 2. **Enforce physical legality.** Corner and edge permutation parity must match. Corner twists must sum to zero modulo three, and edge flips must sum to zero modulo two. Centers retain their fixed color relationships.
-3. **Expose the selected case.** Pick uniformly from the requested case IDs, then apply that case's canonical `setup` to the background. This places the target pieces in the taught case while preserving the cross. The setup is independent of the displayed solution. Current setups originate from inverses of full insertion algorithms. Improving the solution must not change the setup. All F2L cases play a complete efficient solution and preserve any already solved other F2L slots at completion.
+3. **Expose the selected case.** Pick uniformly from the requested case IDs, then apply that case's canonical `setup` to the background. This places the target pieces in the taught case while preserving the cross. The setup is the inverse of the displayed canonical solution; the background stays random, so random demonstrations still use the solver. All F2L cases play a complete efficient solution and preserve any already solved other F2L slots at completion.
 4. **Vary top-layer alignment.** Apply one of no turn, `U`, `U2`, or `U'` without changing the lesson's essential case.
 5. **Derive a scramble.** Use the local two-phase solver to solve the prepared state, then invert that solution to obtain moves that reach the state from solved.
 6. **Transform the destination slot.** Rotate the algorithm's side-face references around the vertical axis, together with the target cubie identities and solution, to obtain the selected F2L color pair and slot.
@@ -154,6 +156,8 @@ Validate the resulting cube states, not just the syntax of their move strings:
 - The required solved pieces stay solved before and after the lesson's solution.
 - The target pieces match the taught case, including their orientations.
 - Insertion solutions solve both target cubies in the destination slot.
+- Each case's setup followed by its solution returns a solved cube to solved.
+- Each group lists mirror cases next to each other, right-hand version first.
 - Solutions do not force an unnecessary ready-pair stage, and contain no redundant adjacent turns.
 - Canonical solutions and practice alignments are no longer than an independently searched route using the basic slot triggers above.
 - All advertised slots, color pairs, and alignments are covered.
