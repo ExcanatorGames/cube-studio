@@ -20,10 +20,13 @@ export function createSolveViews({
   getPage,
   getCustomSteps,
   getSplitMethods,
+  getTimerSplit = () => null,
   motion,
   openSolve,
 }) {
-  let historyPage = 0;
+  let historyPage = 0,
+    // Split list chosen in Analysis this session; until then, follow the timer's.
+    analysisSplit = null;
   const renderSplitProgress = initSplitCharts({ openSolve });
   function filtered(scope, period = 'all') {
     let a = all();
@@ -54,7 +57,7 @@ export function createSolveViews({
     const a = filtered($('#history-scope').value)
         .reverse()
         .filter((s) =>
-          [s.date, new Date(s.date).toLocaleString(), s.scramble, s.note]
+          [s.date, new Date(s.date).toLocaleString(), formatTime(result(s)), formatTime(s.ms), s.scramble, s.note]
             .join(' ')
             .toLowerCase()
             .includes($('#search').value.toLowerCase()),
@@ -209,7 +212,12 @@ export function createSolveViews({
     $('#insight-stats').innerHTML = cards
       .map(([label, value, help, key]) => {
         const higherBetter = key === 'subMinute' || key === 'count';
-        const change = metricChange(
+        // A badge must describe the value on its card. All time shows all-time
+        // values, so only the latest-solve averages compare the two periods.
+        const comparable = $('#insight-period').value === 'all'
+          ? ['ao5', 'ao12', 'ao100'].includes(key)
+          : key !== 'count';
+        const change = comparable && metricChange(
           key === 'subMinute' ? subMinute(current) : current[key],
           key === 'subMinute' ? subMinute(previous) : previous[key],
           { higherBetter },
@@ -262,9 +270,8 @@ export function createSolveViews({
       signatures.add(signature);
       methods = [...methods, {id: `recorded-${stableId(signature)}`, name: `Recorded · ${steps.join(' / ')}`, steps}];
     }
-    const previousPreset = $('#split-preset').value;
     $('#split-preset').innerHTML = methods.map(method => `<option value="${esc(method.id)}">${esc(method.name)}</option>`).join('');
-    const preset = methods.some(method => method.id === previousPreset) ? previousPreset : methods[0]?.id || '';
+    const preset = [analysisSplit, getTimerSplit()].find(id => methods.some(method => method.id === id)) || methods[0]?.id || '';
     $('#split-preset').value = preset;
     const labels = methods.find(method => method.id === preset)?.steps || [],
       progress = splitProgress(a, labels, insightPeriods(all()).view);
@@ -274,6 +281,8 @@ export function createSolveViews({
       labels,
     );
     progress.comparisonLabel = periods.label;
+    // Solves are numbered by their position in the selected view everywhere.
+    progress.numbers = new Map(a.map((solve, i) => [solve.id, i + 1]));
     renderSplitProgress(progress);
     if (!progress.count) {
       $('#split-chart').innerHTML = '<div class="empty">No split data.</div>';
@@ -307,6 +316,9 @@ export function createSolveViews({
     renderHistory();
   };
   $('#insight-period').onchange = renderInsights;
-  $('#split-preset').onchange = renderInsights;
+  $('#split-preset').onchange = () => {
+    analysisSplit = $('#split-preset').value;
+    renderInsights();
+  };
   return { renderRecent, renderHistory, renderInsights };
 }

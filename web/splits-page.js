@@ -34,8 +34,22 @@ export function initSplitsPage({ getSettings, save, busy, toast, openDialog }) {
       toast('Split list selected for the timer.');
     }
     if (button.dataset.delete) {
-      const remaining = methods.filter(method => method.id !== button.dataset.delete);
-      save({ ...settings, splitMethods: remaining, preset: settings.preset === button.dataset.delete ? remaining[0]?.id || 'beginner' : settings.preset, track: remaining.length ? settings.track : false });
+      const index = methods.findIndex(method => method.id === button.dataset.delete);
+      if (index < 0) return;
+      const removed = methods[index], previous = { preset: settings.preset, track: settings.track };
+      const remaining = methods.filter(method => method.id !== removed.id);
+      save({ ...settings, splitMethods: remaining, preset: settings.preset === removed.id ? remaining[0]?.id || 'beginner' : settings.preset, track: remaining.length ? settings.track : false });
+      // Like deleted solves, a deleted list can be restored from the notification.
+      toast(`Split list “${removed.name}” deleted.`, () => {
+        if (busy()) return;
+        const current = getSettings(), now = splitMethods(current);
+        if (now.some(method => method.id === removed.id)) return;
+        const restored = [...now];
+        restored.splice(Math.min(index, restored.length), 0, removed);
+        save({ ...current, splitMethods: restored,
+          preset: now.some(method => method.id === previous.preset) || previous.preset === removed.id ? previous.preset : current.preset,
+          track: previous.track || current.track });
+      });
     }
   };
   $('#split-tracking').onchange = () => {

@@ -6,6 +6,8 @@ const signed=(value,decimals)=>{const rounded=Number(value.toFixed(decimals));re
 export function initSplitCharts({openSolve}){
   const root=document.querySelector('#split-trend-charts'),count=document.querySelector('#split-progress-count');
   let progress={count:0,series:[],maxMs:0};
+  // The same solve number as the time chart: its position in the selected view.
+  const number=(point,index)=>progress.numbers?.get(point.id)??index+1;
 
   function scale(){
     const maximum=Math.max(1,progress.maxMs/1000),rawStep=maximum/3,power=10**Math.floor(Math.log10(rawStep));
@@ -26,13 +28,13 @@ export function initSplitCharts({openSolve}){
     points.forEach((p,i)=>{if(p.mean5!==null)mean+=`${mean?' L':'M'}${x(i).toFixed(2)} ${y(p.mean5).toFixed(2)}`;});
     svg+=`<path class="split-raw-line" d="${line}"/><path class="split-mean-line" d="${mean}"/>`;
     points.forEach((p,i)=>{if(p.mean5!==null)svg+=`<circle class="split-mean-dot" cx="${x(i)}" cy="${y(p.mean5)}" r="2.5"/>`;});
-    if(points.length===1)svg+=`<text x="${x(0)}" y="${h-26}" text-anchor="middle">#1</text>`;
-    else svg+=`<text x="${left}" y="${h-26}">#1</text><text x="${w-right}" y="${h-26}" text-anchor="end">#${points.length}</text>`;
+    if(points.length===1)svg+=`<text x="${x(0)}" y="${h-26}" text-anchor="middle">#${number(points[0],0)}</text>`;
+    else svg+=`<text x="${left}" y="${h-26}">#${number(points[0],0)}</text><text x="${w-right}" y="${h-26}" text-anchor="end">#${number(points.at(-1),points.length-1)}</text>`;
     svg+=`<text x="${(left+w-right)/2}" y="${h-6}" text-anchor="middle">Solve</text>`;
     svg+='</g>';
     points.forEach((p,i)=>{
       const fastest=p.ms===extremes.fastest,slowest=p.ms===extremes.slowest;
-      const label=`${fastest?'Fastest · ':''}${slowest?'Slowest · ':''}Solve #${i+1} · ${series.name}: ${seconds(p.ms)} · ${new Date(p.date).toLocaleString()}${p.mean5===null?'':` · Mean ${p.meanCount}: ${seconds(p.mean5)}`}. Open solve.`;
+      const label=`${fastest?'Fastest · ':''}${slowest?'Slowest · ':''}Solve #${number(p,i)} · ${series.name}: ${seconds(p.ms)} · ${new Date(p.date).toLocaleString()}${p.mean5===null?'':` · Mean ${p.meanCount}: ${seconds(p.mean5)}`}. Open solve.`;
       svg+=`<circle class="split-point${fastest?' fastest':''}${slowest?' slowest':''}" data-split-point="${i}" cx="${x(i)}" cy="${y(p.ms)}" r="${fastest||slowest?5:4}" tabindex="0" role="button" aria-label="${esc(label)}"/>`;
     });
     return svg+'</svg>';
@@ -51,7 +53,7 @@ export function initSplitCharts({openSolve}){
   function showTooltip(element){
     const {point,card}=pointFor(element);if(!point||!card)return;
     const tooltip=card.querySelector('.split-trend-tooltip');
-    tooltip.textContent=`Solve #${Number(element.dataset.splitPoint)+1} · ${new Date(point.date).toLocaleString()} · ${seconds(point.ms)}${point.mean5===null?'':` · Mean ${point.meanCount}: ${seconds(point.mean5)}`}`;
+    tooltip.textContent=`Solve #${number(point,Number(element.dataset.splitPoint))} · ${new Date(point.date).toLocaleString()} · ${seconds(point.ms)}${point.mean5===null?'':` · Mean ${point.meanCount}: ${seconds(point.mean5)}`}`;
     tooltip.hidden=false;element.setAttribute('aria-describedby',tooltip.id);
   }
   function hideTooltip(element){

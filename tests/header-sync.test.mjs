@@ -205,14 +205,14 @@ test('a connection change during a failing request gets one queued retry and rep
 test('hold time uses editable seconds and rejects values outside zero to one',()=>{
   const h=harness();
   h.element('#open-settings').onclick();assert.equal(h.element('#hold-duration').value,0.5);
-  h.element('#hold-duration').value='0.72';h.element('#save-settings').onclick();
+  h.element('#hold-duration').value='0.72';h.element('#settings-panel-general').onchange();
   assert.equal(h.run('settings.hold'),720);
   for(const value of ['','-0.1','1.01','invalid']){
-    h.element('#open-settings').onclick();h.element('#hold-duration').value=value;h.element('#save-settings').onclick();
+    h.element('#open-settings').onclick();h.element('#hold-duration').value=value;h.element('#settings-panel-general').onchange();
     assert.equal(h.element('#settings-dialog').open,true);assert.equal(h.run('settings.hold'),720);
   }
-  h.element('#hold-duration').value='1';h.element('#save-settings').onclick();assert.equal(h.run('settings.hold'),1000);
-  h.element('#open-settings').onclick();h.element('#hold-duration').value='0';h.element('#save-settings').onclick();assert.equal(h.run('settings.hold'),0);
+  h.element('#hold-duration').value='1';h.element('#settings-panel-general').onchange();assert.equal(h.run('settings.hold'),1000);
+  h.element('#open-settings').onclick();h.element('#hold-duration').value='0';h.element('#settings-panel-general').onchange();assert.equal(h.run('settings.hold'),0);
 });
 
 test('the Settings dot remains visible for an update after sync recovers',async()=>{

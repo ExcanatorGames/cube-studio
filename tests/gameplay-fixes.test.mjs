@@ -156,3 +156,46 @@ test('two tabs turning off cases in different groups keep both choices', async (
   const remote = { ...empty, settings: { disabledCases: ['a', 'c'] } };
   assert.deepEqual(mergeSnapshots(base, local, remote).settings.disabledCases.sort(), ['b', 'c']);
 });
+
+test('manual times accept a decimal comma, and the solve list can be searched by time', async () => {
+  const { parseTime } = await import('../web/core.js');
+  assert.equal(parseTime('12,34'), 12340);
+  assert.equal(parseTime('1:02,5'), 62500);
+  assert.throws(() => parseTime('1,234,5'));
+  const h = harness();
+  h.element('#manual-time').value = '12,34';
+  h.element('#save-manual').onclick();
+  h.element('#history-scope').value = 'all';
+  h.element('#search').value = '12.34';
+  h.run("setPage('history')");
+  assert.match(h.element('#history-body').innerHTML, /12\.34/);
+  h.element('#search').value = '99.99';
+  h.element('#search').oninput();
+  assert.match(h.element('#history-body').innerHTML, /No matching solves/);
+});
+
+test('settings apply as soon as they change, keeping the saved hold time when the entry is invalid', () => {
+  const h = harness();
+  h.element('#open-settings').onclick();
+  h.element('#hold-duration').value = '0.3';
+  h.element('#settings-panel-general').onchange();
+  assert.equal(h.run('settings.hold'), 300);
+  assert.equal(h.element('#settings-dialog').open, true, 'saving does not close Settings');
+  h.element('#hold-duration').value = '5';
+  h.element('#settings-panel-general').onchange();
+  assert.equal(h.run('settings.hold'), 300);
+  assert.equal(h.element('#hold-duration').value, 0.3);
+});
+
+test('a deleted split list can be restored with Undo', () => {
+  const h = harness();
+  h.run("settingsDialog.open('splits')");
+  const before = h.run('splitMethods(settings).map(m => m.id).join()');
+  h.run("settings.preset = 'cfop'");
+  h.element('#split-method-list').onclick({ target: { closest: () => ({ dataset: { delete: 'cfop' } }) } });
+  assert.ok(!h.run('splitMethods(settings).some(m => m.id === "cfop")'));
+  assert.notEqual(h.run('settings.preset'), 'cfop');
+  h.run("$('#toast').children.at(-1)?.onclick?.()");
+  assert.equal(h.run('splitMethods(settings).map(m => m.id).join()'), before);
+  assert.equal(h.run('settings.preset'), 'cfop');
+});

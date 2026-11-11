@@ -20,7 +20,9 @@ export function initHistoryDialogs({
   openDialog,
   toast,
 }) {
+  // `selected` is the draft shown in the dialog; `original` is the saved record.
   let selected = null,
+    original = null,
     selectedLesson = false,
     imported = [];
   // Practice attempts are edited like solves but saved to their own history.
@@ -65,6 +67,7 @@ export function initHistoryDialogs({
     const lesson = !getRecords().has(id) && getLessons().has(id);
     const s = (lesson ? getLessons() : getRecords()).get(id);
     if (!s || s.deleted) return;
+    original = s;
     selected = { ...s, splits: s.splits.map((x) => ({ ...x })) };
     selectedLesson = lesson;
     $('#solve-title').textContent = lesson ? 'Practice attempt' : 'Solve';
@@ -101,9 +104,10 @@ export function initHistoryDialogs({
   };
   $('#delete-solve').onclick = () => {
     if (!selected) return;
-    const old = { ...selected },
+    // Unsaved penalty or note changes are discarded; Undo restores the saved result.
+    const old = { ...original },
       restore = selectedLesson ? updateLessonAttempt : updateSolve;
-    save({ ...selected, deleted: true });
+    save({ ...original, deleted: true });
     $('#solve-dialog').close();
     toast(selectedLesson ? 'Attempt deleted.' : 'Solve deleted.', () => restore({ ...old, deleted: false }));
   };

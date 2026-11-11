@@ -8,15 +8,17 @@ const solve=(id,days,ms=60000,penalty='none')=>({id,date:new Date(now-days*day).
 
 test('solve-count filters select adjacent chronological groups regardless of dates and exclude invalid rows',()=>{
   const solves=[solve('now',0),solve('start',30),solve('previous',60),solve('outside',61),solve('future',-1),{...solve('deleted',1),deleted:true},{...solve('invalid',1),date:'invalid'}];
+  // A solve dated in the future (fast device clock) still counts as the newest.
   const periods=insightPeriods(solves,'2',now);
-  assert.deepEqual(periods.current.map(s=>s.id),['start','now']);
-  assert.deepEqual(periods.previous.map(s=>s.id),['outside','previous']);
+  assert.deepEqual(periods.current.map(s=>s.id),['now','future']);
+  assert.deepEqual(periods.previous.map(s=>s.id),['previous','start']);
   assert.deepEqual(periods.view,periods.current);
   assert.equal(insightPeriods(solves,'200',now).previous.length,0);
   assert.equal(solves[0].id,'now');
   const partial=insightPeriods(solves,'3',now);
-  assert.deepEqual(partial.previous.map(s=>s.id),['outside']);
-  assert.equal(partial.label,'Last 3 solves vs previous 1 solve');
+  assert.deepEqual(partial.previous.map(s=>s.id),['outside','previous']);
+  assert.equal(partial.label,'Last 3 solves vs previous 2 solves');
+  assert.ok(insightPeriods(solves,'all',now).current.some(s=>s.id==='future'));
   const attempts=Array.from({length:450},(_,i)=>solve(String(i),450-i,40000,i%10===0?'dnf':'none'));
   for(const count of [200,100,50,20,10,5]){
     const selected=insightPeriods(attempts,String(count),now);
@@ -76,8 +78,12 @@ test('stats omit missing comparison badges and hide the explanation when no metr
   const cards=h.element('#insight-stats').innerHTML;
   assert.match(cards,/stat-change good/);
   assert.doesNotMatch(cards,/No comparable baseline/);
-  assert.equal((cards.match(/stat-change/g)||[]).length,5,'Only best, ao5, mean, median and solve count have valid comparisons');
+  assert.equal((cards.match(/stat-change/g)||[]).length,4,'Only best, ao5, mean and median have valid comparisons; solve counts are not compared');
   assert.equal(h.element('#insight-comparison').hidden,false);
+  h.run("$('#insight-period').value='all';renderInsights()");
+  const allTime=h.element('#insight-stats').innerHTML.split('<div class="stat"').slice(1);
+  assert.deepEqual(allTime.map(card=>/stat-change/.test(card)),allTime.map(card=>/<span>AO(5|12|100)<\/span>/.test(card)&&/stat-change/.test(card)),'All time badges only describe latest-solve averages');
+  assert.ok(!allTime.some(card=>/<span>(BEST|MEAN|MEDIAN|SOLVES|SUB-MINUTE)<\/span>/.test(card)&&/stat-change/.test(card)));
 });
 
 test('filtered ao12 uses preceding history from the first displayed solve and keeps its values in view',()=>{
@@ -111,7 +117,7 @@ test('split cards receive percentage and seconds comparisons for the same groups
     const cross=i<5?10000:5000;
     return {...solve(String(i),i<5?150+i:10-i,20000),splits:[{name:'Cross',ms:cross},{name:'Rest',ms:20000}]};
   });
-  h.run(`records=new Map(${JSON.stringify(rows)}.map(s=>[s.id,s]));settings.custom=['Cross','Rest'];$('#split-preset').value='custom';$('#insight-period').value='5';renderInsights()`);
+  h.run(`records=new Map(${JSON.stringify(rows)}.map(s=>[s.id,s]));settings.custom=['Cross','Rest'];$('#insight-period').value='5';$('#split-preset').value='custom';$('#split-preset').onchange()`);
   assert.equal(h.run('lastSplitProgress.comparisons[0].percent'),-50);
   assert.equal(h.run('lastSplitProgress.comparisons[0].deltaMs'),-5000);
   assert.equal(h.run('lastSplitProgress.comparisons[1].percent'),50);
@@ -120,4 +126,14 @@ test('split cards receive percentage and seconds comparisons for the same groups
   h.run("$('#insight-period').value='all';renderInsights()");
   assert.equal(h.run('lastSplitProgress.comparisons[0].percent'),-50);
   assert.equal(h.run('lastSplitProgress.comparisonLabel'),'Last 4 months vs previous 4 months');
+});
+
+test('Analysis splits follow the timer split list until another is chosen there',()=>{
+  const h=harness(),rows=Array.from({length:3},(_,i)=>({...solve(String(i),3-i,20000),splits:['Cross','F2L','OLL','PLL'].map((name,j)=>({name,ms:5000*(j+1)}))}));
+  h.run(`records=new Map(${JSON.stringify(rows)}.map(s=>[s.id,s]));settings.preset='cfop';$('#insight-period').value='all';renderInsights()`);
+  assert.equal(h.element('#split-preset').value,'cfop');
+  assert.equal(h.run('lastSplitProgress.count'),3);
+  assert.equal(h.run('lastSplitProgress.numbers.get("0")'),1,'split charts number solves by their place in the view');
+  h.run("$('#split-preset').value='beginner';$('#split-preset').onchange();settings.preset='roux';renderInsights()");
+  assert.equal(h.element('#split-preset').value,'beginner');
 });

@@ -48,7 +48,7 @@ for (const width of [320, 1280]) {
     await page.keyboard.press('Home');
     await expect(general).toBeFocused();
     await expect(page.locator('#hold-duration')).toHaveValue('1');
-    await page.locator('#save-settings').click();
+    await page.getByRole('button',{name:'Close settings',exact:true}).click();
     await expect.poll(async () => (await storedState(page)).settings.hold).toBe(1000);
     await expect.poll(async () => (await storedState(page)).settings.track).toBe(true);
     await expect(page.locator('#timer-page')).toBeVisible();
@@ -74,14 +74,14 @@ test('Lessons preparation changes the current demo, persists on reload and keeps
   await page.getByRole('tab',{name:'Lessons',exact:true}).click();
   await expect(page.locator('#lesson-scramble-mode')).toHaveValue('random');
   await page.locator('#lesson-scramble-mode').selectOption('setup');
-  await page.locator('#save-lesson-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(code).toHaveText(setup);
   await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('aria-label','Setup moves');
   await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('title',/yellow on top, white on bottom/);
   await expect.poll(async()=>(await storedState(page)).settings.lessonScrambleMode).toBe('setup');
   await page.getByRole('link',{name:'Settings',exact:true}).click();
   await page.locator('#scramble-orientation').selectOption('blue-red');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(code).toHaveText(setup);
   await page.reload();
   await expect(code).toHaveText(setup,{timeout:20000});
@@ -89,7 +89,7 @@ test('Lessons preparation changes the current demo, persists on reload and keeps
   await page.getByRole('tab',{name:'Lessons',exact:true}).click();
   await expect(page.locator('#lesson-scramble-mode')).toHaveValue('setup');
   await page.locator('#lesson-scramble-mode').selectOption('random');
-  await page.locator('#save-lesson-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(code).not.toHaveText(setup);
   await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('aria-label','Demo scramble');
   await page.getByRole('tab',{name:'Practice',exact:true}).click();
@@ -102,7 +102,7 @@ test('scramble orientation changes notation and preview together, and follows th
   await page.getByRole('link',{name:'Settings',exact:true}).click();
   await expect(page.locator('#scramble-orientation')).toHaveValue('default');
   await page.locator('#scramble-orientation').selectOption('white-bottom');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(page.locator('#fullscreen-scramble')).toHaveText(orientAlgorithm(notation,'white-top','white-bottom'));
   await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /yellow on top/);
   const expectedPreview=await page.evaluate(svg=>{const root=document.createElement('div');root.innerHTML=svg;return root.innerHTML;},cubeSVG(orientAlgorithm(notation,'white-top','white-bottom'),{orientation:'white-bottom'}));
@@ -116,7 +116,7 @@ test('scramble orientation changes notation and preview together, and follows th
   await page.locator('#scramble-orientation').selectOption('default');
   await page.locator('#cube-top').selectOption('green');
   await page.locator('#cube-front').selectOption('red');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(page.locator('#fullscreen-scramble')).toHaveAttribute('title', /green on top and red in front/);
   await expect.poll(async () => (await storedState(page)).settings.orientation).toBe('green-red');
   await context.setOffline(true);
@@ -141,7 +141,7 @@ test('lesson and practice scrambles use the chosen frame while animations and so
   await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /yellow on top, white on bottom/);
   await page.getByRole('link',{name:'Settings',exact:true}).click();
   await page.locator('#scramble-orientation').selectOption('blue-red');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(code).toHaveText(orientAlgorithm(notation,'white-top','blue-red'));
   await expect(page.locator('.lesson-demo-setup')).toHaveAttribute('title', /blue on top and red in front/);
   await expect(page.locator('.lesson-cube svg')).toHaveAttribute('aria-label', /yellow on top, white on bottom/);
@@ -186,7 +186,7 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   expect(await page.locator('#cube-front option').evaluateAll(options => options.map(option => option.value))).not.toContain('blue');
   await page.getByRole('combobox', {name:'Color in front',exact:true}).selectOption('red');
   await page.locator('#lesson-orientation').selectOption('white-top');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(page.locator('#cube-preview svg')).toHaveAttribute('aria-label', /green on top and red in front/);
   await expect.poll(async () => (await storedState(page)).settings.orientation).toBe('green-red');
   await context.setOffline(true);
@@ -198,7 +198,7 @@ test('cube preferences validate adjacent faces and persist after reload and offl
   await expect(page.locator('#cube-front')).toHaveValue('red');
   await expect(page.locator('#lesson-orientation')).toHaveValue('white-top');
   await expect(page.locator('#solve-colors')).toHaveCount(0);
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect.poll(async () => (await storedState(page)).settings.solveColors).toBeUndefined();
   await expect(page.locator('#settings-dialog')).not.toBeVisible();
   await expect(page).toHaveURL(`${server.url}/timer`);

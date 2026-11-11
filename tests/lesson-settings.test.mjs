@@ -13,7 +13,7 @@ test('Lessons settings save preparation independently without replacing the four
   assert.equal(h.element('#settings-panel-general').hidden,true);
   assert.equal(h.element('#lesson-scramble-mode').value,'random');
   h.element('#lesson-scramble-mode').value='setup';
-  h.element('#save-lesson-settings').onclick();
+  h.element('#settings-panel-lessons').onchange();
   assert.equal(h.run('settings.lessonScrambleMode'),'setup');
   assert.equal(h.run('lessonSession.context.exercise'),exercise);
   assert.equal(h.lessonMessages.length,requests);
@@ -30,7 +30,7 @@ test('lesson preparation cannot change during a practice attempt',()=>{
   h.run("setPage('lessons');openLesson('13');setLessonTab('practice');arm()");
   h.arm();h.run('start()');
   h.element('#lesson-scramble-mode').value='setup';
-  h.element('#save-lesson-settings').onclick();
+  h.element('#settings-panel-lessons').onchange();
   assert.equal(h.run('settings.lessonScrambleMode'),'random');
   assert.equal(h.run('timing.state'),'running');
 });

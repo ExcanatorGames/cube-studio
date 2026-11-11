@@ -67,10 +67,10 @@ export function initSettingsDialog({
     onOpen?.();
   }
   $('#open-settings').onclick = event => { if (routeClick(event)) open(); };
-  $('#cube-top').onchange = preview;
-  $('#cube-front').onchange = preview;
+  // Settings apply as soon as a control changes, like split lists do.
   function saveSettings() {
     if (busy()) return;
+    preview();
     const top = $('#cube-top').value, front = $('#cube-front').value;
     if (!validOrientation(top, front)) {
       selectTab('general');
@@ -78,26 +78,25 @@ export function initSettingsDialog({
       return;
     }
     const hold = String($('#hold-duration').value).trim();
-    if (hold === '' || !Number.isFinite(Number(hold)) || Number(hold) < 0 || Number(hold) > 1) {
-      selectTab('general');
+    const validHold = hold !== '' && Number.isFinite(Number(hold)) && Number(hold) >= 0 && Number(hold) <= 1;
+    if (!validHold) {
+      // Keep the saved hold time; other changes still apply.
       toast('Enter a hold time from 0 to 1 second.');
-      $('#hold-duration').focus();
-      return;
+      $('#hold-duration').value = getSettings().hold / 1000;
     }
     const lessonOrientation = $('#lesson-orientation').value === 'white-top' ? 'white-top' : 'white-bottom';
     const next = {
       ...getSettings(),
       orientation: cubeOrientationId(top, front),
-      hold: Math.round(Number(hold) * 1000),
+      hold: validHold ? Math.round(Number(hold) * 1000) : getSettings().hold,
       scrambleOrientation: $('#scramble-orientation').value,
       lessonOrientation,
       lessonScrambleMode: $('#lesson-scramble-mode').value === 'setup' ? 'setup' : 'random',
       crossPosition: lessonOrientation === 'white-top' ? 'top' : 'bottom',
     };
     save(next);
-    $('#settings-dialog').close();
   }
-  $('#save-settings').onclick = saveSettings;
-  $('#save-lesson-settings').onclick = saveSettings;
+  $('#settings-panel-general').onchange = saveSettings;
+  $('#settings-panel-lessons').onchange = saveSettings;
   return { open, selectTab, get tab() { return activeTab; } };
 }

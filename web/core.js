@@ -64,7 +64,8 @@ export function solveDistribution(solves){
   return bins;
 }
 export function insightPeriods(solves,period='all',now=Date.now()){
-  const ordered=solves.filter(s=>!s.deleted&&Number.isFinite(Date.parse(s.date))&&Date.parse(s.date)<=now).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
+  // Solves dated after now (a device clock running fast) still count.
+  const ordered=solves.filter(s=>!s.deleted&&Number.isFinite(Date.parse(s.date))).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)||a.id.localeCompare(b.id));
   if(period!=='all'){
     const count=Number(period),current=ordered.slice(-count),previous=ordered.slice(-2*count,-count);
     return {view:current,current,previous,label:`Last ${current.length} ${current.length===1?'solve':'solves'} vs previous ${previous.length} ${previous.length===1?'solve':'solves'}`};
@@ -87,7 +88,7 @@ export function splitComparisons(currentSolves,previousSolves,labels){
   });
 }
 export function stableId(text){let hash=14695981039346656037n;for(const c of text){hash^=BigInt(c.codePointAt(0));hash=BigInt.asUintN(64,hash*1099511628211n);}return 'csv-'+hash.toString(16);}
-export function parseTime(value){const s=String(value).trim();if(!/^\d+(?::[0-5]\d){0,2}(?:\.\d{1,3})?$/.test(s))throw Error(`Invalid time: ${s}`);const ms=Math.round(s.split(':').reduce((a,b)=>a*60+Number(b),0)*1000);if(ms<=0 || ms>=86400000)throw Error(`Invalid time: ${s}`);return ms;}
+export function parseTime(value){let s=String(value).trim();if(!s.includes('.'))s=s.replace(/,(\d{1,3})$/,'.$1');if(!/^\d+(?::[0-5]\d){0,2}(?:\.\d{1,3})?$/.test(s))throw Error(`Invalid time: ${s}`);const ms=Math.round(s.split(':').reduce((a,b)=>a*60+Number(b),0)*1000);if(ms<=0 || ms>=86400000)throw Error(`Invalid time: ${s}`);return ms;}
 export function parseDelimited(text){const first=text.replace(/^\uFEFF/,'').split(/\r?\n/).find(l=>/Date.*Time/i.test(l));if(!first)throw Error('No Date / Time header found. Use your timer CSV export.');const delimiter=first.includes('\t')?'\t':first.includes(';')?';':',';const start=text.indexOf(first);const rows=[];let row=[],field='',quoted=false;const s=text.slice(start).replace(/\r\n/g,'\n');for(let i=0;i<s.length;i++){const c=s[i];if(c==='"'){if(quoted&&s[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}else if(c===delimiter&&!quoted){row.push(field);field='';}else if(c==='\n'&&!quoted){row.push(field.replace(/\r$/,''));if(row.some(Boolean))rows.push(row);row=[];field='';}else field+=c;}if(quoted)throw Error('Unclosed CSV quote');if(field||row.length){row.push(field);rows.push(row);}return rows;}
 export function parseCSV(text){
   const rows=parseDelimited(text),head=rows.shift().map(x=>x.trim().normalize('NFKC').toLowerCase()),col=n=>head.indexOf(n);

@@ -2,15 +2,16 @@ import {lessonCubeSVG} from './lesson-cube.js';
 import {cubeFrame,orientAlgorithm,orientationColors} from './cube.js';
 import {orientLessonCase} from './lessons.js';
 
-export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrientation,getScrambleMode=()=>'random',setupCase=lesson.case}={}){
+export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrientation,getScrambleMode=()=>'random',setupCase=lesson.case,speed:initialSpeed=1,onSpeed:speedChanged=()=>{}}={}){
   let scrambleMode=getScrambleMode();
   const example=()=>scrambleMode==='setup'?setupCase:lesson.case;
   let {setup,scramble,solution,orientation,target}=orientLessonCase(example(),lesson.case.orientation);
-  let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=1;
-  root.innerHTML=`<div class="lesson-demo-layout"><p class="lesson-demo-setup" aria-label="Demo scramble"><code>${scramble}</code></p><div class="lesson-cube"></div><div class="lesson-demo-guide"><p class="lesson-view-frame"></p>
+  // The chosen speed carries over between demonstrations.
+  let step=0,playing=false,turn=null,timeout=null,frame=null,destroyed=false,generation=0,speed=Number.isFinite(initialSpeed)&&initialSpeed>=0.5&&initialSpeed<=4?initialSpeed:1;
+  root.innerHTML=`<div class="lesson-demo-layout"><p class="lesson-demo-setup" aria-label="Demo scramble"><span class="lesson-demo-frame scramble-frame muted"></span><code>${scramble}</code></p><div class="lesson-cube"></div><div class="lesson-demo-guide"><p class="lesson-view-frame"></p>
     <div class="lesson-moves" aria-label="Moves"></div>
   <div class="lesson-playback" role="group" aria-label="Playback controls"><button type="button" class="small-button" data-action="reset">Reset</button><button type="button" class="small-button" data-action="previous" aria-label="Previous move">←</button><button type="button" class="small-button" data-action="play" aria-pressed="false">Play</button><button type="button" class="small-button" data-action="next" aria-label="Next move">→</button></div>
-    <label class="lesson-speed" for="lesson-animation-speed"><span class="lesson-speed-heading"><span>Animation speed</span><output for="lesson-animation-speed">1×</output></span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="1"></label></div></div>`;
+    <label class="lesson-speed" for="lesson-animation-speed"><span class="lesson-speed-heading"><span>Animation speed</span><output for="lesson-animation-speed">${speed}×</output></span><input id="lesson-animation-speed" type="range" min="0.5" max="4" step="0.25" value="${speed}"></label></div></div>`;
   const find=selector=>root.querySelector(selector);
   const moves=()=>solution.trim().split(/\s+/).filter(Boolean);
   const algorithm=()=>[setup,...moves().slice(0,step)].join(' ');
@@ -21,6 +22,8 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
     find('.lesson-demo-setup').setAttribute('aria-label',scrambleMode==='setup'?'Setup moves':'Demo scramble');
     find('.lesson-demo-setup code').textContent=orientAlgorithm(scramble,orientation,frame);
     find('.lesson-demo-setup').title=`${scrambleMode==='setup'?'Set up':'Scramble'} with ${cubeFrame(frame).label}. Moves follow the cube's U, F and R faces.`;
+    // Name the holding position, as the timer and practice do.
+    find('.lesson-demo-frame').textContent=`${scrambleMode==='setup'?'Setup':'Scramble'}: ${frameLabel(frame)}`;
   }
   function paint(){
     find('.lesson-cube').innerHTML=lessonCubeSVG(algorithm(),{orientation,target});
@@ -99,7 +102,7 @@ export function createLessonDemo(root,lesson,runtime=globalThis,{getScrambleOrie
     if(event.target!==find('#lesson-animation-speed'))return;
     const next=Number(event.target.value);if(!Number.isFinite(next)||next<0.5||next>4)return;
     if(turn){const now=runtime.performance.now();turn.elapsed+=Math.max(0,now-turn.lastFrame)*speed;turn.lastFrame=now;}
-    speed=next;find('.lesson-speed output').textContent=`${speed}×`;
+    speed=next;find('.lesson-speed output').textContent=`${speed}×`;speedChanged(speed);
     if(timeout!==null){runtime.clearTimeout(timeout);timeout=null;if(playing)schedule(470);}
   }
   root.addEventListener('click',onClick);

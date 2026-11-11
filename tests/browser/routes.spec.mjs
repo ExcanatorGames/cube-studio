@@ -77,7 +77,7 @@ test('Settings has a direct URL and Back, Forward, Save and close restore its ba
   await expect(page.locator('#settings-dialog')).toBeVisible();
   await page.reload();
   await expect(page.locator('#settings-dialog')).toBeVisible();
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect(page).toHaveURL(server.url + '/analysis/solves');
   await expect(page.locator('#history-page')).toBeVisible();
   await page.goto(server.url + '/settings');

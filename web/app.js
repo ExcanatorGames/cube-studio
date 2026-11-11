@@ -447,7 +447,10 @@ function setPracticeGroups(ids) {
 function renderPracticeList() {
   $('#practice-list').hidden = false;
   if (!checkedPracticeGroups().length) practiceSelecting = false;
-  lessonPresentation.renderPracticeCards(checkedPracticeGroups().map(option => option.id), practiceSelectionVisible(), practiceRoute);
+  const disabled = disabledCaseIds(settings);
+  lessonPresentation.renderPracticeCards(checkedPracticeGroups().map(option => option.id), practiceSelectionVisible(), practiceRoute,
+    // A group with every case off practices all of them, like opening it does.
+    option => option.cases.filter(item => !disabled.has(item.id)).length || option.cases.length);
 }
 initPracticeSelection({ root: $('#practice-cards'), onHold(id) {
   if (busy() || page !== 'practice' || lessonSession.context.kind === 'lesson') return;
@@ -1143,6 +1146,11 @@ function showDemo(demoExercise) {
     getScrambleOrientation: () => getScrambleOrientation(settings),
     getScrambleMode: () => settings.lessonScrambleMode,
     setupCase: selected,
+    speed: settings.lessonSpeed,
+    onSpeed(speed) {
+      settings = { ...settings, lessonSpeed: speed };
+      persist();
+    },
   });
 }
 function requestLessonDemo() {
@@ -1343,6 +1351,7 @@ const { renderRecent, renderHistory, renderInsights } = createSolveViews({
   getPage: () => page,
   getCustomSteps: () => settings.custom,
   getSplitMethods: () => splitMethods(settings),
+  getTimerSplit: () => settings.preset,
   motion,
   openSolve,
 });

@@ -73,7 +73,7 @@ export function createLessonPresentation() {
   let practiceCardsRendered = false;
   // groupIds: practice groups checked for a mix. hrefFor(option) gives the
   // address a card opens, so links match what a click does.
-  function renderPracticeCards(groupIds, selecting = false, hrefFor = () => null) {
+  function renderPracticeCards(groupIds, selecting = false, hrefFor = () => null, enabledFor = option => option.cases.length) {
     const selected = new Set(groupIds);
     $('#practice-cards').classList.toggle('practice-selecting', selecting);
     if (!practiceCardsRendered) $('#practice-cards').innerHTML = LESSON_CATALOG.map(lesson => `
@@ -83,7 +83,7 @@ export function createLessonPresentation() {
           return `<article class="lesson-card practice-card">
             <label class="practice-select" data-practice-selection-control="${option.id}" hidden><input type="checkbox" data-practice-select="${option.id}" aria-label="Include ${esc(option.fullTitle)}" ${checked ? 'checked' : ''}></label>
             <a href="/practice/${option.lessonId}/${option.slug}" class="practice-card-open" data-practice-open="${option.id}" aria-label="Practice ${esc(option.fullTitle)}" aria-keyshortcuts="Shift+F10">
-              <span class="lesson-card-copy"><strong>${esc(option.fullTitle)}</strong><small>${option.cases.length} cases</small></span>
+              <span class="lesson-card-copy"><strong>${esc(option.fullTitle)}</strong><small data-practice-count="${option.id}">${option.cases.length} cases</small></span>
               ${casePreviews(option.cases)}
             </a>
           </article>`;
@@ -94,6 +94,10 @@ export function createLessonPresentation() {
       $(`[data-practice-selection-control="${option.id}"]`).hidden = !selecting;
       $(`[data-practice-select="${option.id}"]`).checked = selected.has(option.id);
       $(`[data-practice-select="${option.id}"]`).indeterminate = false;
+      // Cases turned off during practice are left out of the count.
+      const enabled = enabledFor(option);
+      $(`[data-practice-count="${option.id}"]`).textContent = enabled < option.cases.length
+        ? `${enabled} of ${option.cases.length} cases` : `${option.cases.length} cases`;
       const route = hrefFor(option);
       if (route) $(`[data-practice-open="${option.id}"]`).setAttribute('href', routePath(route));
     }

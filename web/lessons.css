@@ -234,3 +234,4 @@ body.focus-mode #lesson-panel-practice{display:block}
 #timer-card.running{touch-action:none}
 #timer-card.running .timer-toolbar *{pointer-events:none}
 #timer-card.running .solve-frame{display:none}
+.lesson-demo-frame{text-align:center;margin-bottom:4px}

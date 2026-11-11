@@ -91,7 +91,7 @@ test('an invalid split-list draft cannot poison later settings or solve saves', 
     assert.match(h.element('#split-editor-error').textContent, /12 steps/);
     h.element('#split-editor-dialog').close();
     h.element('#open-settings').onclick();
-    h.element('#save-settings').onclick();
+    h.element('#settings-panel-general').onchange();
     addTime(h);
     assert.equal(h.element('#storage-warning').hidden, true);
     const stored = JSON.parse(h.storage.get('cube-studio-v1'));

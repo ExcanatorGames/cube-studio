@@ -14,12 +14,12 @@ function setTimerOrientation(h, orientation) {
   h.element('#open-settings').onclick();
   h.element('#cube-top').value = orientation === 'white-bottom' ? 'yellow' : 'white';
   h.element('#cube-front').value = 'green';
-  h.element('#save-settings').onclick();
+  h.element('#settings-panel-general').onchange();
 }
 function setLessonOrientation(h, orientation) {
   h.element('#open-settings').onclick();
   h.element('#lesson-orientation').value = orientation;
-  h.element('#save-settings').onclick();
+  h.element('#settings-panel-general').onchange();
 }
 
 
@@ -85,7 +85,7 @@ test('lesson preference in Settings applies to the current exercise and persists
   h.element('#open-settings').onclick();
   assert.equal(h.element('#lesson-orientation').value,'white-bottom');
   h.element('#lesson-orientation').value='white-top';
-  h.element('#save-settings').onclick();
+  h.element('#settings-panel-general').onchange();
   assert.equal(h.run('lessonSession.context.exercise'),canonical);
   assert.equal(h.run('scramble'),canonical.scramble);
   assert.equal(h.run('settings.orientation'),'white-top');
@@ -115,7 +115,7 @@ test('pending lesson requests use the latest Settings preference',()=>{
   const h=harness({deferLessonScrambles:true});
   h.run("setPage('lessons');openLesson('13')");
   h.element('#open-settings').onclick();
-  h.element('#lesson-orientation').value='white-top';h.element('#save-settings').onclick();
+  h.element('#lesson-orientation').value='white-top';h.element('#settings-panel-general').onchange();
   assert.equal(h.run('scramble'),'');
   h.lessonRequests[0]();
   assert.equal(h.run('scramble'),h.run('lessonSession.context.exercise.scramble'));

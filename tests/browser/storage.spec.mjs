@@ -62,7 +62,7 @@ test('migration preserves history, tombstones, pending lessons and settings; lat
   });
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Hold to start').fill('0.3');
-  await page.locator('#save-settings').click();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await expect
     .poll(async () => (await storedState(page)).settings.hold)
     .toBe(300);
