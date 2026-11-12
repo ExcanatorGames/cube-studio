@@ -14,6 +14,18 @@ test('lesson preparation defaults to random, persists setup mode and recovers in
   assert.ok(recovered.issues.includes('settings.lessonScrambleMode'));
 });
 
+test('lesson focus is on until turned off, persists either choice and recovers invalid values',()=>{
+  assert.equal(validateSnapshot({}).snapshot.settings.lessonFocus,undefined,'unset means on');
+  for(const value of [true,false]){
+    const saved=validateSnapshot({settings:{lessonFocus:value}});
+    assert.deepEqual(saved.issues,[]);
+    assert.equal(saved.snapshot.settings.lessonFocus,value);
+  }
+  const recovered=validateSnapshot({settings:{lessonFocus:'off'}});
+  assert.equal(recovered.snapshot.settings.lessonFocus,undefined);
+  assert.ok(recovered.issues.includes('settings.lessonFocus'));
+});
+
 test('all 24 top/front frames preserve the physical scramble and turn directions', () => {
   const vectors = {R:[1,0,0],L:[-1,0,0],U:[0,1,0],D:[0,-1,0],F:[0,0,1],B:[0,0,-1]};
   const algorithm = "R U2 F' D L2 B' U R' F2";

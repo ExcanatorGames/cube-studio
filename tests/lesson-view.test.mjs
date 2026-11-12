@@ -2,14 +2,15 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createLessonDemo} from '../web/lesson-view.js';
 import {lessonCubeSVG} from '../web/lesson-cube.js';
-import {LESSONS,orientLessonCase} from '../web/lessons.js';
+import {LESSONS,getLesson,orientLessonCase} from '../web/lessons.js';
 import {createExercise} from '../web/lesson-scrambler.js';
 import {cubeStickers} from '../web/cube.js';
+import {lessonPhases,lessonFocus} from '../web/lesson-phases.js';
 
 const playbackCase=LESSONS[1].cases.find(item=>item.id==='pair-0-3-0');
 const options={...playbackCase,...createExercise('14',{varied:false,caseIds:[playbackCase.id]})};
 
-function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrientation,getScrambleMode,setupCase}={}){
+function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrientation,getScrambleMode,setupCase,focus=false,onFocus,caseHref}={}){
   const elements=new Map(),timers=new Map(),frames=new Map(),listeners=new Map();let now=0,id=0;
   const runtime={
     performance:{now:()=>now},matchMedia:()=>({matches:reduced}),
@@ -21,7 +22,7 @@ function demo({reduced=false,lesson=LESSONS[1],exercise=options,getScrambleOrien
     return elements.get(selector);
   };
   const root={innerHTML:'',querySelector:get,querySelectorAll:()=>[],contains:()=>true,addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);},replaceChildren(){this.innerHTML='';}};
-  const view=createLessonDemo(root,{...lesson,case:exercise},runtime,{getScrambleOrientation,getScrambleMode,setupCase});
+  const view=createLessonDemo(root,{...lesson,case:exercise},runtime,{getScrambleOrientation,getScrambleMode,setupCase,focus,onFocus,caseHref});
   return {view,get,root,frames,timers,
     click(dataset){listeners.get('click')?.({target:{closest:()=>({dataset})}});},
     speed(value){const input=get('#lesson-animation-speed');input.value=String(value);listeners.get('input')?.({target:input});},
@@ -125,10 +126,9 @@ test('both ready-pair directions play their insertion algorithms through to the 
   }
 });
 
-test('pairing playback keeps the cube and move controls without explanatory prose',()=>{
+test('pairing playback follows the displayed solution move by move in both cross positions',()=>{
   const lesson=LESSONS[1],exercise=lesson.cases.find(item=>item.id==='pair-0-0-0');
   const d=demo({reduced:true,lesson,exercise});
-  assert.doesNotMatch(d.root.innerHTML,/lesson-move-phase/);
   d.click({action:'next'});
   assert.equal(d.svg(),lessonCubeSVG(exercise.setup+' R',exercise));
   d.view.setOrientation('white-top');
@@ -161,12 +161,15 @@ test('Play leaves a reading pause between turns and stops at the last completed 
   const d=demo();d.click({action:'play'});
   d.tick(599);assert.equal(d.svg(),expected(options.setup));
   d.tick(1);
-  const count=options.solution.split(' ').length;
+  const count=options.solution.split(' ').length,steps=lessonPhases(options);
+  assert.deepEqual(steps.map(phase=>phase.end),[4,8]);
   for(let i=0;i<count;i++){
     d.tick(240);
     d.tick(240);
     assert.equal(d.svg(),expected([options.setup,...options.solution.split(' ').slice(0,i+1)].join(' ')));
-    if(i<count-1){const rest=d.svg();d.tick(469);assert.equal(d.svg(),rest);d.tick(1);}
+    // The pause doubles where one step of the solution ends.
+    const pause=steps.some(phase=>phase.end===i+1)?940:470;
+    if(i<count-1){const rest=d.svg();d.tick(pause-1);assert.equal(d.svg(),rest);d.tick(1);}
   }
   assert.equal(d.get('[data-action="play"]').textContent,'Play');
   assert.equal(d.frames.size+d.timers.size,0);
@@ -265,4 +268,91 @@ test('changing speed during a pending pause does not leave an extra scheduled mo
   d.click({action:'play'});d.tick(240);d.tick(2000);
   assert.equal(d.svg(),expected(options.setup+' U'));
   assert.equal(d.frames.size+d.timers.size,0);
+});
+
+const strip=d=>d.get('.lesson-moves').innerHTML;
+const note=d=>d.get('.lesson-phase-note').innerHTML;
+
+test('the solution is shown as named steps with the case each one leaves',()=>{
+  const d=demo({reduced:true,caseHref:id=>'/case/'+id});
+  // U R U2 R' joins the pair; U R U' R' inserts it.
+  assert.equal(strip(d).match(/data-phase=/g).length,2);
+  assert.equal(strip(d).match(/<span/g).length,8,'move tokens stay the only spans');
+  assert.match(strip(d),/data-phase="0"[^>]*aria-current="true"/);
+  assert.match(strip(d),/<small>Pair up<\/small>/);
+  assert.match(strip(d),/<small>Insert<\/small>/);
+  assert.match(strip(d),/<a class="lesson-phase-case" data-reduce-case="ready-right" href="\/case\/ready-right"/);
+  assert.match(strip(d),/<small>Easy 1<\/small>/);
+  assert.match(strip(d),/class=" *align"[^>]*>U</,'the turn that lines up is marked');
+  assert.equal(d.get('.lesson-phase-note').hidden,false);
+  // Narrow layouts show the case in the note instead of a tile.
+  assert.equal(note(d),'<strong>Pair up.</strong> Line up, then join the corner and edge in the top layer.'+
+    '<a class="lesson-phase-leaves" data-reduce-case="ready-right" href="/case/ready-right" title="This step leaves Easy 1 · Ready right" aria-label="This step leaves Easy 1 · Ready right">Leaves <b>Easy 1</b></a>');
+  for(let i=0;i<4;i++)d.click({action:'next'});
+  assert.match(strip(d),/class="lesson-phase done" data-phase="0"/);
+  assert.match(strip(d),/data-phase="1"[^>]*aria-current="true"/);
+  assert.match(strip(d),/class="lesson-phase-case here"/,'the cube now shows the case the step left');
+  assert.equal(note(d),'<strong>Insert.</strong> Line up, then put the joined pair into its slot.');
+  for(let i=0;i<4;i++)d.click({action:'next'});
+  assert.doesNotMatch(strip(d),/aria-current="true"/);
+  assert.equal(note(d),'<strong>Solved.</strong> The pair is in its slot.');
+  d.view.setOrientation('white-top');
+  assert.ok(note(d).startsWith('<strong>Pair up.</strong> Line up, then join the corner and edge in the bottom layer.<a '));
+  assert.match(strip(d),/class=" *align"[^>]*>D</);
+});
+
+test('a step without a link target still names the case it leaves',()=>{
+  const d=demo({reduced:true});
+  assert.match(strip(d),/<div class="lesson-phase-case" data-reduce-case="ready-right" title=/);
+  assert.doesNotMatch(strip(d),/href=/);
+  assert.match(note(d),/<em class="lesson-phase-leaves" data-reduce-case="ready-right" title=/);
+  assert.doesNotMatch(note(d),/href=/);
+  assert.equal(strip(d).match(/<span/g).length,8);
+});
+
+test('choosing a step replays only that step and then stops',()=>{
+  const d=demo({reduced:true});
+  d.click({phase:'1'});
+  assert.equal(d.svg(),expected(options.setup+" U R U2 R'"),'jumps to the start of the step');
+  d.tick(300);assert.equal(d.svg(),expected(options.setup+" U R U2 R' U"));
+  d.tick(470*3);assert.equal(d.svg(),expected(options.setup+' '+options.solution));
+  assert.equal(d.frames.size+d.timers.size,0);
+  d.click({phase:'0'});d.tick(300+470*3);
+  assert.equal(d.svg(),expected(options.setup+" U R U2 R'"));
+  d.tick(5000);
+  assert.equal(d.svg(),expected(options.setup+" U R U2 R'"),'stops where the step ends');
+  assert.equal(d.get('[data-action="play"]').textContent,'Play');
+  assert.equal(d.frames.size+d.timers.size,0);
+  // Play then continues with the rest of the solution.
+  d.click({action:'play'});d.tick(600+470*3);
+  assert.equal(d.svg(),expected(options.setup+' '+options.solution));
+});
+
+test('focus dims everything except the pair, the cross and the centers, and can be turned off',()=>{
+  const changes=[],d=demo({reduced:true,focus:true,onFocus:value=>changes.push(value)});
+  const focused=alg=>lessonCubeSVG(alg,{...options,focus:lessonFocus(options.target)});
+  assert.equal(d.svg(),focused(options.setup));
+  assert.match(d.svg(),/data-dim/);
+  assert.equal(d.get('[data-action="focus"]').hidden,false);
+  assert.equal(d.get('[data-action="focus"]').attrs['aria-pressed'],'true');
+  d.click({action:'next'});
+  assert.equal(d.svg(),focused(options.setup+' U'));
+  d.click({action:'focus'});
+  assert.deepEqual(changes,[false]);
+  assert.equal(d.svg(),expected(options.setup+' U'),'the move in progress is kept');
+  assert.doesNotMatch(d.svg(),/data-dim/);
+  assert.equal(d.get('[data-action="focus"]').attrs['aria-pressed'],'false');
+  d.click({action:'focus'});
+  assert.deepEqual(changes,[false,true]);
+  assert.equal(d.svg(),focused(options.setup+' U'));
+});
+
+test('last-layer algorithms keep a plain row of moves without steps or focus',()=>{
+  const lesson=getLesson('ll'),exercise=lesson.cases[0];
+  const d=demo({reduced:true,lesson,exercise,focus:true});
+  assert.doesNotMatch(strip(d),/data-phase|lesson-phase/);
+  assert.equal(strip(d).match(/<span/g).length,exercise.solution.split(' ').length);
+  assert.equal(d.get('.lesson-phase-note').hidden,true);
+  assert.equal(d.get('[data-action="focus"]').hidden,true);
+  assert.doesNotMatch(d.svg(),/data-dim/);
 });
