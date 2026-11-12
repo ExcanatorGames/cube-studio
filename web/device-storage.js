@@ -168,6 +168,7 @@ export function validateSnapshot(value) {
     lessonScrambleMode: (v) => ['random', 'setup'].includes(v),
     crossPosition: (v) => ['top', 'bottom'].includes(v),
     lessonSpeed: (v) => Number.isFinite(v) && v >= 0.5 && v <= 4,
+    lessonFocus: (v) => typeof v === 'boolean',
   };
   // Retired setting: it never changed anything.
   delete snapshot.settings.solveColors;

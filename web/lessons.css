@@ -73,8 +73,8 @@ body.focus-mode #lesson-panel-practice .lesson-workspace{display:block;height:au
 .lesson-cube{grid-column:1;grid-row:2;min-width:0;min-height:0;height:100%;display:flex;align-items:center;justify-content:center}
 .lesson-cube svg{display:block;width:100%;height:100%;max-height:min(56dvh,600px)}
 .lesson-demo-guide{grid-column:2;grid-row:1/3;min-width:0;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-.lesson-playback{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;max-width:280px;gap:6px}
-.lesson-playback button{min-height:44px;min-width:0;padding:6px;font-size:14px}
+.lesson-playback{display:flex;width:100%;max-width:350px;gap:6px}
+.lesson-playback button{flex:1 1 0;min-height:44px;min-width:0;padding:6px;font-size:14px}
 #lesson-help[aria-pressed="true"],#fullscreen-track[aria-pressed="true"],.timer-split-control:has(#fullscreen-track[aria-pressed="true"]){--toggle-background:#173c2c;--toggle-border:#3e976b;--toggle-color:#a2efbe}
 #lesson-help[aria-pressed="false"],#fullscreen-track[aria-pressed="false"],.timer-split-control:has(#fullscreen-track[aria-pressed="false"]){--toggle-background:#44242c;--toggle-border:#a45262;--toggle-color:#ffc1c9}
 #lesson-help[aria-pressed],#fullscreen-track[aria-pressed]{background:var(--toggle-background);border-color:var(--toggle-border);color:var(--toggle-color)}
@@ -82,6 +82,33 @@ body.focus-mode #lesson-panel-practice .lesson-workspace{display:block;height:au
 .lesson-moves span{display:inline-block;min-width:38px;padding:6px;text-align:center;border:1px solid transparent;border-radius:6px}
 .lesson-moves .done{color:#91a7c8}
 .lesson-moves .current{background:#304669;border-color:#adbeef;color:#fff}
+.lesson-moves .align{color:#8fa0bb}
+.lesson-moves:has(.lesson-phase){font-size:22px}
+/* An F2L solution as steps: each step is a button holding its moves and name. */
+.lesson-phase{display:block;min-width:0;min-height:44px;padding:4px 8px 5px;border:1px solid #35435b;border-radius:10px;background:#1d2636;color:inherit;font:inherit;text-align:center;cursor:pointer}
+.lesson-phase:hover{background:#26354c;border-color:#91a7e7}
+.lesson-phase:focus-visible{outline:2px solid #dce7ff;outline-offset:2px}
+.lesson-phase.active{background:#202d43;border-color:#adbeef}
+.lesson-moves .lesson-phase span{min-width:0;padding:4px 2px}
+.lesson-phase small{display:block;font:600 11px/1.4 system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#acbad0}
+.lesson-phase.active small{color:#dce7ff}
+/* The case a step leaves, between that step and the next one. */
+.lesson-phase-case{display:grid;grid-template-columns:auto auto auto;grid-template-rows:auto auto;place-items:center;column-gap:4px;min-width:0;padding:2px;border:1px solid transparent;border-radius:8px;color:#acbad0;font:600 11px/1.3 system-ui,sans-serif;text-decoration:none;white-space:nowrap}
+.lesson-phase-case::before,.lesson-phase-case::after{content:'→';grid-row:1/3;color:#6f819f;font-size:14px}
+.lesson-phase-case::after{grid-column:3}
+.lesson-phase-case i{grid-column:2;display:block;width:36px;aspect-ratio:204/212}
+.lesson-phase-case small{grid-column:2;font:inherit}
+.lesson-phase-case svg{display:block;width:100%;height:100%}
+a.lesson-phase-case:hover{background:#26354c;color:#fff}
+a.lesson-phase-case:focus-visible{outline:2px solid #dce7ff;outline-offset:2px}
+.lesson-phase-case.here{border-color:#adbeef;color:#fff}
+/* Narrow layouts name the case in the note instead of a tile. */
+.lesson-phase-leaves{display:none;margin-left:4px;font-style:normal;color:#adbeef;text-decoration:none;white-space:nowrap}
+.lesson-phase-leaves b{color:#dce7ff}
+a.lesson-phase-leaves::after{content:' ›'}
+.lesson-section .lesson-phase-note{max-width:440px;min-height:2.8em;margin:0;font-size:14px;line-height:1.4;color:#c9d4e7;text-wrap:balance}
+.lesson-phase-note strong{color:#fff}
+.lesson-focus[aria-pressed="true"]{background:#2b3b58;border-color:#adbeef;color:#fff}
 .lesson-speed{display:flex;flex-direction:column;align-items:stretch;min-width:0;max-width:440px;width:100%;margin:6px auto 0;padding-top:10px;border-top:1px solid #35435b;color:#acbad0;font-size:12px}
 .lesson-speed-heading{display:flex;justify-content:center;align-items:baseline;gap:8px}
 .lesson-speed input{appearance:none;min-width:0;width:100%;min-height:44px;margin:0;padding:0;border:0;background:transparent;accent-color:#adbeef;cursor:pointer;outline-offset:-2px}
@@ -155,7 +182,17 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
  body:not(.focus-mode) #lesson-practice-mount .timer-instruction kbd{font-size:9px;padding:1px 5px}
  body:not(.focus-mode) #lesson-practice-mount .has-solve-feedback .clock{font-size:36px}
 }
+@media(min-width:741px) and (max-height:800px){
+ .lesson-demo-guide{gap:6px}
+ .lesson-moves{margin:0}
+ .lesson-section .lesson-phase-note{min-height:0}
+}
 @media(min-width:741px) and (max-height:600px){
+ .lesson-moves:has(.lesson-phase){font-size:18px;gap:4px 16px}
+ .lesson-phase{position:relative;padding:2px 6px 3px}
+ .lesson-phase-case{display:none}
+ .lesson-phase~.lesson-phase::before{content:"→";position:absolute;left:-13px;top:50%;translate:0 -50%;color:#6f819f;font:600 12px/1 system-ui,sans-serif}
+ .lesson-phase-leaves{display:inline}
  .lesson-heading{grid-template-columns:auto minmax(0,1fr);gap:10px}
  .lesson-heading .lessons-title{font-size:18px}
  #lesson-detail{gap:6px}
@@ -180,6 +217,14 @@ body.focus-mode main:has(#lesson-detail:not([hidden])){padding:0}
  .lesson-demo-guide{grid-column:1;grid-row:3;width:100%;max-height:none;overflow:hidden;gap:6px}
  .lesson-moves{gap:2px;font-size:18px;margin:2px 0}
  .lesson-moves span{min-width:24px;padding:3px 2px}
+ .lesson-moves:has(.lesson-phase){font-size:clamp(11.5px,4.2cqw,15px);gap:4px 12px}
+ .lesson-phase{position:relative;padding:2px 3px 3px}
+ .lesson-moves .lesson-phase span{padding:3px 0}
+ .lesson-phase small{font-size:9px;letter-spacing:.02em}
+ .lesson-phase-case{display:none}
+ .lesson-phase~.lesson-phase::before{content:"→";position:absolute;left:-12px;top:50%;translate:0 -50%;color:#6f819f;font:600 12px/1 system-ui,sans-serif}
+ .lesson-phase-leaves{display:inline}
+ .lesson-section .lesson-phase-note{font-size:12px;min-height:2.6em}
  .lesson-playback{gap:4px}
  .lesson-playback button{padding:4px 2px;font-size:12px}
 }
@@ -215,7 +260,7 @@ body.focus-mode #practice-case-picker{display:none}
 body.focus-mode #lesson-panel-practice{display:block}
 
 @media(max-width:740px) and (max-height:700px){
- .lesson-section{grid-template-rows:auto minmax(350px,1fr);overflow-y:auto}
+ .lesson-section{grid-template-rows:auto minmax(410px,1fr);overflow-y:auto}
  #lesson-case-row .lesson-case-tile,.case-strip-tile{flex-basis:60px;width:60px;padding:4px;font-size:10px}
  #lesson-case-row .lesson-case-thumbnail,.case-strip-tile .lesson-case-thumbnail{width:48px}
  .lesson-demo-guide{gap:4px}

@@ -1121,7 +1121,24 @@ const chromeObserver = new ResizeObserver(() =>
 chromeObserver.observe($('.sidebar'));
 addEventListener('resize', updateTimerHeight);
 let officialScrambler = createScrambler();
+// The case a step leaves opens as a demonstration, in its own group if needed.
+function lessonCaseRoute(id) {
+  if (currentLesson()?.cases.some((item) => item.id === id))
+    return { ...currentRoute(), page: 'lessons', tab: 'lesson', demoCaseId: id };
+  const option = practiceOptions.find((group) => group.cases.some((item) => item.id === id));
+  return option && { page: 'lessons', lessonId: option.lessonId, tab: 'lesson', title: option.fullTitle,
+    scopeCaseIds: option.cases.map((item) => item.id), demoCaseId: id };
+}
 $('#lesson-demo').onclick = (e) => {
+  const left = e.target.closest('a[data-reduce-case]');
+  if (left) {
+    const route = !busy() && lessonCaseRoute(left.dataset.reduceCase);
+    if (!route || !routeClick(e)) return;
+    if (route.lessonId === lessonSession.context.lessonId && route.scopeCaseIds === lessonSession.context.scopeCaseIds)
+      selectDemoCase(route.demoCaseId);
+    else openLesson(route.lessonId, route);
+    return;
+  }
   if (!e.target.closest('[data-lesson-retry]')) return;
   if (lessonSession.context.exercise) requestLessonDemo();
   else newScramble();
@@ -1151,6 +1168,15 @@ function showDemo(demoExercise) {
     onSpeed(speed) {
       settings = { ...settings, lessonSpeed: speed };
       persist();
+    },
+    focus: settings.lessonFocus !== false,
+    onFocus(focus) {
+      settings = { ...settings, lessonFocus: focus };
+      persist();
+    },
+    caseHref(id) {
+      const route = lessonCaseRoute(id);
+      return route ? routePath(route) : null;
     },
   });
 }

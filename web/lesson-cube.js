@@ -20,7 +20,11 @@ function rotate(v,axis,angle){
   return v.map((n,i)=>i===axis?n:n*Math.cos(angle)+cross[i]*Math.sin(angle));
 }
 
-export function lessonCubeSVG(alg='',{orientation='white-top',target=[],move='',progress=0}={}){
+// Pieces outside the focus keep a trace of their color on the dark plastic.
+const dimmed=color=>'#'+[1,3,5].map((at,i)=>Math.round(parseInt(color.slice(at,at+2),16)*.28+[0x1b,0x22,0x30][i]*.72).toString(16).padStart(2,'0')).join('');
+
+/** `focus` lists the cubies to keep in full color; the rest are dimmed. */
+export function lessonCubeSVG(alg='',{orientation='white-top',target=[],move='',progress=0,focus=null}={}){
   const token=move&&/^([URFDLB])(2|')?$/.exec(move);
   if(move&&!token)throw Error('Unsupported cube move');
   progress=Math.max(0,Math.min(1,progress));
@@ -54,7 +58,8 @@ export function lessonCubeSVG(alg='',{orientation='white-top',target=[],move='',
       svg+=`<g data-face="${face}"><polygon points="${corners(.5)}" fill="#10141c" stroke="#10141c" stroke-width="0.3"/>`;
       const sticker=cubie.stickers.find(s=>dot(s.normal,normal)===1);
       if(sticker){
-        svg+=`<polygon data-cubie="${sticker.cubie}" data-sticker="${sticker.cubie}:${sticker.face}" points="${corners(.445)}" fill="${colors[sticker.face]}" stroke="#10141c" stroke-width="1" stroke-linejoin="round"/>`;
+        const dim=!!focus&&!focus.includes(sticker.cubie);
+        svg+=`<polygon data-cubie="${sticker.cubie}" data-sticker="${sticker.cubie}:${sticker.face}"${dim?' data-dim':''} points="${corners(.445)}" fill="${dim?dimmed(colors[sticker.face]):colors[sticker.face]}" stroke="#10141c" stroke-width="1" stroke-linejoin="round"/>`;
         if(target.includes(sticker.cubie)){
           const ring=Array.from({length:24},(_,i)=>point(vertex(.14*Math.cos(i*Math.PI/12),.14*Math.sin(i*Math.PI/12)))).join(' ');
           svg+=`<polygon data-target="${sticker.cubie}" points="${ring}" fill="#10141c" stroke="white" stroke-width="1.5"/>`;

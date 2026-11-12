@@ -34,6 +34,20 @@ Each stage has a goal: edges oriented; all pieces oriented; corners permuted rel
 
 Practice gives one enabled case per stage that has an enabled case, in stage order, after four F2L pairs when F2L cases are also enabled. The background is solved up to the latest enabled stage; the inverse algorithms are applied in reverse order, then the F2L inverse insertions. Each step gets a random top turn before it, and the PLL Edges step a random final turn so that its hint finishes the cube. Of the alignments that reach the same stage goal from the exposed state, hints use the shortest, so symmetric cases such as H perm need no extra U2. A last-layer step after F2L pairs is rotated to the slot the last pair left at the front right; with the cross on top, its hint starts with `z2`. Practice with last-layer steps stores `completion: 'practice-steps'`; F2L-only practice keeps `four-insertions`. Comparisons require every case of an earlier attempt to be enabled now and the same set of step kinds (F2L pairs and each last-layer stage).
 
+## Demonstration steps and focus
+
+An F2L demonstration shows its solution as steps instead of a flat row of moves, so the learner remembers a few purposes instead of every turn. `lessonPhases` in [lesson-phases.js](web/lesson-phases.js) derives them from the displayed exercise; nothing is written per case.
+
+- **A step** is an optional turn of the free layer to line up, followed by one slot trigger: a side turn, free-layer turns, and the side turn undone. Every F2L solution, including `alignmentSolutions`, must split this way. An algorithm that does not (a last-layer algorithm, for example) has no steps and keeps the plain row of moves.
+- **The name** comes from what the step does to the pair, read from the cube before and after it: Insert (a joined pair goes in), Pair & insert (the pieces join on the way in), Pair up (they join in the free layer), Split (adjacent pieces separate), Turn corner (white stops facing the free layer), Take out, Take out & pair, Park (a piece goes into the slot for now), Swap, and Set up for anything else. The note under the steps spells this out; it says “top layer” or “bottom layer” to match the cross position.
+- **The case a step leaves** is found by comparing the pair's position, ignoring turns of the free layer, with the 41 catalog cases. It appears between the steps as a tile with the case's canonical preview, linking to that case's demonstration. Every case reduces to an Easy Insert this way. Narrow layouts name the case in the note instead of a tile.
+- **Playback** rests twice as long where a step ends. Choosing a step replays only that step and stops; Play then continues with the rest. The arrow buttons still move one turn at a time.
+- **Focus** dims every piece except the pair, the white cross and the six centers (`lessonFocus`), so the pieces to follow stand out from a random background. It is on by default, applies only to pair demonstrations, and is remembered on the device as `settings.lessonFocus`. Case previews and practice cubes are never dimmed.
+
+Steps are computed in the displayed frame: they follow the solution into any slot, alignment and cross position. In the strip, moves are the only `<span>` elements; steps are buttons and the case tiles are links.
+
+When a new F2L solution is added, check its steps in [lesson-phases.test.mjs](tests/lesson-phases.test.mjs): the last step must solve the pair, and each earlier step must leave a catalog case that the remaining moves solve.
+
 ## What a lesson contains
 
 A lesson definition has a stable ID, title, summary, introduction, and a `cases` array. The `case` property aliases the first case for thumbnails and compatibility. Each case has its own stable ID, descriptive name, recognition group and description, canonical setup and solution, solving orientation, and target cubie identities. A case's optional `alignmentSolutions` map supplies shorter full solutions for specific top-layer alignments (`1`: U, `2`: U2, `3`: U'). A case's `setup` is always the exact inverse of its canonical `solution`, so performing the setup moves and then the solution on a solved cube returns it to solved. Keep existing IDs and the physical case stable when improving a solution: the new solution may change the setup moves, but the setup must still place both target pieces exactly as before, so saved attempts and practice selections remain usable.
@@ -149,6 +163,7 @@ The single-pair demonstration generator keeps the canonical cross and target pai
 Relevant files:
 
 - [Lesson definitions and frame conversion](web/lessons.js).
+- [Demonstration steps and focus pieces](web/lesson-phases.js).
 - [Constrained state generation and case variation](web/lesson-scrambler.js).
 - [Worker generation requests](web/lesson-scramble-worker.js).
 - [Local cube solver](web/cube-solver.js).
@@ -167,6 +182,7 @@ Validate the resulting cube states, not just the syntax of their move strings:
 - Each case's setup followed by its solution returns a solved cube to solved.
 - Each group lists mirror cases next to each other, right-hand version first.
 - Solutions do not force an unnecessary ready-pair stage, and contain no redundant adjacent turns.
+- Every F2L solution and alignment splits into steps, the last step solves the pair, and each case a step leaves is solved by the remaining moves.
 - Canonical solutions and practice alignments are no longer than an independently searched route using the basic slot triggers above.
 - All advertised slots, color pairs, and alignments are covered.
 - Top-layer case coverage is complete and has no duplicates after normalizing the corner above front-right.
@@ -180,4 +196,4 @@ Validate the resulting cube states, not just the syntax of their move strings:
 
 Use seeded random sources for reproducible state tests. Where practical, verify scramble outcomes with an independent cube simulator, rather than relying solely on the generator's own solver.
 
-Existing coverage is in [lessons.test.mjs](tests/lessons.test.mjs), [lesson-cube.test.mjs](tests/lesson-cube.test.mjs), and [lesson-timer.test.mjs](tests/lesson-timer.test.mjs). Run `npm test`, `npm run build`, and `npm run validate` before releasing a new lesson.
+Existing coverage is in [lessons.test.mjs](tests/lessons.test.mjs), [lesson-phases.test.mjs](tests/lesson-phases.test.mjs), [lesson-cube.test.mjs](tests/lesson-cube.test.mjs), [lesson-view.test.mjs](tests/lesson-view.test.mjs), and [lesson-timer.test.mjs](tests/lesson-timer.test.mjs). Run `npm test`, `npm run build`, and `npm run validate` before releasing a new lesson.
